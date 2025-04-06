@@ -319,7 +319,7 @@ export async function getFile(path: string, urlPrefix: string = '', headers?: Re
     return new Promise((resolve, _) => {
         fetchPost(url, data, (content: any) => {
             resolve(content)
-        });
+        }, headers);
     });
 }
 
