@@ -20,7 +20,11 @@ export default class BetterSyncPlugin extends Plugin {
         this.settingsManager.setupSettings();
 
         let workspaceDir = (await getWorkspaceInfo()).workspaceDir;
-        this.syncManager = new SyncManager(this, workspaceDir);
+
+        let siyuanUrl = this.settingsManager.getPref("siyuanUrl");
+        let siyuanKey = this.settingsManager.getPref("siyuanAPIKey");
+
+        this.syncManager = new SyncManager(this, workspaceDir, [[siyuanUrl, siyuanKey]]);
 
         const frontEnd = getFrontend();
         this.isMobile = frontEnd === "mobile" || frontEnd === "browser-mobile";
