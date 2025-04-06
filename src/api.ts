@@ -24,6 +24,10 @@ export async function requestWithHeaders(url: string, data: any, headers?: Recor
         },
         body: JSON.stringify(data)
     };
+
+    if (data && data instanceof FormData)
+        init.body = data;
+
     const response = await (await fetch(url, init)).json() as IWebSocketData;
     return response.code === 0 ? response.data : null;
 };
