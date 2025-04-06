@@ -5,10 +5,12 @@ import {
 } from "siyuan";
 import "@/index.scss";
 import { SettingsManager } from "./settings";
+import { SyncManager } from "./sync";
 
 export default class PluginSample extends Plugin {
     private isMobile: boolean;
     private settingsManager: SettingsManager;
+    private syncManager: SyncManager;
 
     async onload() {
         console.log("onload");
