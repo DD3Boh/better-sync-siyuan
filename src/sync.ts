@@ -54,6 +54,47 @@ export class SyncManager {
         return filesMap;
     }
 
+    async syncWithRemote() {
+        // TODO: Add support for multiple remotes
+        let url = this.urlToKeyPairs[0][0];
+        let key = this.urlToKeyPairs[0][1];
+
+        if (!url || !key) {
+            console.error("Siyuan URL or API Key is not set.");
+            return;
+        }
+
+        let notebooks = await this.getNotebooks(url, key);
+
+        for (const notebook of notebooks) {
+            let remoteFiles = await this.getDocsRecursively(notebook.id, "/", url, key);
+            console.log("remoteFiles: ", remoteFiles);
+
+            let localFiles = await this.getDocsRecursively(notebook.id, "/");
+            console.log("localFiles: ", localFiles);
+
+            // Compare localFiles and remoteFiles
+            for (const [id, file] of remoteFiles.entries()) {
+                if (!localFiles.has(id)) {
+                    console.log(`File ${file.name} (${id}) is missing locally.`);
+                }
+            }
+            for (const [id, file] of localFiles.entries()) {
+                if (!remoteFiles.has(id)) {
+                    console.log(`File ${file.name} (${id}) is missing remotely.`);
+                }
+            }
+
+            // Compare file timestamps
+            for (const [id, remoteFile] of remoteFiles.entries()) {
+                const localFile = localFiles.get(id);
+                if (localFile && remoteFile.mtime !== localFile.mtime) {
+                    console.log(`File ${remoteFile.name} (${id}) has different timestamps.`);
+                }
+            }
+        }
+    }
+
     // Utils
     getHeaders(key: string = null): Record<string, string> {
         if (!key) return {}
