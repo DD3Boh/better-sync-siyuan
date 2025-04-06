@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getFileBlob, getNotebookConf, getNotebookInfo, listDocsByPath, lsNotebooks, putFile } from "./api";
+import { getFileBlob, getNotebookConf, getNotebookInfo, listDocsByPath, lsNotebooks, putFile, readDir, setNotebookConf } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -80,24 +80,36 @@ export class SyncManager {
             console.log(`Syncing configuration for notebook ${notebook.name} (${notebook.id})`);
 
             // Get remote and local configurations
-            const remoteConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
             const localConf = await getNotebookConf(notebook.id);
+            const remoteConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
 
-            const localNotebookInfo = await getNotebookInfo(notebook.id);
-            const remoteNotebookInfo = await getNotebookInfo(notebook.id, url, this.getHeaders(key));
+            let localDir = await readDir(`/data/${notebook.id}`);
+            let remoteDir = await readDir(`/data/${notebook.id}`, url, this.getHeaders(key));
+            let localTimestamp = localDir[0].updated;
+            let remoteTimestamp = remoteDir[0].updated;
 
             // Synchronize configurations
             if (JSON.stringify(remoteConf) !== JSON.stringify(localConf)) {
                 console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) differs. Syncing...`);
 
-                if (localNotebookInfo == null || localNotebookInfo.boxInfo.mtime < remoteNotebookInfo.boxInfo.mtime) {
+                if (!localConf) {
+                    console.log(`Local configuration not found for notebook ${notebook.name} (${notebook.id}).`);
+
                     let file = new File([JSON.stringify(remoteConf, null, 2)], "conf.json");
-
                     putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
-                } else {
-                    let file = new File([JSON.stringify(localConf, null, 2)], "conf.json");
+                } else if (!remoteConf) {
+                    console.log(`Remote configuration not found for notebook ${notebook.name} (${notebook.id}).`);
 
+                    let file = new File([JSON.stringify(localConf, null, 2)], "conf.json");
                     putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
+                } else if (localTimestamp < remoteTimestamp) {
+                    console.log(`Remote configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
+
+                    setNotebookConf(notebook.id, remoteConf.conf);
+                } else if (remoteTimestamp < localTimestamp) {
+                    console.log(`Local configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
+
+                    setNotebookConf(notebook.id, localConf.conf, url, this.getHeaders(key));
                 }
 
                 console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) synced successfully.`);
