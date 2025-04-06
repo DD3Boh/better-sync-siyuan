@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getNotebookInfo, lsNotebooks } from "./api";
+import { getNotebookInfo, listDocsByPath, lsNotebooks } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -20,6 +20,26 @@ export class SyncManager {
 
     async getNotebookInfo(notebookId: string, url: string, key: string): Promise<NotebookInfo> {
         return getNotebookInfo(notebookId, url, this.getHeaders(key))
+    }
+
+    async getDocsRecursively(notebookId: string, path: string, url: string = "", key: string = ""): Promise<DocumentFiles[]> {
+        let docs = await listDocsByPath(notebookId, path, url, this.getHeaders(key))
+        let files = docs.files.slice()
+
+        // Collect all promises
+        const promises = docs.files
+            .filter(doc => doc.subFileCount > 0)
+            .map(doc => this.getDocsRecursively(notebookId, path + "/" + doc.id, url, key));
+
+        // Wait for all promises to resolve
+        const results = await Promise.all(promises);
+
+        // Add all results to files
+        results.forEach(newFiles => {
+            files.push(...newFiles);
+        });
+
+        return files;
     }
 
     // Utils
