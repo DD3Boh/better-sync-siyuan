@@ -323,6 +323,15 @@ export async function getFile(path: string, urlPrefix: string = '', headers?: Re
     });
 }
 
+export async function copyFile(src: string, dest: string, urlPrefix: string = '', headers?: Record<string, string>) {
+    let data = {
+        src: src,
+        dest: dest
+    }
+    let url = `${urlPrefix}/api/file/copyFile`;
+    return requestWithHeaders(url, data, headers);
+}
+
 export const getFileBlob = async (path: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<Blob | null> => {
     const endpoint = `${urlPrefix}/api/file/getFile`;
     let response = await fetch(endpoint, {
