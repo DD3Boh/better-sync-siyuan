@@ -10,4 +10,11 @@ export class SyncManager {
         this.localWorkspaceDir = workspaceDir;
         this.urlToKeyPairs = urlToKeyPairs;
     }
+
+    // Utils
+    getHeaders(key: string = null): Record<string, string> {
+        if (!key) return {}
+
+        return { "Authorization": `Token ${key}` }
+    }
 }
