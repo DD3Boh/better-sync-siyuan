@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getFileBlob, getNotebookInfo, listDocsByPath, lsNotebooks, putFile } from "./api";
+import { getFileBlob, getNotebookConf, getNotebookInfo, listDocsByPath, lsNotebooks, putFile } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -12,7 +12,7 @@ export class SyncManager {
         this.urlToKeyPairs = urlToKeyPairs;
     }
 
-    async getNotebooks(url: string, key: string): Promise<Notebook[]> {
+    async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
         let notebooks = await lsNotebooks(url, this.getHeaders(key))
 
         return notebooks.notebooks;
@@ -64,9 +64,34 @@ export class SyncManager {
             return;
         }
 
-        let notebooks = await this.getNotebooks(url, key);
+        let remoteNotebooks = await this.getNotebooks(url, key);
+        let localNotebooks = await this.getNotebooks();
 
-        for (const notebook of notebooks) {
+        // Create the notebook if it doesn't exist locally
+        for (const notebook of remoteNotebooks) {
+            if (!localNotebooks.some(localNotebook => localNotebook.id === notebook.id)) {
+                console.log(`Creating local notebook ${notebook.name} (${notebook.id})`);
+
+                let notebookConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
+                let file = new File([JSON.stringify(notebookConf, null, 2)], "conf.json");
+
+                putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
+            }
+        }
+
+        // Create the notebook if it doesn't exist remotely
+        for (const notebook of localNotebooks) {
+            if (!remoteNotebooks.some(remoteNotebook => remoteNotebook.id === notebook.id)) {
+                console.log(`Creating remote notebook ${notebook.name} (${notebook.id})`);
+
+                let notebookConf = await getNotebookConf(notebook.id);
+                let file = new File([JSON.stringify(notebookConf, null, 2)], "conf.json");
+
+                putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
+            }
+        }
+
+        for (const notebook of remoteNotebooks) {
             let remoteFiles = await this.getDocsRecursively(notebook.id, "/", url, key);
             console.log("remoteFiles: ", remoteFiles);
 
