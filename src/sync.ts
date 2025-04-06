@@ -1,4 +1,5 @@
 import { Plugin } from "siyuan";
+import { lsNotebooks } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -9,6 +10,12 @@ export class SyncManager {
         this.plugin = plugin;
         this.localWorkspaceDir = workspaceDir;
         this.urlToKeyPairs = urlToKeyPairs;
+    }
+
+    async getNotebooks(url: string, key: string): Promise<Notebook[]> {
+        let notebooks = await lsNotebooks(url, this.getHeaders(key))
+
+        return notebooks.notebooks;
     }
 
     // Utils
