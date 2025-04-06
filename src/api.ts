@@ -15,6 +15,18 @@ export async function request(url: string, data: any) {
     return res;
 }
 
+export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>) {
+    const init: RequestInit = {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers
+        },
+        body: JSON.stringify(data)
+    };
+    const response = await (await fetch(url, init)).json() as IWebSocketData;
+    return response.code === 0 ? response.data : null;
+};
 
 // **************************************** Noteboook ****************************************
 
