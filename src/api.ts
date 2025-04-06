@@ -459,3 +459,7 @@ export async function version(urlPrefix: string = '', headers?: Record<string, s
 export async function currentTime(urlPrefix: string = '', headers?: Record<string, string>): Promise<number> {
     return requestWithHeaders(`${urlPrefix}/api/system/currentTime`, {}, headers);
 }
+
+export async function getWorkspaceInfo(urlPrefix: string = '', headers?: Record<string, string>): Promise<any> {
+    return requestWithHeaders(`${urlPrefix}/api/system/getWorkspaceInfo`, {}, headers);
+}
