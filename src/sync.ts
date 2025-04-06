@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { lsNotebooks } from "./api";
+import { getNotebookInfo, lsNotebooks } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -16,6 +16,10 @@ export class SyncManager {
         let notebooks = await lsNotebooks(url, this.getHeaders(key))
 
         return notebooks.notebooks;
+    }
+
+    async getNotebookInfo(notebookId: string, url: string, key: string): Promise<NotebookInfo> {
+        return getNotebookInfo(notebookId, url, this.getHeaders(key))
     }
 
     // Utils
