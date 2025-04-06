@@ -18,6 +18,15 @@ export default class PluginSample extends Plugin {
 
         const frontEnd = getFrontend();
         this.isMobile = frontEnd === "mobile" || frontEnd === "browser-mobile";
+
+        this.addTopBar({
+            icon: "iconCalendar",
+            title: this.i18n.topBarIconDesc,
+            position: "right",
+            callback: () => {
+                // TODO: Go to weekly note
+            }
+        });
     }
 
     onLayoutReady() {
