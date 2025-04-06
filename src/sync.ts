@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getNotebookInfo, listDocsByPath, lsNotebooks } from "./api";
+import { getFileBlob, getNotebookInfo, listDocsByPath, lsNotebooks, putFile } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -100,5 +100,11 @@ export class SyncManager {
         if (!key) return {}
 
         return { "Authorization": `Token ${key}` }
+    }
+
+    async getSYFileBlob(filePath: string, url: string = "", key: string = ""): Promise<Blob> {
+        let file = await getFileBlob(filePath, url, this.getHeaders(key));
+
+        return file
     }
 }
