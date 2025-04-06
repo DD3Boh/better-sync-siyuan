@@ -7,7 +7,7 @@ import "@/index.scss";
 import { SettingsManager } from "./settings";
 import { SyncManager } from "./sync";
 
-export default class PluginSample extends Plugin {
+export default class BetterSyncPlugin extends Plugin {
     private isMobile: boolean;
     private settingsManager: SettingsManager;
     private syncManager: SyncManager;
