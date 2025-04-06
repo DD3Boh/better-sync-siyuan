@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getFileBlob, getNotebookConf, getNotebookInfo, listDocsByPath, lsNotebooks, putFile } from "./api";
+import { getFileBlob, getNotebookConf, listDocsByPath, lsNotebooks, putFile } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -16,10 +16,6 @@ export class SyncManager {
         let notebooks = await lsNotebooks(url, this.getHeaders(key))
 
         return notebooks.notebooks;
-    }
-
-    async getNotebookInfo(notebookId: string, url: string, key: string): Promise<NotebookInfo> {
-        return getNotebookInfo(notebookId, url, this.getHeaders(key))
     }
 
     async getDocsRecursively(notebookId: string, path: string, url: string = "", key: string = ""): Promise<Map<string, DocumentFiles>> {
@@ -104,7 +100,7 @@ export class SyncManager {
                     console.log(`File ${documentFile.name} (${id}) is missing locally.`);
 
                     let filePath = `/data/${notebook.id}${documentFile.path}`
-                    let syFile = await this.getSYFileBlob(filePath, url, key)
+                    let syFile = await getFileBlob(filePath, url, this.getHeaders(key))
 
                     let file = new File([syFile], documentFile.name)
                     putFile(filePath, false, file)
@@ -118,7 +114,7 @@ export class SyncManager {
                     console.log(`File ${documentFile.name} (${id}) is missing remotely.`);
 
                     let filePath = `/data/${notebook.id}${documentFile.path}`
-                    let syFile = await this.getSYFileBlob(filePath)
+                    let syFile = await getFileBlob(filePath)
 
                     let file = new File([syFile], documentFile.name)
                     putFile(filePath, false, file, url, this.getHeaders(key))
@@ -142,11 +138,5 @@ export class SyncManager {
         if (!key) return {}
 
         return { "Authorization": `Token ${key}` }
-    }
-
-    async getSYFileBlob(filePath: string, url: string = "", key: string = ""): Promise<Blob> {
-        let file = await getFileBlob(filePath, url, this.getHeaders(key));
-
-        return file
     }
 }
