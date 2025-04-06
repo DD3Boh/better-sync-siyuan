@@ -33,7 +33,7 @@ export default class BetterSyncPlugin extends Plugin {
             icon: "iconCalendar",
             title: this.i18n.topBarIconDesc,
             position: "right",
-            callback: async () => {}
+            callback: async () => { this.syncManager.syncWithRemote(); },
         });
     }
 
