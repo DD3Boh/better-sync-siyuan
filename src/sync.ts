@@ -74,14 +74,31 @@ export class SyncManager {
             console.log("localFiles: ", localFiles);
 
             // Compare localFiles and remoteFiles
-            for (const [id, file] of remoteFiles.entries()) {
+            for (const [id, documentFile] of remoteFiles.entries()) {
                 if (!localFiles.has(id)) {
-                    console.log(`File ${file.name} (${id}) is missing locally.`);
+                    console.log(`File ${documentFile.name} (${id}) is missing locally.`);
+
+                    let filePath = `/data/${notebook.id}${documentFile.path}`
+                    let syFile = await this.getSYFileBlob(filePath, url, key)
+
+                    let file = new File([syFile], documentFile.name)
+                    putFile(filePath, false, file)
+
+                    console.log(`File ${documentFile.name} (${id}) downloaded successfully.`);
                 }
             }
-            for (const [id, file] of localFiles.entries()) {
+
+            for (const [id, documentFile] of localFiles.entries()) {
                 if (!remoteFiles.has(id)) {
-                    console.log(`File ${file.name} (${id}) is missing remotely.`);
+                    console.log(`File ${documentFile.name} (${id}) is missing remotely.`);
+
+                    let filePath = `/data/${notebook.id}${documentFile.path}`
+                    let syFile = await this.getSYFileBlob(filePath)
+
+                    let file = new File([syFile], documentFile.name)
+                    putFile(filePath, false, file, url, this.getHeaders(key))
+
+                    console.log(`File ${documentFile.name} (${id}) uploaded successfully.`);
                 }
             }
 
