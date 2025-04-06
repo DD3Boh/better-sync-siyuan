@@ -22,9 +22,14 @@ export class SyncManager {
         return getNotebookInfo(notebookId, url, this.getHeaders(key))
     }
 
-    async getDocsRecursively(notebookId: string, path: string, url: string = "", key: string = ""): Promise<DocumentFiles[]> {
+    async getDocsRecursively(notebookId: string, path: string, url: string = "", key: string = ""): Promise<Map<string, DocumentFiles>> {
         let docs = await listDocsByPath(notebookId, path, url, this.getHeaders(key))
-        let files = docs.files.slice()
+        let filesMap = new Map<string, DocumentFiles>();
+
+        // Add current level files to the map
+        docs.files.forEach(file => {
+            filesMap.set(file.id, file);
+        });
 
         // Collect all promises
         const promises = docs.files
@@ -34,12 +39,14 @@ export class SyncManager {
         // Wait for all promises to resolve
         const results = await Promise.all(promises);
 
-        // Add all results to files
-        results.forEach(newFiles => {
-            files.push(...newFiles);
+        // Merge all result maps into the main map
+        results.forEach(resultMap => {
+            for (const [id, file] of resultMap.entries()) {
+                filesMap.set(id, file);
+            }
         });
 
-        return files;
+        return filesMap;
     }
 
     // Utils
