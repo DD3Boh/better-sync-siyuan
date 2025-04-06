@@ -26,6 +26,11 @@ export class SyncManager {
         let docs = await listDocsByPath(notebookId, path, url, this.getHeaders(key))
         let filesMap = new Map<string, DocumentFiles>();
 
+        if (!docs || !docs.files) {
+            console.log("No files found or invalid response:", docs);
+            return filesMap;
+        }
+
         // Add current level files to the map
         docs.files.forEach(file => {
             filesMap.set(file.id, file);
