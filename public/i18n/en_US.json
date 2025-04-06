@@ -1,3 +1,7 @@
 {
-    "topBarIconDesc": "Top bar icon"
+    "topBarIconDesc": "Top bar icon",
+    "siyuanUrl": "SiYuan URL",
+    "siyuanUrlDesc": "The other device's siyuan instance URL. eg: http://192.168.1.45:6806",
+    "siyuanAPIKey": "SiYuan API Key",
+    "siyuanApiKeyDesc": "SiYuan API Key for the other device"
 }

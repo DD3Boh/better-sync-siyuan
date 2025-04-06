@@ -17,6 +17,34 @@ export class SettingsManager {
     }
 
     setupSettings() {
+        this.settingUtils.addItem({
+            key: "siyuanUrl",
+            value: "",
+            type: "textinput",
+            title: this.plugin.i18n.siyuanUrl,
+            description: this.plugin.i18n.siyuanUrlDesc,
+            action: {
+                callback: () => {
+                    let value = this.settingUtils.takeAndSave("siyuanUrl");
+                    console.log(value);
+                }
+            }
+        });
+
+        this.settingUtils.addItem({
+            key: "siyuanAPIKey",
+            value: "",
+            type: "textinput",
+            title: this.plugin.i18n.siyuanAPIKey,
+            description: this.plugin.i18n.siyuanAPIKeyDesc,
+            action: {
+                callback: () => {
+                    let value = this.settingUtils.takeAndSave("siyuanAPIKey");
+                    console.log(value);
+                }
+            }
+        });
+
         try {
             this.settingUtils.load();
         } catch (error) {
