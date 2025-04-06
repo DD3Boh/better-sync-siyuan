@@ -30,8 +30,8 @@ export default class BetterSyncPlugin extends Plugin {
         this.isMobile = frontEnd === "mobile" || frontEnd === "browser-mobile";
 
         this.addTopBar({
-            icon: "iconCalendar",
-            title: this.i18n.topBarIconDesc,
+            icon: "iconCloud",
+            title: this.i18n.cloudIconDesc,
             position: "right",
             callback: async () => { this.syncManager.syncWithRemote(); },
         });
