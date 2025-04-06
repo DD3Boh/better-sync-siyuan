@@ -18,10 +18,7 @@ export async function request(url: string, data: any) {
 export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>) {
     const init: RequestInit = {
         method: "POST",
-        headers: {
-            'Content-Type': 'application/json',
-            ...headers
-        },
+        headers: headers,
         body: JSON.stringify(data)
     };
 
