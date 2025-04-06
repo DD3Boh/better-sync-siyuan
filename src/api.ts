@@ -120,6 +120,15 @@ export async function moveDocs(fromPaths: string[], toNotebook: NotebookId, toPa
     return requestWithHeaders(url, data, headers);
 }
 
+export async function listDocsByPath(notebook: NotebookId, path: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<DocsData> {
+    let data = {
+        notebook: notebook,
+        path: path
+    };
+    let url = `${urlPrefix}/api/filetree/listDocsByPath`;
+    return requestWithHeaders(url, data, headers);
+}
+
 export async function getHPathByPath(notebook: NotebookId, path: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<string> {
     let data = {
         notebook: notebook,
