@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getFileBlob, getNotebookConf, listDocsByPath, lsNotebooks, putFile } from "./api";
+import { getFileBlob, getNotebookConf, getNotebookInfo, listDocsByPath, lsNotebooks, putFile } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -63,31 +63,48 @@ export class SyncManager {
         let remoteNotebooks = await this.getNotebooks(url, key);
         let localNotebooks = await this.getNotebooks();
 
-        // Create the notebook if it doesn't exist locally
-        for (const notebook of remoteNotebooks) {
-            if (!localNotebooks.some(localNotebook => localNotebook.id === notebook.id)) {
-                console.log(`Creating local notebook ${notebook.name} (${notebook.id})`);
+        // Sync notebook configurations
+        // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
+        const allNotebooks = new Map<string, Notebook>();
 
-                let notebookConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
-                let file = new File([JSON.stringify(notebookConf, null, 2)], "conf.json");
+        // Add all local and remote notebooks to the map (using ID as the key to avoid duplicates)
+        [...localNotebooks, ...remoteNotebooks].forEach(notebook => {
+            allNotebooks.set(notebook.id, notebook);
+        });
 
-                putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
+        // Convert back to array for processing if needed
+        const combinedNotebooks = Array.from(allNotebooks.values());
+
+        // Now we can iterate through all notebooks for configuration sync
+        for (const notebook of combinedNotebooks) {
+            console.log(`Syncing configuration for notebook ${notebook.name} (${notebook.id})`);
+
+            // Get remote and local configurations
+            const remoteConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
+            const localConf = await getNotebookConf(notebook.id);
+
+            const localNotebookInfo = await getNotebookInfo(notebook.id);
+            const remoteNotebookInfo = await getNotebookInfo(notebook.id, url, this.getHeaders(key));
+
+            // Synchronize configurations
+            if (JSON.stringify(remoteConf) !== JSON.stringify(localConf)) {
+                console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) differs. Syncing...`);
+
+                if (localNotebookInfo == null || localNotebookInfo.boxInfo.mtime < remoteNotebookInfo.boxInfo.mtime) {
+                    let file = new File([JSON.stringify(remoteConf, null, 2)], "conf.json");
+
+                    putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
+                } else {
+                    let file = new File([JSON.stringify(localConf, null, 2)], "conf.json");
+
+                    putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
+                }
+
+                console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) synced successfully.`);
             }
         }
 
-        // Create the notebook if it doesn't exist remotely
-        for (const notebook of localNotebooks) {
-            if (!remoteNotebooks.some(remoteNotebook => remoteNotebook.id === notebook.id)) {
-                console.log(`Creating remote notebook ${notebook.name} (${notebook.id})`);
-
-                let notebookConf = await getNotebookConf(notebook.id);
-                let file = new File([JSON.stringify(notebookConf, null, 2)], "conf.json");
-
-                putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
-            }
-        }
-
-        for (const notebook of remoteNotebooks) {
+        for (const notebook of combinedNotebooks) {
             let remoteFiles = await this.getDocsRecursively(notebook.id, "/", url, key);
             console.log("remoteFiles: ", remoteFiles);
 
