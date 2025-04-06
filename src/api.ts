@@ -385,7 +385,7 @@ export async function removeFile(path: string, urlPrefix: string = '', headers?:
     return requestWithHeaders(url, data, headers);
 }
 
-export async function readDir(path: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<IResReadDir> {
+export async function readDir(path: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<IResReadDir[]> {
     let data = {
         path: path
     }
