@@ -6,6 +6,7 @@ import {
 import "@/index.scss";
 import { SettingsManager } from "./settings";
 import { SyncManager } from "./sync";
+import { getWorkspaceInfo } from "./api";
 
 export default class BetterSyncPlugin extends Plugin {
     private isMobile: boolean;
@@ -18,6 +19,9 @@ export default class BetterSyncPlugin extends Plugin {
         this.settingsManager = new SettingsManager(this);
         this.settingsManager.setupSettings();
 
+        let workspaceDir = (await getWorkspaceInfo()).workspaceDir;
+        this.syncManager = new SyncManager(this, workspaceDir);
+
         const frontEnd = getFrontend();
         this.isMobile = frontEnd === "mobile" || frontEnd === "browser-mobile";
 
@@ -25,9 +29,7 @@ export default class BetterSyncPlugin extends Plugin {
             icon: "iconCalendar",
             title: this.i18n.topBarIconDesc,
             position: "right",
-            callback: () => {
-                // TODO: Go to weekly note
-            }
+            callback: async () => {}
         });
     }
 
