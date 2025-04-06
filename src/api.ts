@@ -31,145 +31,146 @@ export async function requestWithHeaders(url: string, data: any, headers?: Recor
 // **************************************** Noteboook ****************************************
 
 
-export async function lsNotebooks(): Promise<IReslsNotebooks> {
+export async function lsNotebooks(headers?: Record<string, string>): Promise<IReslsNotebooks> {
     let url = '/api/notebook/lsNotebooks';
-    return request(url, '');
+    return requestWithHeaders(url, '', headers);
 }
 
 
-export async function openNotebook(notebook: NotebookId) {
+export async function openNotebook(notebook: NotebookId, headers?: Record<string, string>) {
     let url = '/api/notebook/openNotebook';
-    return request(url, { notebook: notebook });
+    return requestWithHeaders(url, { notebook: notebook }, headers);
 }
 
 
-export async function closeNotebook(notebook: NotebookId) {
+export async function closeNotebook(notebook: NotebookId, headers?: Record<string, string>) {
     let url = '/api/notebook/closeNotebook';
-    return request(url, { notebook: notebook });
+    return requestWithHeaders(url, { notebook: notebook }, headers);
 }
 
 
-export async function renameNotebook(notebook: NotebookId, name: string) {
+export async function renameNotebook(notebook: NotebookId, name: string, headers?: Record<string, string>) {
     let url = '/api/notebook/renameNotebook';
-    return request(url, { notebook: notebook, name: name });
+    return requestWithHeaders(url, { notebook: notebook, name: name }, headers);
 }
 
 
-export async function createNotebook(name: string): Promise<Notebook> {
+export async function createNotebook(name: string, headers?: Record<string, string>): Promise<Notebook> {
     let url = '/api/notebook/createNotebook';
-    return request(url, { name: name });
+    return requestWithHeaders(url, { name: name }, headers);
 }
 
 
-export async function removeNotebook(notebook: NotebookId) {
+export async function removeNotebook(notebook: NotebookId, headers?: Record<string, string>) {
     let url = '/api/notebook/removeNotebook';
-    return request(url, { notebook: notebook });
+    return requestWithHeaders(url, { notebook: notebook }, headers);
 }
 
 
-export async function getNotebookConf(notebook: NotebookId): Promise<IResGetNotebookConf> {
+export async function getNotebookConf(notebook: NotebookId, headers?: Record<string, string>): Promise<IResGetNotebookConf> {
     let data = { notebook: notebook };
     let url = '/api/notebook/getNotebookConf';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function setNotebookConf(notebook: NotebookId, conf: NotebookConf): Promise<NotebookConf> {
+export async function setNotebookConf(notebook: NotebookId, conf: NotebookConf, headers?: Record<string, string>): Promise<NotebookConf> {
     let data = { notebook: notebook, conf: conf };
     let url = '/api/notebook/setNotebookConf';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
 // **************************************** File Tree ****************************************
-export async function createDocWithMd(notebook: NotebookId, path: string, markdown: string): Promise<DocumentId> {
+export async function createDocWithMd(notebook: NotebookId, path: string, markdown: string, headers?: Record<string, string>): Promise<DocumentId> {
     let data = {
         notebook: notebook,
         path: path,
         markdown: markdown,
     };
     let url = '/api/filetree/createDocWithMd';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function renameDoc(notebook: NotebookId, path: string, title: string): Promise<DocumentId> {
+export async function renameDoc(notebook: NotebookId, path: string, title: string, headers?: Record<string, string>): Promise<DocumentId> {
     let data = {
         doc: notebook,
         path: path,
         title: title
     };
     let url = '/api/filetree/renameDoc';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function removeDoc(notebook: NotebookId, path: string) {
+export async function removeDoc(notebook: NotebookId, path: string, headers?: Record<string, string>) {
     let data = {
         notebook: notebook,
         path: path,
     };
     let url = '/api/filetree/removeDoc';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function moveDocs(fromPaths: string[], toNotebook: NotebookId, toPath: string) {
+export async function moveDocs(fromPaths: string[], toNotebook: NotebookId, toPath: string, headers?: Record<string, string>) {
     let data = {
         fromPaths: fromPaths,
         toNotebook: toNotebook,
         toPath: toPath
     };
     let url = '/api/filetree/moveDocs';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function getHPathByPath(notebook: NotebookId, path: string): Promise<string> {
+export async function getHPathByPath(notebook: NotebookId, path: string, headers?: Record<string, string>): Promise<string> {
     let data = {
         notebook: notebook,
         path: path
     };
     let url = '/api/filetree/getHPathByPath';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function getHPathByID(id: BlockId): Promise<string> {
+export async function getHPathByID(id: BlockId, headers?: Record<string, string>): Promise<string> {
     let data = {
         id: id
     };
     let url = '/api/filetree/getHPathByID';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function getIDsByHPath(notebook: NotebookId, path: string): Promise<BlockId[]> {
+export async function getIDsByHPath(notebook: NotebookId, path: string, headers?: Record<string, string>): Promise<BlockId[]> {
     let data = {
         notebook: notebook,
         path: path
     };
     let url = '/api/filetree/getIDsByHPath';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 // **************************************** Asset Files ****************************************
 
-export async function upload(assetsDirPath: string, files: any[]): Promise<IResUpload> {
+export async function upload(assetsDirPath: string, files: any[], headers?: Record<string, string>): Promise<IResUpload> {
     let form = new FormData();
     form.append('assetsDirPath', assetsDirPath);
     for (let file of files) {
         form.append('file[]', file);
     }
     let url = '/api/asset/upload';
-    return request(url, form);
+    return requestWithHeaders(url, form, headers);
 }
 
 // **************************************** Block ****************************************
 type DataType = "markdown" | "dom";
 export async function insertBlock(
     dataType: DataType, data: string,
-    nextID?: BlockId, previousID?: BlockId, parentID?: BlockId
+    nextID?: BlockId, previousID?: BlockId, parentID?: BlockId,
+    headers?: Record<string, string>
 ): Promise<IResdoOperations[]> {
     let payload = {
         dataType: dataType,
@@ -179,163 +180,163 @@ export async function insertBlock(
         parentID: parentID
     }
     let url = '/api/block/insertBlock';
-    return request(url, payload);
+    return requestWithHeaders(url, payload, headers);
 }
 
 
-export async function prependBlock(dataType: DataType, data: string, parentID: BlockId | DocumentId): Promise<IResdoOperations[]> {
+export async function prependBlock(dataType: DataType, data: string, parentID: BlockId | DocumentId, headers?: Record<string, string>): Promise<IResdoOperations[]> {
     let payload = {
         dataType: dataType,
         data: data,
         parentID: parentID
     }
     let url = '/api/block/prependBlock';
-    return request(url, payload);
+    return requestWithHeaders(url, payload, headers);
 }
 
 
-export async function appendBlock(dataType: DataType, data: string, parentID: BlockId | DocumentId): Promise<IResdoOperations[]> {
+export async function appendBlock(dataType: DataType, data: string, parentID: BlockId | DocumentId, headers?: Record<string, string>): Promise<IResdoOperations[]> {
     let payload = {
         dataType: dataType,
         data: data,
         parentID: parentID
     }
     let url = '/api/block/appendBlock';
-    return request(url, payload);
+    return requestWithHeaders(url, payload, headers);
 }
 
 
-export async function updateBlock(dataType: DataType, data: string, id: BlockId): Promise<IResdoOperations[]> {
+export async function updateBlock(dataType: DataType, data: string, id: BlockId, headers?: Record<string, string>): Promise<IResdoOperations[]> {
     let payload = {
         dataType: dataType,
         data: data,
         id: id
     }
     let url = '/api/block/updateBlock';
-    return request(url, payload);
+    return requestWithHeaders(url, payload, headers);
 }
 
 
-export async function deleteBlock(id: BlockId): Promise<IResdoOperations[]> {
+export async function deleteBlock(id: BlockId, headers?: Record<string, string>): Promise<IResdoOperations[]> {
     let data = {
         id: id
     }
     let url = '/api/block/deleteBlock';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function moveBlock(id: BlockId, previousID?: PreviousID, parentID?: ParentID): Promise<IResdoOperations[]> {
+export async function moveBlock(id: BlockId, previousID?: PreviousID, parentID?: ParentID, headers?: Record<string, string>): Promise<IResdoOperations[]> {
     let data = {
         id: id,
         previousID: previousID,
         parentID: parentID
     }
     let url = '/api/block/moveBlock';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function foldBlock(id: BlockId) {
+export async function foldBlock(id: BlockId, headers?: Record<string, string>) {
     let data = {
         id: id
     }
     let url = '/api/block/foldBlock';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function unfoldBlock(id: BlockId) {
+export async function unfoldBlock(id: BlockId, headers?: Record<string, string>) {
     let data = {
         id: id
     }
     let url = '/api/block/unfoldBlock';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function getBlockKramdown(id: BlockId): Promise<IResGetBlockKramdown> {
+export async function getBlockKramdown(id: BlockId, headers?: Record<string, string>): Promise<IResGetBlockKramdown> {
     let data = {
         id: id
     }
     let url = '/api/block/getBlockKramdown';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function getChildBlocks(id: BlockId): Promise<IResGetChildBlock[]> {
+export async function getChildBlocks(id: BlockId, headers?: Record<string, string>): Promise<IResGetChildBlock[]> {
     let data = {
         id: id
     }
     let url = '/api/block/getChildBlocks';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
-export async function transferBlockRef(fromID: BlockId, toID: BlockId, refIDs: BlockId[]) {
+export async function transferBlockRef(fromID: BlockId, toID: BlockId, refIDs: BlockId[], headers?: Record<string, string>) {
     let data = {
         fromID: fromID,
         toID: toID,
         refIDs: refIDs
     }
     let url = '/api/block/transferBlockRef';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 // **************************************** Attributes ****************************************
-export async function setBlockAttrs(id: BlockId, attrs: { [key: string]: string }) {
+export async function setBlockAttrs(id: BlockId, attrs: { [key: string]: string }, headers?: Record<string, string>) {
     let data = {
         id: id,
         attrs: attrs
     }
     let url = '/api/attr/setBlockAttrs';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function getBlockAttrs(id: BlockId): Promise<{ [key: string]: string }> {
+export async function getBlockAttrs(id: BlockId, headers?: Record<string, string>): Promise<{ [key: string]: string }> {
     let data = {
         id: id
     }
     let url = '/api/attr/getBlockAttrs';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 // **************************************** SQL ****************************************
 
-export async function sql(sql: string): Promise<any[]> {
+export async function sql(sql: string, headers?: Record<string, string>): Promise<any[]> {
     let sqldata = {
         stmt: sql,
     };
     let url = '/api/query/sql';
-    return request(url, sqldata);
+    return requestWithHeaders(url, sqldata, headers);
 }
 
-export async function getBlockByID(blockId: string): Promise<Block> {
+export async function getBlockByID(blockId: string, headers?: Record<string, string>): Promise<Block> {
     let sqlScript = `select * from blocks where id ='${blockId}'`;
-    let data = await sql(sqlScript);
+    let data = await sql(sqlScript, headers);
     return data[0];
 }
 
 // **************************************** Template ****************************************
 
-export async function render(id: DocumentId, path: string): Promise<IResGetTemplates> {
+export async function render(id: DocumentId, path: string, headers?: Record<string, string>): Promise<IResGetTemplates> {
     let data = {
         id: id,
         path: path
     }
     let url = '/api/template/render';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
-export async function renderSprig(template: string): Promise<string> {
+export async function renderSprig(template: string, headers?: Record<string, string>): Promise<string> {
     let url = '/api/template/renderSprig';
-    return request(url, { template: template });
+    return requestWithHeaders(url, { template: template }, headers);
 }
 
 // **************************************** File ****************************************
 
-export async function getFile(path: string): Promise<any> {
+export async function getFile(path: string, headers?: Record<string, string>): Promise<any> {
     let data = {
         path: path
     }
@@ -353,10 +354,14 @@ export async function getFile(path: string): Promise<any> {
  * @param endpoint 
  * @returns 
  */
-export const getFileBlob = async (path: string): Promise<Blob | null> => {
+export const getFileBlob = async (path: string, headers?: Record<string, string>): Promise<Blob | null> => {
     const endpoint = '/api/file/getFile'
     let response = await fetch(endpoint, {
         method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers
+        },
         body: JSON.stringify({
             path: path
         })
@@ -369,7 +374,7 @@ export const getFileBlob = async (path: string): Promise<Blob | null> => {
 }
 
 
-export async function putFile(path: string, isDir: boolean, file: any) {
+export async function putFile(path: string, isDir: boolean, file: any, headers?: Record<string, string>) {
     let form = new FormData();
     form.append('path', path);
     form.append('isDir', isDir.toString());
@@ -378,87 +383,83 @@ export async function putFile(path: string, isDir: boolean, file: any) {
     form.append('modTime', Math.floor(Date.now() / 1000).toString());
     form.append('file', file);
     let url = '/api/file/putFile';
-    return request(url, form);
+    return requestWithHeaders(url, form, headers);
 }
 
-export async function removeFile(path: string) {
+export async function removeFile(path: string, headers?: Record<string, string>) {
     let data = {
         path: path
     }
     let url = '/api/file/removeFile';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
 
-export async function readDir(path: string): Promise<IResReadDir> {
+export async function readDir(path: string, headers?: Record<string, string>): Promise<IResReadDir> {
     let data = {
         path: path
     }
     let url = '/api/file/readDir';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 
 // **************************************** Export ****************************************
 
-export async function exportMdContent(id: DocumentId): Promise<IResExportMdContent> {
+export async function exportMdContent(id: DocumentId, headers?: Record<string, string>): Promise<IResExportMdContent> {
     let data = {
         id: id
     }
     let url = '/api/export/exportMdContent';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
-export async function exportResources(paths: string[], name: string): Promise<IResExportResources> {
+export async function exportResources(paths: string[], name: string, headers?: Record<string, string>): Promise<IResExportResources> {
     let data = {
         paths: paths,
         name: name
     }
     let url = '/api/export/exportResources';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 // **************************************** Convert ****************************************
 
 export type PandocArgs = string;
-export async function pandoc(args: PandocArgs[]) {
+export async function pandoc(args: PandocArgs[], headers?: Record<string, string>) {
     let data = {
         args: args
     }
     let url = '/api/convert/pandoc';
-    return request(url, data);
+    return requestWithHeaders(url, data, headers);
 }
 
 // **************************************** Notification ****************************************
 
-// /api/notification/pushMsg
-// {
-//     "msg": "test",
-//     "timeout": 7000
-//   }
-export async function pushMsg(msg: string, timeout: number = 7000) {
+export async function pushMsg(msg: string, timeout: number = 7000, headers?: Record<string, string>) {
     let payload = {
         msg: msg,
         timeout: timeout
     };
     let url = "/api/notification/pushMsg";
-    return request(url, payload);
+    return requestWithHeaders(url, payload, headers);
 }
 
-export async function pushErrMsg(msg: string, timeout: number = 7000) {
+export async function pushErrMsg(msg: string, timeout: number = 7000, headers?: Record<string, string>) {
     let payload = {
         msg: msg,
         timeout: timeout
     };
     let url = "/api/notification/pushErrMsg";
-    return request(url, payload);
+    return requestWithHeaders(url, payload, headers);
 }
 
 // **************************************** Network ****************************************
 export async function forwardProxy(
     url: string, method: string = 'GET', payload: any = {},
-    headers: any[] = [], timeout: number = 7000, contentType: string = "text/html"
+    headers: any[] = [], timeout: number = 7000, contentType: string = "text/html",
+    customHeaders?: Record<string, string>
 ): Promise<IResForwardProxy> {
     let data = {
         url: url,
@@ -469,22 +470,22 @@ export async function forwardProxy(
         payload: payload
     }
     let url1 = '/api/network/forwardProxy';
-    return request(url1, data);
+    return requestWithHeaders(url1, data, customHeaders);
 }
 
 
 // **************************************** System ****************************************
 
-export async function bootProgress(): Promise<IResBootProgress> {
-    return request('/api/system/bootProgress', {});
+export async function bootProgress(headers?: Record<string, string>): Promise<IResBootProgress> {
+    return requestWithHeaders('/api/system/bootProgress', {}, headers);
 }
 
 
-export async function version(): Promise<string> {
-    return request('/api/system/version', {});
+export async function version(headers?: Record<string, string>): Promise<string> {
+    return requestWithHeaders('/api/system/version', {}, headers);
 }
 
 
-export async function currentTime(): Promise<number> {
-    return request('/api/system/currentTime', {});
+export async function currentTime(headers?: Record<string, string>): Promise<number> {
+    return requestWithHeaders('/api/system/currentTime', {}, headers);
 }
