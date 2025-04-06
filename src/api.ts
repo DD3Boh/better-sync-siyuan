@@ -74,7 +74,7 @@ export async function setNotebookConf(notebook: NotebookId, conf: NotebookConf, 
     return requestWithHeaders(url, data, headers);
 }
 
-export async function getNotebookInfo(notebook: NotebookId, urlPrefix: string = '', headers?: Record<string, string>): Promise<any> {
+export async function getNotebookInfo(notebook: NotebookId, urlPrefix: string = '', headers?: Record<string, string>): Promise<NotebookInfo> {
     let data = { notebook: notebook };
     let url = `${urlPrefix}/api/notebook/getNotebookInfo`;
     return requestWithHeaders(url, data, headers);
