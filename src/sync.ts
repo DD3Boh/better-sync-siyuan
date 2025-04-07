@@ -382,6 +382,8 @@ export class SyncManager {
 
             console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${documentFile.name} (${id})`);
 
+            console.log(`localTimestamp: ${localTimestamp}, remoteTimestamp: ${remoteTimestamp}, docTimeStamp: ${docTimeStamp}`);
+
             let syFile = await getFileBlob(filePath, inputUrl, this.getHeaders(inputKey));
             let file = new File([syFile], documentFile.name, { lastModified: docTimeStamp });
 
