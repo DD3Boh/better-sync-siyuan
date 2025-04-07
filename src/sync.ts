@@ -145,6 +145,9 @@ export class SyncManager {
         // Handle missing assets
         await this.syncMissingAssets(url, key);
 
+        // Sync plugin directory
+        await this.syncDirectory(`/data/plugins`, url, key, lastSyncTime);
+
         this.setSyncStatus();
         console.log("Sync completed.");
     }
