@@ -50,6 +50,33 @@ export class SyncManager {
         return filesMap;
     }
 
+    async setSyncStatus() {
+        let url = this.urlToKeyPairs[0][0];
+        let key = this.urlToKeyPairs[0][1];
+
+        if (!url || !key) {
+            console.error("Siyuan URL or API Key is not set.");
+            return;
+        }
+
+        let filePath = `/data/.siyuan/sync/.syncstatus`
+
+        let file = new File([], ".syncstatus");
+        putFile(filePath, false, file, url, this.getHeaders(key));
+        putFile(filePath, false, file);
+    }
+
+    async getLastSyncTime(url: string = "", key: string = null): Promise<number> {
+        let dir = await readDir(`/data/.siyuan/sync/`, url, this.getHeaders(key));
+
+        if (!dir || dir.length === 0) {
+            console.log("No sync directory found.");
+            return 0;
+        }
+
+        return dir[0].updated;
+    }
+
     async syncWithRemote() {
         // TODO: Add support for multiple remotes
         let url = this.urlToKeyPairs[0][0];
@@ -62,6 +89,8 @@ export class SyncManager {
 
         let remoteNotebooks = await this.getNotebooks(url, key);
         let localNotebooks = await this.getNotebooks();
+
+        let lastSyncLocal = await this.getLastSyncTime();
 
         // Sync notebook configurations
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
@@ -169,6 +198,9 @@ export class SyncManager {
                 }
             }
         }
+
+        this.setSyncStatus();
+        console.log("Sync completed.");
     }
 
     // Utils
