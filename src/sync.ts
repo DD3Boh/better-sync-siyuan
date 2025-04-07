@@ -170,12 +170,6 @@ export class SyncManager {
             this.syncDirectory("data", notebook.id, url, key, lastSyncTime, false)
         );
 
-        // Wait for all notebook syncs to complete
-        await Promise.all(syncPromises);
-
-        // Handle missing assets
-        await this.syncMissingAssets(url, key);
-
         // Sync other directories
         let directoriesToSync = [
             "plugins",
@@ -188,7 +182,12 @@ export class SyncManager {
         const syncDirPromises = directoriesToSync.map(dir =>
             this.syncDirectory("data", dir, url, key, lastSyncTime)
         );
+
+        await Promise.all(syncPromises);
         await Promise.all(syncDirPromises);
+
+        // Handle missing assets
+        await this.syncMissingAssets(url, key);
 
         this.setSyncStatus();
         console.log("Sync completed.");
