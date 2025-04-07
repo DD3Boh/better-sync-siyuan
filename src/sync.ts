@@ -134,9 +134,8 @@ export class SyncManager {
         // Convert back to array for processing if needed
         const combinedNotebooks = Array.from(allNotebooks.values());
 
-        // Create an array of promises for concurrent syncing
         const syncPromises = combinedNotebooks.map(notebook =>
-            this.syncNotebook(notebook, url, key, lastSyncTime)
+            this.syncDirectory(`data/${notebook.id}`, url, key, lastSyncTime, false)
         );
 
         // Wait for all notebook syncs to complete
@@ -166,6 +165,8 @@ export class SyncManager {
     async syncDirectory(path: string, url: string = "", key: string = "", lastSyncTime: number = 0, deleteFoldersOnly: boolean = true) {
         let localFiles = await this.getDirFilesRecursively(path);
         let remoteFiles = await this.getDirFilesRecursively(path, url, key);
+
+        console.log(`Syncing directory ${path}`);
 
         // Create a combined map of all files
         const allFiles = new Map<string, IResReadDir>();
