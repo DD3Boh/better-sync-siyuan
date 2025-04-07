@@ -118,13 +118,13 @@ export class SyncManager {
         console.log(`Syncing notebook ${notebook.name} (${notebook.id})`);
 
         // Sync notebook configuration
-        await this.syncNotebookConfiguration(notebook, url, key, lastSyncTime);
+        const syncFiles = await this.syncNotebookConfiguration(notebook, url, key, lastSyncTime);
 
         // Sync notebook content/files
-        await this.syncNotebookFiles(notebook, url, key, lastSyncTime);
+        if (syncFiles) await this.syncNotebookFiles(notebook, url, key, lastSyncTime);
     }
 
-    async syncNotebookConfiguration(notebook: Notebook, url: string, key: string, lastSyncTime: number) {
+    async syncNotebookConfiguration(notebook: Notebook, url: string, key: string, lastSyncTime: number): Promise<boolean> {
         console.log(`Syncing configuration for notebook ${notebook.name} (${notebook.id})`);
 
         const localConf = await getNotebookConf(notebook.id);
@@ -144,13 +144,13 @@ export class SyncManager {
                 if (lastSyncTime > remoteTimestamp) {
                     console.log(`Deleting remote notebook ${notebook.name} (${notebook.id})`);
                     removeFile(`/data/${notebook.id}/`, url, this.getHeaders(key));
-                    return;
+                    return false;
                 }
             } else if (!remoteConf) {
                 if (lastSyncTime > localTimestamp) {
                     console.log(`Deleting local notebook ${notebook.name} (${notebook.id})`);
                     removeFile(`/data/${notebook.id}/`);
-                    return;
+                    return false;
                 }
             }
 
@@ -169,7 +169,7 @@ export class SyncManager {
             console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) synced successfully.`);
         }
 
-        return;
+        return true;
     }
 
     async syncNotebookFiles(notebook: Notebook, url: string, key: string, lastSyncTime: number) {
