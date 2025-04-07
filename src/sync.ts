@@ -60,7 +60,7 @@ export class SyncManager {
         }
 
         // Add current level files to the map
-        dir.filter(file => !file.isDir).forEach(file => {
+        dir.forEach(file => {
             filesMap.set(`${path}/${file.name}`, file);
         });
 
@@ -75,7 +75,7 @@ export class SyncManager {
         // Merge all result maps into the main map
         results.forEach(resultMap => {
             for (const [filePath, file] of resultMap.entries()) {
-                if (!file.isDir) filesMap.set(filePath, file);
+                filesMap.set(filePath, file);
             }
         });
 
@@ -190,6 +190,9 @@ export class SyncManager {
                     continue;
                 }
             }
+
+            // Avoid writing directories
+            if (fileRes.isDir) continue;
 
             if (!localFile || remoteTimestamp > localTimestamp) {
                 inputUrl = url;
