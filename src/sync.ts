@@ -95,12 +95,12 @@ export class SyncManager {
                 if (!localConf) {
                     console.log(`Local configuration not found for notebook ${notebook.name} (${notebook.id}).`);
 
-                    let file = new File([JSON.stringify(remoteConf, null, 2)], "conf.json");
+                    let file = new File([JSON.stringify(remoteConf.conf, null, 2)], "conf.json");
                     putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
                 } else if (!remoteConf) {
                     console.log(`Remote configuration not found for notebook ${notebook.name} (${notebook.id}).`);
 
-                    let file = new File([JSON.stringify(localConf, null, 2)], "conf.json");
+                    let file = new File([JSON.stringify(localConf.conf, null, 2)], "conf.json");
                     putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
                 } else if (localTimestamp < remoteTimestamp) {
                     console.log(`Remote configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
