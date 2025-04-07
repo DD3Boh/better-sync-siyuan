@@ -89,10 +89,8 @@ export class SyncManager {
 
         let remoteNotebooks = await this.getNotebooks(url, key);
         let localNotebooks = await this.getNotebooks();
-
         let lastSyncTime = await this.getLastSyncTime();
 
-        // Sync notebook configurations
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
         const allNotebooks = new Map<string, Notebook>();
 
@@ -104,125 +102,146 @@ export class SyncManager {
         // Convert back to array for processing if needed
         const combinedNotebooks = Array.from(allNotebooks.values());
 
-        // Now we can iterate through all notebooks for configuration sync
-        for (const notebook of combinedNotebooks) {
-            console.log(`Syncing configuration for notebook ${notebook.name} (${notebook.id})`);
+        // Create an array of promises for concurrent syncing
+        const syncPromises = combinedNotebooks.map(notebook =>
+            this.syncNotebook(notebook, url, key, lastSyncTime)
+        );
 
-            const localConf = await getNotebookConf(notebook.id);
-            const remoteConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
-
-            let localDir = await readDir(`/data/${notebook.id}`);
-            let remoteDir = await readDir(`/data/${notebook.id}`, url, this.getHeaders(key));
-
-            let localTimestamp = localDir && localDir.length > 0 ? localDir[0].updated : 0;
-            let remoteTimestamp = remoteDir && remoteDir.length > 0 ? remoteDir[0].updated : 0;
-
-            // Synchronize configurations
-            if (JSON.stringify(remoteConf) !== JSON.stringify(localConf)) {
-                console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) differs. Syncing...`);
-
-                if (!localConf) {
-                    if (lastSyncTime > remoteTimestamp) {
-                        console.log(`Deleting remote notebook ${notebook.name} (${notebook.id})`);
-                        removeFile(`/data/${notebook.id}/`, url, this.getHeaders(key));
-                        continue
-                    }
-                } else if (!remoteConf) {
-                    if (lastSyncTime > localTimestamp) {
-                        console.log(`Deleting local notebook ${notebook.name} (${notebook.id})`);
-                        removeFile(`/data/${notebook.id}/`);
-                        continue
-                    }
-                }
-
-                if (!localConf || remoteTimestamp > localTimestamp) {
-                    console.log(`Remote configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
-
-                    let file = new File([JSON.stringify(remoteConf.conf, null, 2)], "conf.json");
-                    putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
-                } else if (!remoteConf || localTimestamp > remoteTimestamp) {
-                    console.log(`Local configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
-
-                    let file = new File([JSON.stringify(localConf.conf, null, 2)], "conf.json");
-                    putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
-                }
-
-                console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) synced successfully.`);
-            }
-
-            let remoteFiles = await this.getDocsRecursively(notebook.id, "/", url, key);
-            console.log("remoteFiles: ", remoteFiles);
-
-            let localFiles = await this.getDocsRecursively(notebook.id, "/");
-            console.log("localFiles: ", localFiles);
-
-            // Create a combined map of all files
-            const allFiles = new Map<string, DocumentFiles>();
-
-            [...remoteFiles, ...localFiles].forEach(pair => {
-                allFiles.set(pair[0], pair[1]);
-            });
-
-            // Synchronize files
-            for (const [id, documentFile] of allFiles.entries()) {
-                const remoteFile = remoteFiles.get(id);
-                const localFile = localFiles.get(id);
-
-                let filePath = `/data/${notebook.id}${documentFile.path}`;
-
-                localTimestamp = localFile ? localFile.mtime : 0;
-                remoteTimestamp = remoteFile ? remoteFile.mtime : 0;
-
-                // Multiply by 1000 because `putFile` makes the conversion automatically
-                let docTimeStamp = documentFile.mtime * 1000;
-
-                let inputUrl: string;
-                let inputKey: string;
-                let outputUrl: string;
-                let outputKey: string;
-
-                // Remove deleted files
-                if (!localFile) {
-                    if (lastSyncTime > remoteTimestamp) {
-                        console.log(`Deleting remote file ${documentFile.name} (${id})`);
-                        removeFile(filePath, url, this.getHeaders(key));
-                        continue;
-                    }
-                } else if (!remoteFile) {
-                    if (lastSyncTime > localTimestamp) {
-                        console.log(`Deleting local file ${documentFile.name} (${id})`);
-                        removeFile(filePath);
-                        continue;
-                    }
-                }
-
-                if (!localFile || remoteTimestamp > localTimestamp) {
-                    inputUrl = url;
-                    inputKey = key;
-                    outputUrl = "";
-                    outputKey = null;
-                } else if (!remoteFile || localTimestamp > remoteTimestamp) {
-                    inputUrl = "";
-                    inputKey = null;
-                    outputUrl = url;
-                    outputKey = key;
-                } else {
-                    continue;
-                }
-
-                console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${documentFile.name} (${id})`);
-
-                let syFile = await getFileBlob(filePath, inputUrl, this.getHeaders(inputKey));
-                let file = new File([syFile], documentFile.name, { lastModified: docTimeStamp });
-
-                putFile(filePath, false, file, outputUrl, this.getHeaders(outputKey), docTimeStamp);
-
-                console.log(`File ${documentFile.name} (${id}) synced successfully.`);
-            }
-        }
+        // Wait for all notebook syncs to complete
+        await Promise.all(syncPromises);
 
         this.setSyncStatus();
         console.log("Sync completed.");
+    }
+
+    async syncNotebook(notebook: Notebook, url: string, key: string, lastSyncTime: number) {
+        console.log(`Syncing notebook ${notebook.name} (${notebook.id})`);
+
+        // Sync notebook configuration
+        await this.syncNotebookConfiguration(notebook, url, key, lastSyncTime);
+
+        // Sync notebook content/files
+        await this.syncNotebookFiles(notebook, url, key, lastSyncTime);
+    }
+
+    async syncNotebookConfiguration(notebook: Notebook, url: string, key: string, lastSyncTime: number) {
+        console.log(`Syncing configuration for notebook ${notebook.name} (${notebook.id})`);
+
+        const localConf = await getNotebookConf(notebook.id);
+        const remoteConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
+
+        let localDir = await readDir(`/data/${notebook.id}`);
+        let remoteDir = await readDir(`/data/${notebook.id}`, url, this.getHeaders(key));
+
+        let localTimestamp = localDir && localDir.length > 0 ? localDir[0].updated : 0;
+        let remoteTimestamp = remoteDir && remoteDir.length > 0 ? remoteDir[0].updated : 0;
+
+        // Synchronize configurations
+        if (JSON.stringify(remoteConf) !== JSON.stringify(localConf)) {
+            console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) differs. Syncing...`);
+
+            if (!localConf) {
+                if (lastSyncTime > remoteTimestamp) {
+                    console.log(`Deleting remote notebook ${notebook.name} (${notebook.id})`);
+                    removeFile(`/data/${notebook.id}/`, url, this.getHeaders(key));
+                    return;
+                }
+            } else if (!remoteConf) {
+                if (lastSyncTime > localTimestamp) {
+                    console.log(`Deleting local notebook ${notebook.name} (${notebook.id})`);
+                    removeFile(`/data/${notebook.id}/`);
+                    return;
+                }
+            }
+
+            if (!localConf || remoteTimestamp > localTimestamp) {
+                console.log(`Remote configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
+
+                let file = new File([JSON.stringify(remoteConf.conf, null, 2)], "conf.json");
+                putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
+            } else if (!remoteConf || localTimestamp > remoteTimestamp) {
+                console.log(`Local configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
+
+                let file = new File([JSON.stringify(localConf.conf, null, 2)], "conf.json");
+                putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
+            }
+
+            console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) synced successfully.`);
+        }
+
+        return;
+    }
+
+    async syncNotebookFiles(notebook: Notebook, url: string, key: string, lastSyncTime: number) {
+        let remoteFiles = await this.getDocsRecursively(notebook.id, "/", url, key);
+        console.log("remoteFiles: ", remoteFiles);
+
+        let localFiles = await this.getDocsRecursively(notebook.id, "/");
+        console.log("localFiles: ", localFiles);
+
+        // Create a combined map of all files
+        const allFiles = new Map<string, DocumentFiles>();
+
+        [...remoteFiles, ...localFiles].forEach(pair => {
+            allFiles.set(pair[0], pair[1]);
+        });
+
+        // Synchronize files
+        for (const [id, documentFile] of allFiles.entries()) {
+            const remoteFile = remoteFiles.get(id);
+            const localFile = localFiles.get(id);
+
+            let filePath = `/data/${notebook.id}${documentFile.path}`;
+
+            let localTimestamp = localFile ? localFile.mtime : 0;
+            let remoteTimestamp = remoteFile ? remoteFile.mtime : 0;
+
+            // Multiply by 1000 because `putFile` makes the conversion automatically
+            let docTimeStamp = documentFile.mtime * 1000;
+
+            let inputUrl: string;
+            let inputKey: string;
+            let outputUrl: string;
+            let outputKey: string;
+
+            // Remove deleted files
+            if (!localFile) {
+                if (lastSyncTime > remoteTimestamp) {
+                    console.log(`Deleting remote file ${documentFile.name} (${id})`);
+                    removeFile(filePath, url, this.getHeaders(key));
+                    continue;
+                }
+            } else if (!remoteFile) {
+                if (lastSyncTime > localTimestamp) {
+                    console.log(`Deleting local file ${documentFile.name} (${id})`);
+                    removeFile(filePath);
+                    continue;
+                }
+            }
+
+            if (!localFile || remoteTimestamp > localTimestamp) {
+                inputUrl = url;
+                inputKey = key;
+                outputUrl = "";
+                outputKey = null;
+            } else if (!remoteFile || localTimestamp > remoteTimestamp) {
+                inputUrl = "";
+                inputKey = null;
+                outputUrl = url;
+                outputKey = key;
+            } else {
+                continue;
+            }
+
+            console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${documentFile.name} (${id})`);
+
+            let syFile = await getFileBlob(filePath, inputUrl, this.getHeaders(inputKey));
+            let file = new File([syFile], documentFile.name, { lastModified: docTimeStamp });
+
+            putFile(filePath, false, file, outputUrl, this.getHeaders(outputKey), docTimeStamp);
+
+            console.log(`File ${documentFile.name} (${id}) synced successfully.`);
+        }
     }
 
     // Utils
