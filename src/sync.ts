@@ -1,15 +1,22 @@
 import { Plugin } from "siyuan";
 import { getFileBlob, getMissingAssets, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile } from "./api";
+import BetterSyncPlugin from ".";
 
 export class SyncManager {
-    private plugin: Plugin;
+    private plugin: BetterSyncPlugin;
     private localWorkspaceDir: string;
-    private urlToKeyPairs: [string, string][];
 
-    constructor(plugin: Plugin, workspaceDir: string, urlToKeyPairs: [string, string][] = []) {
+    getUrl(): string {
+        return this.plugin.settingsManager.getPref("siyuanUrl");
+    }
+
+    getKey(): string {
+        return this.plugin.settingsManager.getPref("siyuanAPIKey");
+    }
+
+    constructor(plugin: BetterSyncPlugin, workspaceDir: string) {
         this.plugin = plugin;
         this.localWorkspaceDir = workspaceDir;
-        this.urlToKeyPairs = urlToKeyPairs;
     }
 
     async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
@@ -108,8 +115,8 @@ export class SyncManager {
     }
 
     async setSyncStatus() {
-        let url = this.urlToKeyPairs[0][0];
-        let key = this.urlToKeyPairs[0][1];
+        let url = this.getUrl();
+        let key = this.getKey();
 
         if (!url || !key) {
             console.error("Siyuan URL or API Key is not set.");
@@ -136,8 +143,8 @@ export class SyncManager {
 
     async syncWithRemote() {
         // TODO: Add support for multiple remotes
-        let url = this.urlToKeyPairs[0][0];
-        let key = this.urlToKeyPairs[0][1];
+        let url = this.getUrl();
+        let key = this.getKey();
 
         if (!url || !key) {
             console.error("Siyuan URL or API Key is not set.");

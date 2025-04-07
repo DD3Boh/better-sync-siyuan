@@ -9,8 +9,8 @@ import { SyncManager } from "./sync";
 import { getWorkspaceInfo } from "./api";
 
 export default class BetterSyncPlugin extends Plugin {
+    settingsManager: SettingsManager;
     private isMobile: boolean;
-    private settingsManager: SettingsManager;
     private syncManager: SyncManager;
 
     async onload() {
@@ -21,10 +21,7 @@ export default class BetterSyncPlugin extends Plugin {
 
         let workspaceDir = (await getWorkspaceInfo()).workspaceDir;
 
-        let siyuanUrl = this.settingsManager.getPref("siyuanUrl");
-        let siyuanKey = this.settingsManager.getPref("siyuanAPIKey");
-
-        this.syncManager = new SyncManager(this, workspaceDir, [[siyuanUrl, siyuanKey]]);
+        this.syncManager = new SyncManager(this, workspaceDir);
 
         const frontEnd = getFrontend();
         this.isMobile = frontEnd === "mobile" || frontEnd === "browser-mobile";
