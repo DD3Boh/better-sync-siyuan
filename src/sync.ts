@@ -135,67 +135,59 @@ export class SyncManager {
 
                 console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) synced successfully.`);
             }
-        }
 
-        for (const notebook of combinedNotebooks) {
             let remoteFiles = await this.getDocsRecursively(notebook.id, "/", url, key);
             console.log("remoteFiles: ", remoteFiles);
 
             let localFiles = await this.getDocsRecursively(notebook.id, "/");
             console.log("localFiles: ", localFiles);
 
-            // Compare localFiles and remoteFiles
-            for (const [id, documentFile] of remoteFiles.entries()) {
-                if (!localFiles.has(id)) {
-                    console.log(`File ${documentFile.name} (${id}) is missing locally.`);
+            // Create a combined map of all files
+            const allFiles = new Map<string, DocumentFiles>();
 
-                    let filePath = `/data/${notebook.id}${documentFile.path}`
-                    let syFile = await getFileBlob(filePath, url, this.getHeaders(key))
+            [...remoteFiles, ...localFiles].forEach(pair => {
+                allFiles.set(pair[0], pair[1]);
+            });
 
-                    let file = new File([syFile], documentFile.name)
-                    putFile(filePath, false, file, null, null, documentFile.mtime)
-
-                    console.log(`File ${documentFile.name} (${id}) downloaded successfully.`);
-                }
-            }
-
-            for (const [id, documentFile] of localFiles.entries()) {
-                if (!remoteFiles.has(id)) {
-                    console.log(`File ${documentFile.name} (${id}) is missing remotely.`);
-
-                    let filePath = `/data/${notebook.id}${documentFile.path}`
-                    let syFile = await getFileBlob(filePath)
-
-                    let file = new File([syFile], documentFile.name)
-                    putFile(filePath, false, file, url, this.getHeaders(key), documentFile.mtime)
-
-                    console.log(`File ${documentFile.name} (${id}) uploaded successfully.`);
-                }
-            }
-
-            // Compare file timestamps
-            for (const [id, remoteFile] of remoteFiles.entries()) {
+            // Synchronize files
+            for (const [id, documentFile] of allFiles.entries()) {
+                const remoteFile = remoteFiles.get(id);
                 const localFile = localFiles.get(id);
-                if (localFile && remoteFile.mtime !== localFile.mtime) {
-                    console.log(`File ${remoteFile.name} (${id}) has different timestamps.`);
-                    console.log(`remote: ${remoteFile.mtime}, local ${localFile.mtime}`)
 
-                    const filePath = `/data/${notebook.id}${localFile.path}`
+                localTimestamp = localFile ? localFile.mtime : 0;
+                remoteTimestamp = remoteFile ? remoteFile.mtime : 0;
 
-                    if (localFile.mtime > remoteFile.mtime) {
-                        console.log(`Local file is newer. Updating remote.`)
-                        let syFile = await getFileBlob(filePath)
-                        let file = new File([syFile], localFile.name)
+                // Multiply by 1000 because `putFile` makes the conversion automatically
+                let docTimeStamp = documentFile.mtime * 1000;
 
-                        putFile(filePath, false, file, url, this.getHeaders(key), localFile.mtime)
-                    } else {
-                        console.log(`Remote file is newer. Updating local.`)
-                        let syFile = await getFileBlob(filePath, url, this.getHeaders(key))
-                        let file = new File([syFile], localFile.name)
+                let inputUrl: string;
+                let inputKey: string;
+                let outputUrl: string;
+                let outputKey: string;
 
-                        putFile(filePath, false, file, null, null, remoteFile.mtime)
-                    }
+                if (!localFile || remoteTimestamp > localTimestamp) {
+                    inputUrl = url;
+                    inputKey = key;
+                    outputUrl = "";
+                    outputKey = null;
+                } else if (!remoteFile || localTimestamp > remoteTimestamp) {
+                    inputUrl = "";
+                    inputKey = null;
+                    outputUrl = url;
+                    outputKey = key;
+                } else {
+                    continue;
                 }
+
+                console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${documentFile.name} (${id})`);
+
+                let filePath = `/data/${notebook.id}${documentFile.path}`;
+                let syFile = await getFileBlob(filePath, inputUrl, this.getHeaders(inputKey));
+                let file = new File([syFile], documentFile.name, { lastModified: docTimeStamp });
+
+                putFile(filePath, false, file, outputUrl, this.getHeaders(outputKey), docTimeStamp);
+
+                console.log(`File ${documentFile.name} (${id}) synced successfully.`);
             }
         }
 
