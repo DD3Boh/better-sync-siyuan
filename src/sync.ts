@@ -50,13 +50,31 @@ export class SyncManager {
         return filesMap;
     }
 
-    async getDirFilesRecursively(path: string, url: string = "", key: string = "", skipSymlinks: boolean = true): Promise<Map<string, IResReadDir>> {
+    async getDirFilesRecursively(path: string, dirName: string, url: string = "", key: string = "", skipSymlinks: boolean = true): Promise<Map<string, IResReadDir>> {
         let filesMap = new Map<string, IResReadDir>();
 
-        let dirResponse = await readDir(path, url, this.getHeaders(key));
+        let fullPath = `${path}/${dirName}`;
+
+        // Read the path itself and add it to the map
+        let mainDirResponse = await readDir(path, url, this.getHeaders(key));
+
+        // Retrieve the main directory only
+        if (!mainDirResponse || !Array.isArray(mainDirResponse)) {
+            console.log(`No files found or invalid response for path ${path}:`, mainDirResponse);
+            return filesMap;
+        }
+
+        let mainDir = mainDirResponse.find(file => file.name === dirName);
+        if (!mainDir) {
+            console.log(`Directory ${dirName} not found in path ${path}`);
+            return filesMap;
+        }
+        filesMap.set(`${path}/${mainDir.name}`, mainDir);
+
+        let dirResponse = await readDir(fullPath, url, this.getHeaders(key));
 
         if (!dirResponse || !Array.isArray(dirResponse)) {
-            console.log(`No files found or invalid response for path ${path}:`, dirResponse);
+            console.log(`No files found or invalid response for path ${fullPath}:`, dirResponse);
             return filesMap;
         }
 
@@ -68,13 +86,13 @@ export class SyncManager {
 
         // Add current level files to the map
         dir.forEach(file => {
-            filesMap.set(`${path}/${file.name}`, file);
+            filesMap.set(`${fullPath}/${file.name}`, file);
         });
 
         // Collect all promises
         const promises = dir
             .filter(file => file.isDir)
-            .map(file => this.getDirFilesRecursively(path + "/" + file.name, url, key, skipSymlinks));
+            .map(file => this.getDirFilesRecursively(fullPath, file.name, url, key, skipSymlinks));
 
         // Wait for all promises to resolve
         const results = await Promise.all(promises);
@@ -142,7 +160,7 @@ export class SyncManager {
         const combinedNotebooks = Array.from(allNotebooks.values());
 
         const syncPromises = combinedNotebooks.map(notebook =>
-            this.syncDirectory(`data/${notebook.id}`, url, key, lastSyncTime, false)
+            this.syncDirectory("data", notebook.id, url, key, lastSyncTime, false)
         );
 
         // Wait for all notebook syncs to complete
@@ -153,15 +171,15 @@ export class SyncManager {
 
         // Sync other directories
         let directoriesToSync = [
-            "/data/plugins",
-            "/data/templates",
-            "/data/widgets",
-            "/data/emojis",
+            "plugins",
+            "templates",
+            "widgets",
+            "emojis",
         ];
 
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(dir =>
-            this.syncDirectory(dir, url, key, lastSyncTime)
+            this.syncDirectory("data", dir, url, key, lastSyncTime)
         );
         await Promise.all(syncDirPromises);
 
@@ -169,11 +187,11 @@ export class SyncManager {
         console.log("Sync completed.");
     }
 
-    async syncDirectory(path: string, url: string = "", key: string = "", lastSyncTime: number = 0, deleteFoldersOnly: boolean = true) {
-        let localFiles = await this.getDirFilesRecursively(path);
-        let remoteFiles = await this.getDirFilesRecursively(path, url, key);
+    async syncDirectory(path: string, dirName: string, url: string = "", key: string = "", lastSyncTime: number = 0, deleteFoldersOnly: boolean = true) {
+        let localFiles = await this.getDirFilesRecursively(path, dirName);
+        let remoteFiles = await this.getDirFilesRecursively(path, dirName, url, key);
 
-        console.log(`Syncing directory ${path}`);
+        console.log(`Syncing directory ${path}/${dirName}`);
 
         // Create a combined map of all files
         const allFiles = new Map<string, IResReadDir>();
