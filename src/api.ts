@@ -367,7 +367,7 @@ export const getFileBlob = async (path: string, urlPrefix: string = '', headers?
     return data;
 }
 
-export async function putFile(path: string, isDir: boolean, file: any, urlPrefix: string = '', headers?: Record<string, string>, modTime: number = Math.floor(Date.now() / 1000)) {
+export async function putFile(path: string, isDir: boolean, file: any, urlPrefix: string = '', headers?: Record<string, string>, modTime: number = Date.now()) {
     let form = new FormData();
     form.append('path', path);
     form.append('isDir', isDir.toString());
