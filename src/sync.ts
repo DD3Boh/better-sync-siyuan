@@ -145,8 +145,19 @@ export class SyncManager {
         // Handle missing assets
         await this.syncMissingAssets(url, key);
 
-        // Sync plugin directory
-        await this.syncDirectory(`/data/plugins`, url, key, lastSyncTime);
+        // Sync other directories
+        let directoriesToSync = [
+            "/data/plugins",
+            "/data/templates",
+            "/data/widgets",
+            "/data/emojis",
+        ];
+
+        // Sync directories concurrently
+        const syncDirPromises = directoriesToSync.map(dir =>
+            this.syncDirectory(dir, url, key, lastSyncTime)
+        );
+        await Promise.all(syncDirPromises);
 
         this.setSyncStatus();
         console.log("Sync completed.");
