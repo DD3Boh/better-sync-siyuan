@@ -92,24 +92,16 @@ export class SyncManager {
             if (JSON.stringify(remoteConf) !== JSON.stringify(localConf)) {
                 console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) differs. Syncing...`);
 
-                if (!localConf) {
-                    console.log(`Local configuration not found for notebook ${notebook.name} (${notebook.id}).`);
+                if (!localConf || remoteTimestamp > localTimestamp) {
+                    console.log(`Remote configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
 
                     let file = new File([JSON.stringify(remoteConf.conf, null, 2)], "conf.json");
                     putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file);
-                } else if (!remoteConf) {
-                    console.log(`Remote configuration not found for notebook ${notebook.name} (${notebook.id}).`);
+                } else if (!remoteConf || localTimestamp > remoteTimestamp) {
+                    console.log(`Local configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
 
                     let file = new File([JSON.stringify(localConf.conf, null, 2)], "conf.json");
                     putFile(`/data/${notebook.id}/.siyuan/conf.json`, false, file, url, this.getHeaders(key));
-                } else if (localTimestamp < remoteTimestamp) {
-                    console.log(`Remote configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
-
-                    setNotebookConf(notebook.id, remoteConf.conf);
-                } else if (remoteTimestamp < localTimestamp) {
-                    console.log(`Local configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
-
-                    setNotebookConf(notebook.id, localConf.conf, url, this.getHeaders(key));
                 }
 
                 console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) synced successfully.`);
