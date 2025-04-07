@@ -5,6 +5,7 @@ import BetterSyncPlugin from ".";
 export class SyncManager {
     private plugin: BetterSyncPlugin;
     private localWorkspaceDir: string;
+    private urlToKeyMap: [string, string][] = []
 
     getUrl(): string {
         return this.plugin.settingsManager.getPref("siyuanUrl");
@@ -17,6 +18,8 @@ export class SyncManager {
     constructor(plugin: BetterSyncPlugin, workspaceDir: string) {
         this.plugin = plugin;
         this.localWorkspaceDir = workspaceDir;
+        this.urlToKeyMap.push(["http://localhost:6806", null]);
+        this.urlToKeyMap.push([this.getUrl(), this.getKey()]);
     }
 
     async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
@@ -115,8 +118,8 @@ export class SyncManager {
     }
 
     async setSyncStatus() {
-        let url = this.getUrl();
-        let key = this.getKey();
+        let url = this.urlToKeyMap[1][0];
+        let key = this.urlToKeyMap[1][1];
 
         if (!url || !key) {
             console.error("Siyuan URL or API Key is not set.");
@@ -143,8 +146,8 @@ export class SyncManager {
 
     async syncWithRemote() {
         // TODO: Add support for multiple remotes
-        let url = this.getUrl();
-        let key = this.getKey();
+        let url = this.urlToKeyMap[1][0];
+        let key = this.urlToKeyMap[1][1];
 
         if (!url || !key) {
             console.error("Siyuan URL or API Key is not set.");
