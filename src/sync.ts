@@ -79,14 +79,14 @@ export class SyncManager {
         for (const notebook of combinedNotebooks) {
             console.log(`Syncing configuration for notebook ${notebook.name} (${notebook.id})`);
 
-            // Get remote and local configurations
             const localConf = await getNotebookConf(notebook.id);
             const remoteConf = await getNotebookConf(notebook.id, url, this.getHeaders(key));
 
             let localDir = await readDir(`/data/${notebook.id}`);
             let remoteDir = await readDir(`/data/${notebook.id}`, url, this.getHeaders(key));
-            let localTimestamp = localDir[0].updated;
-            let remoteTimestamp = remoteDir[0].updated;
+
+            let localTimestamp = localDir && localDir.length > 0 ? localDir[0].updated : 0;
+            let remoteTimestamp = remoteDir && remoteDir.length > 0 ? remoteDir[0].updated : 0;
 
             // Synchronize configurations
             if (JSON.stringify(remoteConf) !== JSON.stringify(localConf)) {
