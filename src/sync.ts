@@ -50,6 +50,38 @@ export class SyncManager {
         return filesMap;
     }
 
+    async getDirFilesRecursively(path: string, url: string = "", key: string = "", skipSymlinks: boolean = true): Promise<Map<string, IResReadDir>> {
+        let dir = (await readDir(path, url, this.getHeaders(key))).filter(file => !(skipSymlinks && file.isSymlink));
+        let filesMap = new Map<string, IResReadDir>();
+
+        if (!dir || dir.length === 0) {
+            console.log("No files found or invalid response:", dir);
+            return filesMap;
+        }
+
+        // Add current level files to the map
+        dir.forEach(file => {
+            filesMap.set(`${path}/${file.name}`, file);
+        });
+
+        // Collect all promises
+        const promises = dir
+            .filter(file => file.isDir)
+            .map(file => this.getDirFilesRecursively(path + "/" + file.name, url, key, skipSymlinks));
+
+        // Wait for all promises to resolve
+        const results = await Promise.all(promises);
+
+        // Merge all result maps into the main map
+        results.forEach(resultMap => {
+            for (const [name, file] of resultMap.entries()) {
+                filesMap.set(name, file);
+            }
+        });
+
+        return filesMap;
+    }
+
     async setSyncStatus() {
         let url = this.urlToKeyPairs[0][0];
         let key = this.urlToKeyPairs[0][1];
