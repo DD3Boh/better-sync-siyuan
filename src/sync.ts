@@ -149,6 +149,22 @@ export class SyncManager {
                 const localFile = localFiles.get(id);
                 if (localFile && remoteFile.mtime !== localFile.mtime) {
                     console.log(`File ${remoteFile.name} (${id}) has different timestamps.`);
+
+                    const filePath = `/data/${notebook.id}${localFile.path}`
+
+                    if (localFile.mtime > remoteFile.mtime) {
+                        console.log(`Local file is newer. Updating remote.`)
+                        let syFile = await getFileBlob(filePath)
+                        let file = new File([syFile], localFile.name)
+
+                        putFile(filePath, false, file, url, this.getHeaders(key))
+                    } else {
+                        console.log(`Remote file is newer. Updating local.`)
+                        let syFile = await getFileBlob(filePath, url, this.getHeaders(key))
+                        let file = new File([syFile], localFile.name)
+
+                        putFile(filePath, false, file)
+                    }
                 }
             }
         }
