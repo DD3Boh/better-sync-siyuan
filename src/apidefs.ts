@@ -32,3 +32,7 @@ type DocsData = {
     files: DocumentFiles[],
     path: string;
 }
+
+type MissingAssets = {
+    missingAssets: string[];
+}

@@ -167,6 +167,11 @@ export async function upload(assetsDirPath: string, files: any[], urlPrefix: str
     return requestWithHeaders(url, form, headers);
 }
 
+export async function getMissingAssets(urlPrefix: string = '', headers?: Record<string, string>): Promise<MissingAssets> {
+    let url = `${urlPrefix}/api/asset/getMissingAssets`;
+    return requestWithHeaders(url, null, headers);
+}
+
 // **************************************** Block ****************************************
 type DataType = "markdown" | "dom";
 export async function insertBlock(
