@@ -149,6 +149,74 @@ export class SyncManager {
         console.log("Sync completed.");
     }
 
+    async syncDirectory(path: string, url: string = "", key: string = "", lastSyncTime: number = 0) {
+        let localFiles = await this.getDirFilesRecursively(path);
+        let remoteFiles = await this.getDirFilesRecursively(path, url, key);
+
+        // Create a combined map of all files
+        const allFiles = new Map<string, IResReadDir>();
+
+        [...remoteFiles, ...localFiles].forEach(pair => {
+            allFiles.set(pair[0], pair[1]);
+        });
+
+        // Synchronize files
+        for (const [path, fileRes] of allFiles.entries()) {
+            const remoteFile = remoteFiles.get(path);
+            const localFile = localFiles.get(path);
+
+            let localTimestamp = localFile ? localFile.updated : 0;
+            let remoteTimestamp = remoteFile ? remoteFile.updated : 0;
+
+            // Multiply by 1000 because `putFile` makes the conversion automatically
+            let fileTimeStamp = fileRes.updated * 1000;
+
+            let inputUrl: string;
+            let inputKey: string;
+            let outputUrl: string;
+            let outputKey: string;
+
+            // Remove deleted files
+            if (!localFile) {
+                if (lastSyncTime > remoteTimestamp) {
+                    console.log(`Deleting remote file ${fileRes.name} (${path})`);
+                    removeFile(path, url, this.getHeaders(key));
+                    continue;
+                }
+            } else if (!remoteFile) {
+                if (lastSyncTime > localTimestamp) {
+                    console.log(`Deleting local file ${fileRes.name} (${path})`);
+                    removeFile(path);
+                    continue;
+                }
+            }
+
+            if (!localFile || remoteTimestamp > localTimestamp) {
+                inputUrl = url;
+                inputKey = key;
+                outputUrl = "";
+                outputKey = null;
+            } else if (!remoteFile || localTimestamp > remoteTimestamp) {
+                inputUrl = "";
+                inputKey = null;
+                outputUrl = url;
+                outputKey = key;
+            } else {
+                continue;
+            }
+
+            console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${fileRes.name} (${path})`);
+            console.log(`localTimestamp: ${localTimestamp}, remoteTimestamp: ${remoteTimestamp}`);
+
+            let syFile = await getFileBlob(path, inputUrl, this.getHeaders(inputKey));
+            let file = new File([syFile], fileRes.name, { lastModified: fileTimeStamp });
+
+            putFile(path, false, file, outputUrl, this.getHeaders(outputKey), fileTimeStamp);
+
+            console.log(`File ${fileRes.name} (${path}) synced successfully.`);
+        }
+    }
+
     async syncMissingAssets(url: string, key: string) {
         console.log(`Syncing missing assets`);
 
