@@ -121,6 +121,20 @@ export class SyncManager {
             if (JSON.stringify(remoteConf) !== JSON.stringify(localConf)) {
                 console.log(`Configuration for notebook ${notebook.name} (${notebook.id}) differs. Syncing...`);
 
+                if (!localConf) {
+                    if (lastSyncTime > remoteTimestamp) {
+                        console.log(`Deleting remote notebook ${notebook.name} (${notebook.id})`);
+                        removeFile(`/data/${notebook.id}/`, url, this.getHeaders(key));
+                        continue
+                    }
+                } else if (!remoteConf) {
+                    if (lastSyncTime > localTimestamp) {
+                        console.log(`Deleting local notebook ${notebook.name} (${notebook.id})`);
+                        removeFile(`/data/${notebook.id}/`);
+                        continue
+                    }
+                }
+
                 if (!localConf || remoteTimestamp > localTimestamp) {
                     console.log(`Remote configuration is newer for notebook ${notebook.name} (${notebook.id}). Syncing...`);
 
