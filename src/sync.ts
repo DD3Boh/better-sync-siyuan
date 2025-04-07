@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getFileBlob, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile } from "./api";
+import { getFileBlob, getMissingAssets, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -110,8 +110,36 @@ export class SyncManager {
         // Wait for all notebook syncs to complete
         await Promise.all(syncPromises);
 
+        // Handle missing assets
+        await this.syncMissingAssets(url, key);
+
         this.setSyncStatus();
         console.log("Sync completed.");
+    }
+
+    async syncMissingAssets(url: string, key: string) {
+        console.log(`Syncing missing assets`);
+
+        let localMissingAssets = (await getMissingAssets()).missingAssets;
+
+        for (let asset of localMissingAssets) {
+            console.log(`Syncing local missing asset ${asset}`);
+            let filePath = `/data/${asset}`;
+            let blob = await getFileBlob(filePath, url, this.getHeaders(key));
+
+            let file = new File([blob], asset.split("/").pop());
+            putFile(filePath, false, file);
+        }
+
+        let remoteMissingAssets = (await getMissingAssets(url, this.getHeaders(key))).missingAssets;
+        for (let asset of remoteMissingAssets) {
+            console.log(`Syncing remote missing asset ${asset}`);
+            let filePath = `/data/${asset}`;
+            let blob = await getFileBlob(filePath);
+
+            let file = new File([blob], asset.split("/").pop());
+            putFile(filePath, false, file, url, this.getHeaders(key));
+        }
     }
 
     async syncNotebook(notebook: Notebook, url: string, key: string, lastSyncTime: number) {
