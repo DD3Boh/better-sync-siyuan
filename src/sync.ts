@@ -124,7 +124,7 @@ export class SyncManager {
                     let syFile = await getFileBlob(filePath, url, this.getHeaders(key))
 
                     let file = new File([syFile], documentFile.name)
-                    putFile(filePath, false, file)
+                    putFile(filePath, false, file, null, null, documentFile.mtime)
 
                     console.log(`File ${documentFile.name} (${id}) downloaded successfully.`);
                 }
@@ -138,7 +138,7 @@ export class SyncManager {
                     let syFile = await getFileBlob(filePath)
 
                     let file = new File([syFile], documentFile.name)
-                    putFile(filePath, false, file, url, this.getHeaders(key))
+                    putFile(filePath, false, file, url, this.getHeaders(key), documentFile.mtime)
 
                     console.log(`File ${documentFile.name} (${id}) uploaded successfully.`);
                 }
@@ -149,6 +149,7 @@ export class SyncManager {
                 const localFile = localFiles.get(id);
                 if (localFile && remoteFile.mtime !== localFile.mtime) {
                     console.log(`File ${remoteFile.name} (${id}) has different timestamps.`);
+                    console.log(`remote: ${remoteFile.mtime}, local ${localFile.mtime}`)
 
                     const filePath = `/data/${notebook.id}${localFile.path}`
 
@@ -157,13 +158,13 @@ export class SyncManager {
                         let syFile = await getFileBlob(filePath)
                         let file = new File([syFile], localFile.name)
 
-                        putFile(filePath, false, file, url, this.getHeaders(key))
+                        putFile(filePath, false, file, url, this.getHeaders(key), localFile.mtime)
                     } else {
                         console.log(`Remote file is newer. Updating local.`)
                         let syFile = await getFileBlob(filePath, url, this.getHeaders(key))
                         let file = new File([syFile], localFile.name)
 
-                        putFile(filePath, false, file)
+                        putFile(filePath, false, file, null, null, remoteFile.mtime)
                     }
                 }
             }

@@ -367,11 +367,11 @@ export const getFileBlob = async (path: string, urlPrefix: string = '', headers?
     return data;
 }
 
-export async function putFile(path: string, isDir: boolean, file: any, urlPrefix: string = '', headers?: Record<string, string>) {
+export async function putFile(path: string, isDir: boolean, file: any, urlPrefix: string = '', headers?: Record<string, string>, modTime: number = Math.floor(Date.now() / 1000)) {
     let form = new FormData();
     form.append('path', path);
     form.append('isDir', isDir.toString());
-    form.append('modTime', Math.floor(Date.now() / 1000).toString());
+    form.append('modTime', modTime.toString());
     form.append('file', file);
     let url = `${urlPrefix}/api/file/putFile`;
     return requestWithHeaders(url, form, headers);
