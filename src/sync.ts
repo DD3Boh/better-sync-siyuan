@@ -163,7 +163,7 @@ export class SyncManager {
         console.log("Sync completed.");
     }
 
-    async syncDirectory(path: string, url: string = "", key: string = "", lastSyncTime: number = 0) {
+    async syncDirectory(path: string, url: string = "", key: string = "", lastSyncTime: number = 0, avoidDelete: boolean = false) {
         let localFiles = await this.getDirFilesRecursively(path);
         let remoteFiles = await this.getDirFilesRecursively(path, url, key);
 
@@ -191,17 +191,19 @@ export class SyncManager {
             let outputKey: string;
 
             // Remove deleted files
-            if (!localFile) {
-                if (lastSyncTime > remoteTimestamp) {
-                    console.log(`Deleting remote file ${fileRes.name} (${path})`);
-                    removeFile(path, url, this.getHeaders(key));
-                    continue;
-                }
-            } else if (!remoteFile) {
-                if (lastSyncTime > localTimestamp) {
-                    console.log(`Deleting local file ${fileRes.name} (${path})`);
-                    removeFile(path);
-                    continue;
+            if (!avoidDelete) {
+                if (!localFile) {
+                    if (lastSyncTime > remoteTimestamp) {
+                        console.log(`Deleting remote file ${fileRes.name} (${path})`);
+                        removeFile(path, url, this.getHeaders(key));
+                        continue;
+                    }
+                } else if (!remoteFile) {
+                    if (lastSyncTime > localTimestamp) {
+                        console.log(`Deleting local file ${fileRes.name} (${path})`);
+                        removeFile(path);
+                        continue;
+                    }
                 }
             }
 
