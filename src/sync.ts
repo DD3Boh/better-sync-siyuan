@@ -1,5 +1,5 @@
 import { Plugin } from "siyuan";
-import { getFileBlob, getNotebookConf, getNotebookInfo, listDocsByPath, lsNotebooks, putFile, readDir, setNotebookConf } from "./api";
+import { getFileBlob, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile } from "./api";
 
 export class SyncManager {
     private plugin: Plugin;
@@ -90,7 +90,7 @@ export class SyncManager {
         let remoteNotebooks = await this.getNotebooks(url, key);
         let localNotebooks = await this.getNotebooks();
 
-        let lastSyncLocal = await this.getLastSyncTime();
+        let lastSyncTime = await this.getLastSyncTime();
 
         // Sync notebook configurations
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
@@ -154,6 +154,8 @@ export class SyncManager {
                 const remoteFile = remoteFiles.get(id);
                 const localFile = localFiles.get(id);
 
+                let filePath = `/data/${notebook.id}${documentFile.path}`;
+
                 localTimestamp = localFile ? localFile.mtime : 0;
                 remoteTimestamp = remoteFile ? remoteFile.mtime : 0;
 
@@ -164,6 +166,21 @@ export class SyncManager {
                 let inputKey: string;
                 let outputUrl: string;
                 let outputKey: string;
+
+                // Remove deleted files
+                if (!localFile) {
+                    if (lastSyncTime > remoteTimestamp) {
+                        console.log(`Deleting remote file ${documentFile.name} (${id})`);
+                        removeFile(filePath, url, this.getHeaders(key));
+                        continue;
+                    }
+                } else if (!remoteFile) {
+                    if (lastSyncTime > localTimestamp) {
+                        console.log(`Deleting local file ${documentFile.name} (${id})`);
+                        removeFile(filePath);
+                        continue;
+                    }
+                }
 
                 if (!localFile || remoteTimestamp > localTimestamp) {
                     inputUrl = url;
@@ -181,7 +198,6 @@ export class SyncManager {
 
                 console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${documentFile.name} (${id})`);
 
-                let filePath = `/data/${notebook.id}${documentFile.path}`;
                 let syFile = await getFileBlob(filePath, inputUrl, this.getHeaders(inputKey));
                 let file = new File([syFile], documentFile.name, { lastModified: docTimeStamp });
 
