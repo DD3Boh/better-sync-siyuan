@@ -51,9 +51,16 @@ export class SyncManager {
     }
 
     async getDirFilesRecursively(path: string, url: string = "", key: string = "", skipSymlinks: boolean = true): Promise<Map<string, IResReadDir>> {
-        let dir = (await readDir(path, url, this.getHeaders(key))).filter(file => !(skipSymlinks && file.isSymlink));
         let filesMap = new Map<string, IResReadDir>();
 
+        let dirResponse = await readDir(path, url, this.getHeaders(key));
+
+        if (!dirResponse || !Array.isArray(dirResponse)) {
+            console.log(`No files found or invalid response for path ${path}:`, dirResponse);
+            return filesMap;
+        }
+
+        let dir = dirResponse.filter(file => !(skipSymlinks && file.isSymlink));
         if (!dir || dir.length === 0) {
             console.log("No files found or invalid response:", dir);
             return filesMap;
