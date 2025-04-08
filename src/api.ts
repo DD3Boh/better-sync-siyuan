@@ -483,3 +483,25 @@ export async function currentTime(urlPrefix: string = '', headers?: Record<strin
 export async function getWorkspaceInfo(urlPrefix: string = '', headers?: Record<string, string>): Promise<any> {
     return requestWithHeaders(`${urlPrefix}/api/system/getWorkspaceInfo`, {}, headers);
 }
+
+// **************************************** Indexes ****************************************
+export async function upsertIndexes(paths: string[], urlPrefix: string = '', headers?: Record<string, string>) {
+    let payload = {
+        paths: paths
+    };
+    let url = `${urlPrefix}/api/filetree/upsertIndexes`;
+    return requestWithHeaders(url, payload, headers);
+}
+
+export async function removeIndexes(paths: string[], urlPrefix: string = '', headers?: Record<string, string>) {
+    let payload = {
+        paths: paths
+    };
+    let url = `${urlPrefix}/api/filetree/removeIndexes`;
+    return requestWithHeaders(url, payload, headers);
+}
+
+export async function refreshFiletree(urlPrefix: string = '', headers?: Record<string, string>) {
+    let url = `${urlPrefix}/api/filetree/refreshFiletree`;
+    return requestWithHeaders(url, {}, headers);
+}
