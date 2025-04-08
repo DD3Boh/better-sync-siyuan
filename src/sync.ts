@@ -1,4 +1,14 @@
-import { getFileBlob, getMissingAssets, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "./api";
+import {
+    getFileBlob,
+    getMissingAssets,
+    listDocsByPath,
+    lsNotebooks,
+    putFile,
+    readDir,
+    removeFile,
+    removeIndexes,
+    upsertIndexes
+} from "./api";
 import BetterSyncPlugin from ".";
 import { showMessage } from "siyuan";
 
