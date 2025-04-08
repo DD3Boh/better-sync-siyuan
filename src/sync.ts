@@ -165,7 +165,11 @@ export class SyncManager {
 
         let remoteNotebooks = await this.getNotebooks(url, key);
         let localNotebooks = await this.getNotebooks();
-        let lastSyncTime = await this.getLastSyncTime();
+        let lastLocalSyncTime = await this.getLastSyncTime();
+        let lastRemoteSyncTime = await this.getLastSyncTime(url, key);
+
+        // Get the least recent sync time
+        let lastSyncTime = Math.min(lastLocalSyncTime, lastRemoteSyncTime);
 
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
         const allNotebooks = new Map<string, Notebook>();
