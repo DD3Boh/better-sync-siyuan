@@ -208,8 +208,18 @@ export class SyncManager {
             this.syncDirectory(path, dir, urlToKeyMap, lastSyncTime)
         );
 
+        // Sync some files only if missing
+        const syncIfMissing: string[] = [
+            "data/storage/petal/petal.json",
+        ];
+
+        const syncifMissingPromises = syncIfMissing.map(filePath =>
+            this.syncFileIfMissing(urlToKeyMap, filePath)
+        );
+
         await Promise.all(syncPromises);
         await Promise.all(syncDirPromises);
+        await Promise.all(syncifMissingPromises);
 
         // Handle missing assets
         await this.syncMissingAssets(urlToKeyMap);
