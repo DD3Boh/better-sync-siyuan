@@ -1,4 +1,4 @@
-import { getFileBlob, getMissingAssets, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile } from "./api";
+import { getFileBlob, getMissingAssets, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "./api";
 import BetterSyncPlugin from ".";
 import { showMessage } from "siyuan";
 
@@ -255,12 +255,14 @@ export class SyncManager {
                     if (lastSyncTime > remoteTimestamp) {
                         console.log(`Deleting remote ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
                         removeFile(path, url, this.getHeaders(key));
+                        removeIndexes([path.replace("data/", "")], url, this.getHeaders(key));
                         continue;
                     }
                 } else if (!remoteFile) {
                     if (lastSyncTime > localTimestamp) {
                         console.log(`Deleting local ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
                         removeFile(path);
+                        removeIndexes([path.replace("data/", "")]);
                         continue;
                     }
                 }
@@ -290,6 +292,7 @@ export class SyncManager {
             let file = new File([syFile], fileRes.name, { lastModified: timestamp });
 
             putFile(path, false, file, outputUrl, this.getHeaders(outputKey), timestamp);
+            upsertIndexes([path.replace("data/", "")], outputUrl, this.getHeaders(outputKey));
 
             console.log(`File ${fileRes.name} (${path}) synced successfully.`);
         }
