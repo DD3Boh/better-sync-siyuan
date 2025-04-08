@@ -10,8 +10,8 @@ import { getWorkspaceInfo } from "./api";
 
 export default class BetterSyncPlugin extends Plugin {
     settingsManager: SettingsManager;
+    syncManager: SyncManager;
     private isMobile: boolean;
-    private syncManager: SyncManager;
 
     async onload() {
         console.log("onload");

@@ -1,4 +1,3 @@
-import { Plugin } from "siyuan";
 import { getFileBlob, getMissingAssets, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile } from "./api";
 import BetterSyncPlugin from ".";
 
@@ -13,6 +12,16 @@ export class SyncManager {
 
     getKey(): string {
         return this.plugin.settingsManager.getPref("siyuanAPIKey");
+    }
+
+    updateUrlKey() {
+        let url = this.plugin.settingsManager.getPref("siyuanUrl");
+        let key = this.plugin.settingsManager.getPref("siyuanAPIKey");
+
+        if (this.urlToKeyMap.length > 1)
+            this.urlToKeyMap[1] = [url, key];
+        else
+            this.urlToKeyMap.push([url, key]);
     }
 
     constructor(plugin: BetterSyncPlugin, workspaceDir: string) {

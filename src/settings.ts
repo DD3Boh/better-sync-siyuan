@@ -1,13 +1,13 @@
 import { SettingUtils } from "@/libs/setting-utils";
-import { Plugin } from "siyuan";
+import BetterSyncPlugin from ".";
 
 const STORAGE_NAME = "menu-config";
 
 export class SettingsManager {
-    private plugin: Plugin;
+    private plugin: BetterSyncPlugin;
     private settingUtils: SettingUtils;
 
-    constructor(plugin: Plugin) {
+    constructor(plugin: BetterSyncPlugin) {
         this.plugin = plugin;
 
         this.settingUtils = new SettingUtils({
@@ -26,6 +26,7 @@ export class SettingsManager {
             action: {
                 callback: () => {
                     let value = this.settingUtils.takeAndSave("siyuanUrl");
+                    this.plugin.syncManager.updateUrlKey();
                     console.log(value);
                 }
             }
@@ -40,6 +41,7 @@ export class SettingsManager {
             action: {
                 callback: () => {
                     let value = this.settingUtils.takeAndSave("siyuanAPIKey");
+                    this.plugin.syncManager.updateUrlKey();
                     console.log(value);
                 }
             }
