@@ -237,7 +237,7 @@ export class SyncManager {
             let remoteTimestamp = remoteFile ? remoteFile.updated : 0;
 
             // Multiply by 1000 because `putFile` makes the conversion automatically
-            let fileTimeStamp = fileRes.updated * 1000;
+            let timestamp: number = Math.max(localTimestamp, remoteTimestamp) * 1000;
 
             let inputUrl: string;
             let inputKey: string;
@@ -282,9 +282,9 @@ export class SyncManager {
             console.log(`localTimestamp: ${localTimestamp}, remoteTimestamp: ${remoteTimestamp}`);
 
             let syFile = await getFileBlob(path, inputUrl, this.getHeaders(inputKey));
-            let file = new File([syFile], fileRes.name, { lastModified: fileTimeStamp });
+            let file = new File([syFile], fileRes.name, { lastModified: timestamp });
 
-            putFile(path, false, file, outputUrl, this.getHeaders(outputKey), fileTimeStamp);
+            putFile(path, false, file, outputUrl, this.getHeaders(outputKey), timestamp);
 
             console.log(`File ${fileRes.name} (${path}) synced successfully.`);
         }
