@@ -153,16 +153,22 @@ export class SyncManager {
         return dir[0].updated;
     }
 
+    async syncHandler() {
+        try {
+            await this.syncWithRemote();
+        } catch (error) {
+            console.error("Error during sync:", error);
+            showMessage("Sync failed: " + error.message);
+        }
+    }
+
     async syncWithRemote() {
         // TODO: Add support for multiple remotes
         let url = this.urlToKeyMap[1][0];
         let key = this.urlToKeyMap[1][1];
 
-        if (!url || !key) {
-            console.error("Siyuan URL or API Key is not set.");
-            showMessage("Cannot sync: Siyuan URL or API Key is not set.");
-            return;
-        }
+        if (!url || !key)
+            throw new Error("Siyuan URL or API Key is not set.");
 
         showMessage(`Syncing with remote server ${url}...`);
 

@@ -30,7 +30,7 @@ export default class BetterSyncPlugin extends Plugin {
             icon: "iconCloud",
             title: this.i18n.cloudIconDesc,
             position: "right",
-            callback: async () => { this.syncManager.syncWithRemote(); },
+            callback: async () => { this.syncManager.syncHandler(); },
         });
     }
 
