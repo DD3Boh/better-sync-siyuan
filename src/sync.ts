@@ -16,20 +16,19 @@ export class SyncManager {
     }
 
     updateUrlKey() {
-        let url = this.plugin.settingsManager.getPref("siyuanUrl");
-        let key = this.plugin.settingsManager.getPref("siyuanAPIKey");
+        let url = this.getUrl()
+        let key = this.getKey()
 
-        if (this.urlToKeyMap.length > 1)
-            this.urlToKeyMap[1] = [url, key];
-        else
+        this.urlToKeyMap = []
+        this.urlToKeyMap.push(["http://localhost:6806", null]);
+        if (url && key)
             this.urlToKeyMap.push([url, key]);
     }
 
     constructor(plugin: BetterSyncPlugin, workspaceDir: string) {
         this.plugin = plugin;
         this.localWorkspaceDir = workspaceDir;
-        this.urlToKeyMap.push(["http://localhost:6806", null]);
-        this.urlToKeyMap.push([this.getUrl(), this.getKey()]);
+        this.updateUrlKey();
     }
 
     async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
