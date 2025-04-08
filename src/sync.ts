@@ -1,5 +1,6 @@
 import { getFileBlob, getMissingAssets, getNotebookConf, listDocsByPath, lsNotebooks, putFile, readDir, removeFile } from "./api";
 import BetterSyncPlugin from ".";
+import { showMessage } from "siyuan";
 
 export class SyncManager {
     private plugin: BetterSyncPlugin;
@@ -160,8 +161,11 @@ export class SyncManager {
 
         if (!url || !key) {
             console.error("Siyuan URL or API Key is not set.");
+            showMessage("Cannot sync: Siyuan URL or API Key is not set.");
             return;
         }
+
+        showMessage(`Syncing with remote server ${url}...`);
 
         let remoteNotebooks = await this.getNotebooks(url, key);
         let localNotebooks = await this.getNotebooks();
@@ -206,6 +210,8 @@ export class SyncManager {
         await this.syncMissingAssets(url, key);
 
         this.setSyncStatus();
+
+        showMessage("Sync completed.");
         console.log("Sync completed.");
     }
 
