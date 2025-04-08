@@ -300,6 +300,23 @@ export class SyncManager {
         }
     }
 
+    async syncFileIfMissing(urlToKeyMap: [string, string][] = this.urlToKeyMap, path: string) {
+        this.checkUrlToKeyMap(urlToKeyMap);
+
+        let fileOne = await getFileBlob(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+        let fileTwo = await getFileBlob(path, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+
+        if (!fileOne) {
+            console.log(`Syncing file ${path} from ${urlToKeyMap[1][0]} to ${urlToKeyMap[0][0]}`);
+            let file = new File([fileTwo], path.split("/").pop());
+            putFile(path, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+        } else if (!fileTwo) {
+            console.log(`Syncing file ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+            let file = new File([fileOne], path.split("/").pop());
+            putFile(path, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+        }
+    }
+
     async syncMissingAssets(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
