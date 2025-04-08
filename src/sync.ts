@@ -195,16 +195,17 @@ export class SyncManager {
         );
 
         // Sync other directories
-        let directoriesToSync = [
-            "plugins",
-            "templates",
-            "widgets",
-            "emojis",
+        let directoriesToSync: [string, string][] = [
+            ["data", "plugins"],
+            ["data", "templates"],
+            ["data", "widgets"],
+            ["data", "emojis"],
+            ["data/storage", "av"],
         ];
 
         // Sync directories concurrently
-        const syncDirPromises = directoriesToSync.map(dir =>
-            this.syncDirectory("data", dir, urlToKeyMap, lastSyncTime)
+        const syncDirPromises = directoriesToSync.map(([path, dir]) =>
+            this.syncDirectory(path, dir, urlToKeyMap, lastSyncTime)
         );
 
         await Promise.all(syncPromises);
