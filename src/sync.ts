@@ -30,7 +30,7 @@ export class SyncManager {
         let key = this.getKey()
 
         this.urlToKeyMap = []
-        this.urlToKeyMap.push(["http://localhost:6806", null]);
+        this.urlToKeyMap.push(["http://localhost:6806", "SKIP"]);
         if (url && key)
             this.urlToKeyMap.push([url, key]);
     }
@@ -136,20 +136,14 @@ export class SyncManager {
         return filesMap;
     }
 
-    async setSyncStatus() {
-        let url = this.urlToKeyMap[1][0];
-        let key = this.urlToKeyMap[1][1];
-
-        if (!url || !key) {
-            console.error("Siyuan URL or API Key is not set.");
-            return;
-        }
+    async setSyncStatus(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        this.checkUrlToKeyMap(urlToKeyMap);
 
         let filePath = `/data/.siyuan/sync/.syncstatus`
 
         let file = new File([], ".syncstatus");
-        putFile(filePath, false, file, url, this.getHeaders(key));
-        putFile(filePath, false, file);
+        putFile(filePath, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+        putFile(filePath, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
     }
 
     async getLastSyncTime(url: string = "", key: string = null): Promise<number> {
@@ -172,29 +166,24 @@ export class SyncManager {
         }
     }
 
-    async syncWithRemote() {
-        // TODO: Add support for multiple remotes
-        let url = this.urlToKeyMap[1][0];
-        let key = this.urlToKeyMap[1][1];
+    async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        this.checkUrlToKeyMap(urlToKeyMap);
 
-        if (!url || !key)
-            throw new Error("Siyuan URL or API Key is not set.");
+        showMessage(`Syncing with remote server ${urlToKeyMap[1][0]}...`);
 
-        showMessage(`Syncing with remote server ${url}...`);
-
-        let remoteNotebooks = await this.getNotebooks(url, key);
-        let localNotebooks = await this.getNotebooks();
-        let lastLocalSyncTime = await this.getLastSyncTime();
-        let lastRemoteSyncTime = await this.getLastSyncTime(url, key);
+        let notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
+        let notebooksTwo = await this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]);
+        let lastSyncTimeOne = await this.getLastSyncTime(urlToKeyMap[0][0], urlToKeyMap[0][1]);
+        let lastSyncTimeTwo = await this.getLastSyncTime(urlToKeyMap[1][0], urlToKeyMap[1][1]);
 
         // Get the least recent sync time
-        let lastSyncTime = Math.min(lastLocalSyncTime, lastRemoteSyncTime);
+        let lastSyncTime = Math.min(lastSyncTimeOne, lastSyncTimeTwo);
 
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
         const allNotebooks = new Map<string, Notebook>();
 
         // Add all local and remote notebooks to the map (using ID as the key to avoid duplicates)
-        [...localNotebooks, ...remoteNotebooks].forEach(notebook => {
+        [...notebooksOne, ...notebooksTwo].forEach(notebook => {
             allNotebooks.set(notebook.id, notebook);
         });
 
@@ -202,7 +191,7 @@ export class SyncManager {
         const combinedNotebooks = Array.from(allNotebooks.values());
 
         const syncPromises = combinedNotebooks.map(notebook =>
-            this.syncDirectory("data", notebook.id, url, key, lastSyncTime, false)
+            this.syncDirectory("data", notebook.id, urlToKeyMap, lastSyncTime, false)
         );
 
         // Sync other directories
@@ -215,14 +204,14 @@ export class SyncManager {
 
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(dir =>
-            this.syncDirectory("data", dir, url, key, lastSyncTime)
+            this.syncDirectory("data", dir, urlToKeyMap, lastSyncTime)
         );
 
         await Promise.all(syncPromises);
         await Promise.all(syncDirPromises);
 
         // Handle missing assets
-        await this.syncMissingAssets(url, key);
+        await this.syncMissingAssets(urlToKeyMap);
 
         this.setSyncStatus();
 
@@ -230,29 +219,31 @@ export class SyncManager {
         console.log("Sync completed.");
     }
 
-    async syncDirectory(path: string, dirName: string, url: string = "", key: string = "", lastSyncTime: number = 0, deleteFoldersOnly: boolean = true) {
-        let localFiles = await this.getDirFilesRecursively(path, dirName);
-        let remoteFiles = await this.getDirFilesRecursively(path, dirName, url, key);
+    async syncDirectory(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTime: number = 0, deleteFoldersOnly: boolean = true) {
+        this.checkUrlToKeyMap(urlToKeyMap);
+
+        let filesOne = await this.getDirFilesRecursively(path, dirName, urlToKeyMap[0][0], urlToKeyMap[0][1]);
+        let filesTwo = await this.getDirFilesRecursively(path, dirName, urlToKeyMap[1][0], urlToKeyMap[1][1]);
 
         console.log(`Syncing directory ${path}/${dirName}`);
 
         // Create a combined map of all files
         const allFiles = new Map<string, IResReadDir>();
 
-        [...remoteFiles, ...localFiles].forEach(pair => {
+        [...filesOne, ...filesTwo].forEach(pair => {
             allFiles.set(pair[0], pair[1]);
         });
 
         // Synchronize files
         for (const [path, fileRes] of allFiles.entries()) {
-            const remoteFile = remoteFiles.get(path);
-            const localFile = localFiles.get(path);
+            const fileOne = filesOne.get(path);
+            const fileTwo = filesTwo.get(path);
 
-            let localTimestamp = localFile ? localFile.updated : 0;
-            let remoteTimestamp = remoteFile ? remoteFile.updated : 0;
+            let timestampOne = fileOne ? fileOne.updated : 0;
+            let timestampTwo = fileTwo ? fileTwo.updated : 0;
 
             // Multiply by 1000 because `putFile` makes the conversion automatically
-            let timestamp: number = Math.max(localTimestamp, remoteTimestamp) * 1000;
+            let timestamp: number = Math.max(timestampOne, timestampTwo) * 1000;
 
             let inputUrl: string;
             let inputKey: string;
@@ -261,18 +252,18 @@ export class SyncManager {
 
             // Remove deleted files
             if (fileRes.isDir || !deleteFoldersOnly) {
-                if (!localFile) {
-                    if (lastSyncTime > remoteTimestamp) {
+                if (!filesOne) {
+                    if (lastSyncTime > timestampTwo) {
                         console.log(`Deleting remote ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
-                        removeFile(path, url, this.getHeaders(key));
-                        removeIndexes([path.replace("data/", "")], url, this.getHeaders(key));
+                        removeFile(path, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                        removeIndexes([path.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
                         continue;
                     }
-                } else if (!remoteFile) {
-                    if (lastSyncTime > localTimestamp) {
+                } else if (!filesTwo) {
+                    if (lastSyncTime > timestampOne) {
                         console.log(`Deleting local ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
-                        removeFile(path);
-                        removeIndexes([path.replace("data/", "")]);
+                        removeFile(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                        removeIndexes([path.replace("data/", "")], urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
                         continue;
                     }
                 }
@@ -281,22 +272,22 @@ export class SyncManager {
             // Avoid writing directories
             if (fileRes.isDir) continue;
 
-            if (!localFile || remoteTimestamp > localTimestamp) {
-                inputUrl = url;
-                inputKey = key;
-                outputUrl = "";
-                outputKey = null;
-            } else if (!remoteFile || localTimestamp > remoteTimestamp) {
-                inputUrl = "";
-                inputKey = null;
-                outputUrl = url;
-                outputKey = key;
+            if (!fileOne || timestampTwo > timestampOne) {
+                inputUrl = urlToKeyMap[1][0];
+                inputKey = urlToKeyMap[1][1];
+                outputUrl = urlToKeyMap[0][0];
+                outputKey = urlToKeyMap[0][1];
+            } else if (!fileTwo || timestampOne > timestampTwo) {
+                inputUrl = urlToKeyMap[0][0];
+                inputKey = urlToKeyMap[0][1];
+                outputUrl = urlToKeyMap[1][0];
+                outputKey = urlToKeyMap[1][1];
             } else {
                 continue;
             }
 
             console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${fileRes.name} (${path})`);
-            console.log(`localTimestamp: ${localTimestamp}, remoteTimestamp: ${remoteTimestamp}`);
+            console.log(`timestampOne: ${timestampOne}, timestampTwo: ${timestampTwo}`);
 
             let syFile = await getFileBlob(path, inputUrl, this.getHeaders(inputKey));
             let file = new File([syFile], fileRes.name, { lastModified: timestamp });
@@ -308,35 +299,49 @@ export class SyncManager {
         }
     }
 
-    async syncMissingAssets(url: string, key: string) {
+    async syncMissingAssets(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        this.checkUrlToKeyMap(urlToKeyMap);
+
         console.log(`Syncing missing assets`);
 
-        let localMissingAssets = (await getMissingAssets()).missingAssets;
-
-        for (let asset of localMissingAssets) {
+        let missingAssets = (await getMissingAssets(urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]))).missingAssets;
+        for (let asset of missingAssets) {
             console.log(`Syncing local missing asset ${asset}`);
             let filePath = `/data/${asset}`;
-            let blob = await getFileBlob(filePath, url, this.getHeaders(key));
+            let blob = await getFileBlob(filePath, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
 
             let file = new File([blob], asset.split("/").pop());
-            putFile(filePath, false, file);
+            putFile(filePath, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
         }
 
-        let remoteMissingAssets = (await getMissingAssets(url, this.getHeaders(key))).missingAssets;
-        for (let asset of remoteMissingAssets) {
+        missingAssets = (await getMissingAssets(urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]))).missingAssets;
+        for (let asset of missingAssets) {
             console.log(`Syncing remote missing asset ${asset}`);
             let filePath = `/data/${asset}`;
-            let blob = await getFileBlob(filePath);
+            let blob = await getFileBlob(filePath, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
 
             let file = new File([blob], asset.split("/").pop());
-            putFile(filePath, false, file, url, this.getHeaders(key));
+            putFile(filePath, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
         }
     }
 
     // Utils
     getHeaders(key: string = null): Record<string, string> {
-        if (!key) return {}
+        if (!key || key.trim() === "SKIP") return {}
 
         return { "Authorization": `Token ${key}` }
+    }
+
+    checkUrlToKeyMap(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        if (!urlToKeyMap || !Array.isArray(urlToKeyMap))
+            throw new Error("urlToKeyMap is not properly initialized");
+
+        if (urlToKeyMap.length !== 2)
+            throw new Error(`Expected urlToKeyMap to have exactly 2 entries, but found ${urlToKeyMap.length}`);
+
+        for (let i = 0; i < urlToKeyMap.length; i++) {
+            if (!urlToKeyMap[i][0] || !urlToKeyMap[i][1])
+                throw new Error(`Siyuan URL or API Key is not set for entry ${i + 1}.`);
+        }
     }
 }
