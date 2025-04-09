@@ -358,6 +358,28 @@ export class SyncManager {
         }
     }
 
+    async pushNotebookConfig(notebookId: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        this.checkUrlToKeyMap(urlToKeyMap);
+
+        let files: string[] = [
+            "config.json",
+            "sort.json",
+        ]
+
+        for (let file of files) {
+            let path = `/data/${notebookId}/.siyuan/${file}`;
+            let fileOne = await getFileBlob(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+
+            if (fileOne) {
+                console.log(`Pushing notebook config ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+                let fileObj = new File([fileOne], file);
+                putFile(path, false, fileObj, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+            } else {
+                console.log(`File ${path} not found in ${urlToKeyMap[0][0]}`);
+            }
+        }
+    }
+
     // Utils
     getHeaders(key: string = null): Record<string, string> {
         if (!key || key.trim() === "SKIP") return {}
