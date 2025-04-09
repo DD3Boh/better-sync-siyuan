@@ -339,9 +339,11 @@ export class SyncManager {
 
         const allMissingAssets = [...localMissing.missingAssets, ...remoteMissing.missingAssets];
 
-        for (const asset of allMissingAssets) {
-            await this.syncFileIfMissing(urlToKeyMap, `/data/${asset}`);
-        }
+        const assetsPromises = allMissingAssets.map(asset =>
+            this.syncFileIfMissing(urlToKeyMap, `/data/${asset}`)
+        );
+
+        await Promise.all(assetsPromises);
     }
 
     // Utils
