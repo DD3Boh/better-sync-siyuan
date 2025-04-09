@@ -25,9 +25,8 @@ export class SettingsManager {
             description: this.plugin.i18n.siyuanUrlDesc,
             action: {
                 callback: () => {
-                    let value = this.settingUtils.takeAndSave("siyuanUrl");
+                    this.settingUtils.takeAndSave("siyuanUrl");
                     this.plugin.syncManager.updateUrlKey();
-                    console.log(value);
                 }
             }
         });
@@ -40,9 +39,8 @@ export class SettingsManager {
             description: this.plugin.i18n.siyuanAPIKeyDesc,
             action: {
                 callback: () => {
-                    let value = this.settingUtils.takeAndSave("siyuanAPIKey");
+                    this.settingUtils.takeAndSave("siyuanAPIKey");
                     this.plugin.syncManager.updateUrlKey();
-                    console.log(value);
                 }
             }
         });
@@ -57,7 +55,6 @@ export class SettingsManager {
                 callback: () => {
                     let value = !this.settingUtils.get("syncOnOpen");
                     this.settingUtils.set("syncOnOpen", value);
-                    console.log(value);
                 }
             }
         });
@@ -72,7 +69,6 @@ export class SettingsManager {
                 callback: () => {
                     let value = !this.settingUtils.get("autoSyncCurrentFile");
                     this.settingUtils.set("autoSyncCurrentFile", value);
-                    console.log(value);
                 }
             }
         });
