@@ -358,24 +358,47 @@ export class SyncManager {
         }
     }
 
-    async pushNotebookConfig(notebookId: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+    async syncNotebookConfig(notebookId: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
         let files: string[] = [
-            "config.json",
+            "conf.json",
             "sort.json",
         ]
 
+        let dirOne = await readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+        let dirTwo = await readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+
         for (let file of files) {
             let path = `/data/${notebookId}/.siyuan/${file}`;
-            let fileOne = await getFileBlob(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
 
-            if (fileOne) {
-                console.log(`Pushing notebook config ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
-                let fileObj = new File([fileOne], file);
-                putFile(path, false, fileObj, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+            const fileOne = dirOne.find(it => it.name === file);
+            const fileTwo = dirTwo.find(it => it.name === file);
+
+            if (!fileOne && !fileTwo) {
+                console.log(`File ${path} not found in both ${urlToKeyMap[0][0]} and ${urlToKeyMap[1][0]}`);
+                continue;
+            }
+
+            let timestampOne = fileOne ? fileOne.updated : 0;
+            let timestampTwo = fileTwo ? fileTwo.updated : 0;
+
+            if (timestampOne > timestampTwo) {
+                let fileBlob = await getFileBlob(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                if (fileBlob) {
+                    console.log(`Pushing notebook config ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+                    let fileObj = new File([fileBlob], file);
+                    putFile(path, false, fileObj, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                }
+            } else if (timestampTwo > timestampOne) {
+                let fileBlob = await getFileBlob(path, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                if (fileBlob) {
+                    console.log(`Pushing notebook config ${path} from ${urlToKeyMap[1][0]} to ${urlToKeyMap[0][0]}`);
+                    let fileObj = new File([fileBlob], file);
+                    putFile(path, false, fileObj, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                }
             } else {
-                console.log(`File ${path} not found in ${urlToKeyMap[0][0]}`);
+                console.log(`File ${path} is up to date in both ${urlToKeyMap[0][0]} and ${urlToKeyMap[1][0]}`);
             }
         }
     }
