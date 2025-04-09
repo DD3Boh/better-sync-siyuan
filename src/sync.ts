@@ -14,7 +14,6 @@ import { showMessage } from "siyuan";
 
 export class SyncManager {
     private plugin: BetterSyncPlugin;
-    private localWorkspaceDir: string;
     private urlToKeyMap: [string, string][] = []
 
     getUrl(): string {
@@ -35,9 +34,8 @@ export class SyncManager {
             this.urlToKeyMap.push([url, key]);
     }
 
-    constructor(plugin: BetterSyncPlugin, workspaceDir: string) {
+    constructor(plugin: BetterSyncPlugin) {
         this.plugin = plugin;
-        this.localWorkspaceDir = workspaceDir;
         this.updateUrlKey();
     }
 
