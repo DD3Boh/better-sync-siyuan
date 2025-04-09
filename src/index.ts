@@ -35,7 +35,9 @@ export default class BetterSyncPlugin extends Plugin {
     }
 
     onLayoutReady() {
-        console.log(`frontend: ${getFrontend()}; backend: ${getBackend()}`);
+        let syncOnOpen = this.settingsManager.getPref("syncOnOpen") as Boolean;
+
+        if (syncOnOpen) this.syncManager.syncHandler();
     }
 
     async onunload() {

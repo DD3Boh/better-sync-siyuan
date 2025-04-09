@@ -47,6 +47,21 @@ export class SettingsManager {
             }
         });
 
+        this.settingUtils.addItem({
+            key: "syncOnOpen",
+            value: true,
+            type: "checkbox",
+            title: this.plugin.i18n.syncOnOpen,
+            description: this.plugin.i18n.syncOnOpenDesc,
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("syncOnOpen");
+                    this.settingUtils.set("syncOnOpen", value);
+                    console.log(value);
+                }
+            }
+        });
+
         try {
             this.settingUtils.load();
         } catch (error) {
