@@ -212,7 +212,7 @@ export class SyncManager {
         ];
 
         const syncifMissingPromises = syncIfMissing.map(filePath =>
-            this.syncFileIfMissing(urlToKeyMap, filePath)
+            this.syncFileIfMissing(filePath, urlToKeyMap)
         );
 
         await Promise.all(syncPromises);
@@ -308,7 +308,7 @@ export class SyncManager {
         }
     }
 
-    async syncFileIfMissing(urlToKeyMap: [string, string][] = this.urlToKeyMap, path: string) {
+    async syncFileIfMissing(path: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
         let fileOne = await getFileBlob(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
@@ -338,7 +338,7 @@ export class SyncManager {
         const allMissingAssets = [...localMissing.missingAssets, ...remoteMissing.missingAssets];
 
         const assetsPromises = allMissingAssets.map(asset =>
-            this.syncFileIfMissing(urlToKeyMap, `/data/${asset}`)
+            this.syncFileIfMissing(`/data/${asset}`, urlToKeyMap)
         );
 
         await Promise.all(assetsPromises);
