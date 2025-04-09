@@ -344,6 +344,20 @@ export class SyncManager {
         await Promise.all(assetsPromises);
     }
 
+    async pushFile(path: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        this.checkUrlToKeyMap(urlToKeyMap);
+        let fileOne = await getFileBlob(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+
+        if (fileOne) {
+            console.log(`Pushing file ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+            let file = new File([fileOne], path.split("/").pop());
+            putFile(path, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+            upsertIndexes([path.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+        } else {
+            console.log(`File ${path} not found in ${urlToKeyMap[0][0]}`);
+        }
+    }
+
     // Utils
     getHeaders(key: string = null): Record<string, string> {
         if (!key || key.trim() === "SKIP") return {}
