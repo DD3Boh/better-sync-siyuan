@@ -28,14 +28,24 @@ export default class BetterSyncPlugin extends Plugin {
     }
 
     private setupContentObserver(protyle: IProtyle) {
-        // Clean up previous observers
         if (this.contentObserver)
             this.contentObserver.disconnect();
 
         // Add a direct mutation observer to track DOM changes in the content
         if (protyle.contentElement) {
+            let debounceTimer: NodeJS.Timeout | null = null;
+
             this.contentObserver = new MutationObserver((mutations) => {
                 console.log("Content DOM mutation:", mutations);
+
+                if (debounceTimer !== null)
+                    clearTimeout(debounceTimer);
+
+                // Set a new timer for 5 seconds
+                debounceTimer = setTimeout(() => {
+                    this.handleContentChange(protyle);
+                    debounceTimer = null;
+                }, 5000);
             });
 
             this.contentObserver.observe(protyle.contentElement, {
@@ -44,6 +54,10 @@ export default class BetterSyncPlugin extends Plugin {
                 characterData: true
             });
         }
+    }
+
+    private handleContentChange(protyle: IProtyle) {
+        this.syncManager.pushFile(`data/${protyle.notebookId}${protyle.path}`);
     }
 
     onLayoutReady() {
