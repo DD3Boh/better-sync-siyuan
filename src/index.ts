@@ -62,8 +62,12 @@ export default class BetterSyncPlugin extends Plugin {
     }
 
     private handleContentChange(protyle: IProtyle) {
-        if (this.settingsManager.getPref("autoSyncCurrentFile") == true)
+        if (this.settingsManager.getPref("autoSyncCurrentFile") == true) {
             this.syncManager.pushFile(`data/${protyle.notebookId}${protyle.path}`);
+
+            this.syncManager.pushNotebookConfig(protyle.notebookId);
+        }
+
     }
 
     onLayoutReady() {
