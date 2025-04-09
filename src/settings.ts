@@ -62,6 +62,21 @@ export class SettingsManager {
             }
         });
 
+        this.settingUtils.addItem({
+            key: "autoSyncCurrentFile",
+            value: true,
+            type: "checkbox",
+            title: this.plugin.i18n.autoSyncCurrentFile,
+            description: this.plugin.i18n.autoSyncCurrentFileDesc,
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("autoSyncCurrentFile");
+                    this.settingUtils.set("autoSyncCurrentFile", value);
+                    console.log(value);
+                }
+            }
+        });
+
         try {
             await this.settingUtils.load();
         } catch (error) {

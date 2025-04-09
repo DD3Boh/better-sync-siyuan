@@ -5,5 +5,7 @@
     "siyuanAPIKey": "SiYuan API Key",
     "siyuanApiKeyDesc": "SiYuan API Key for the other device",
     "syncOnOpen": "Sync on app start",
-    "syncOnOpenDesc": "Sync with the remote when opening SiYuan"
+    "syncOnOpenDesc": "Sync with the remote when opening SiYuan",
+    "autoSyncCurrentFile": "Auto sync current file",
+    "autoSyncCurrentFileDesc": "Automatically sync the current file with the remote after editing"
 }
