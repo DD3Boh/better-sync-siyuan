@@ -36,7 +36,12 @@ export default class BetterSyncPlugin extends Plugin {
             let debounceTimer: NodeJS.Timeout | null = null;
 
             this.contentObserver = new MutationObserver((mutations) => {
-                console.log("Content DOM mutation:", mutations);
+                /*
+                *  When mutations are below 3, ignore them
+                *  This is to prevent the observer from firing on file open
+                *  or other minor changes.
+                */
+                if (mutations.length < 3) return;
 
                 if (debounceTimer !== null)
                     clearTimeout(debounceTimer);
