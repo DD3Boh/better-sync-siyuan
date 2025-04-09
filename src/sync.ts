@@ -332,24 +332,15 @@ export class SyncManager {
 
         console.log(`Syncing missing assets`);
 
-        let missingAssets = (await getMissingAssets(urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]))).missingAssets;
-        for (let asset of missingAssets) {
-            console.log(`Syncing local missing asset ${asset}`);
-            let filePath = `/data/${asset}`;
-            let blob = await getFileBlob(filePath, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+        const [localMissing, remoteMissing] = await Promise.all([
+            getMissingAssets(urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1])),
+            getMissingAssets(urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]))
+        ]);
 
-            let file = new File([blob], asset.split("/").pop());
-            putFile(filePath, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
-        }
+        const allMissingAssets = [...localMissing.missingAssets, ...remoteMissing.missingAssets];
 
-        missingAssets = (await getMissingAssets(urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]))).missingAssets;
-        for (let asset of missingAssets) {
-            console.log(`Syncing remote missing asset ${asset}`);
-            let filePath = `/data/${asset}`;
-            let blob = await getFileBlob(filePath, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
-
-            let file = new File([blob], asset.split("/").pop());
-            putFile(filePath, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+        for (const asset of allMissingAssets) {
+            await this.syncFileIfMissing(urlToKeyMap, `/data/${asset}`);
         }
     }
 
