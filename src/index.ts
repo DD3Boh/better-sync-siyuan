@@ -1,4 +1,4 @@
-import { Plugin } from "siyuan";
+import { IProtyle, Plugin } from "siyuan";
 import "@/index.scss";
 import { SettingsManager } from "./settings";
 import { SyncManager } from "./sync";
@@ -6,6 +6,7 @@ import { SyncManager } from "./sync";
 export default class BetterSyncPlugin extends Plugin {
     settingsManager: SettingsManager;
     syncManager: SyncManager;
+    contentObserver: MutationObserver;
 
     async onload() {
         console.log("onload");
@@ -20,6 +21,29 @@ export default class BetterSyncPlugin extends Plugin {
             position: "right",
             callback: async () => { this.syncManager.syncHandler(); },
         });
+
+        this.eventBus.on("switch-protyle", async ({ detail }) => {
+            this.setupContentObserver(detail.protyle);
+        });
+    }
+
+    private setupContentObserver(protyle: IProtyle) {
+        // Clean up previous observers
+        if (this.contentObserver)
+            this.contentObserver.disconnect();
+
+        // Add a direct mutation observer to track DOM changes in the content
+        if (protyle.contentElement) {
+            this.contentObserver = new MutationObserver((mutations) => {
+                console.log("Content DOM mutation:", mutations);
+            });
+
+            this.contentObserver.observe(protyle.contentElement, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+        }
     }
 
     onLayoutReady() {
@@ -30,6 +54,9 @@ export default class BetterSyncPlugin extends Plugin {
 
     async onunload() {
         console.log("onunload");
+
+        if (this.contentObserver)
+            this.contentObserver.disconnect();
     }
 
     uninstall() {
