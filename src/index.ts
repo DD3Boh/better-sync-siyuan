@@ -12,7 +12,7 @@ export default class BetterSyncPlugin extends Plugin {
         console.log("onload");
 
         this.settingsManager = new SettingsManager(this);
-        this.settingsManager.setupSettings();
+        await this.settingsManager.setupSettings();
         this.syncManager = new SyncManager(this);
 
         this.addTopBar({

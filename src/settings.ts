@@ -16,7 +16,7 @@ export class SettingsManager {
         });
     }
 
-    setupSettings() {
+    async setupSettings() {
         this.settingUtils.addItem({
             key: "siyuanUrl",
             value: "",
@@ -63,7 +63,7 @@ export class SettingsManager {
         });
 
         try {
-            this.settingUtils.load();
+            await this.settingUtils.load();
         } catch (error) {
             console.error("Error loading settings storage, probably empty config json:", error);
         }
