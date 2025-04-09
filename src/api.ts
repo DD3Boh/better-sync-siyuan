@@ -365,7 +365,7 @@ export const getFileBlob = async (path: string, urlPrefix: string = '', headers?
             path: path
         })
     });
-    if (!response.ok) {
+    if (!response.ok || response.status !== 200) {
         return null;
     }
     let data = await response.blob();
