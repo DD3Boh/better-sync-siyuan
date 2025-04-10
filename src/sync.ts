@@ -254,10 +254,8 @@ export class SyncManager {
             // Multiply by 1000 because `putFile` makes the conversion automatically
             let timestamp: number = Math.max(timestampOne, timestampTwo) * 1000;
 
-            let inputUrl: string;
-            let inputKey: string;
-            let outputUrl: string;
-            let outputKey: string;
+            let iOut: number;
+            let iIn: number;
 
             // Remove deleted files
             if (fileRes.isDir || !deleteFoldersOnly) {
@@ -282,27 +280,23 @@ export class SyncManager {
             if (fileRes.isDir) continue;
 
             if (!fileOne || timestampTwo > timestampOne) {
-                inputUrl = urlToKeyMap[1][0];
-                inputKey = urlToKeyMap[1][1];
-                outputUrl = urlToKeyMap[0][0];
-                outputKey = urlToKeyMap[0][1];
+                iIn = 1;
+                iOut = 0;
             } else if (!fileTwo || timestampOne > timestampTwo) {
-                inputUrl = urlToKeyMap[0][0];
-                inputKey = urlToKeyMap[0][1];
-                outputUrl = urlToKeyMap[1][0];
-                outputKey = urlToKeyMap[1][1];
+                iIn = 0;
+                iOut = 1;
             } else {
                 continue;
             }
 
-            console.log(`Syncing file from ${inputUrl} to ${outputUrl}: ${fileRes.name} (${path})`);
+            console.log(`Syncing file from ${urlToKeyMap[iIn][0]} to ${urlToKeyMap[iOut][0]}: ${fileRes.name} (${path})`);
             console.log(`timestampOne: ${timestampOne}, timestampTwo: ${timestampTwo}`);
 
-            let syFile = await getFileBlob(path, inputUrl, this.getHeaders(inputKey));
+            let syFile = await getFileBlob(path, urlToKeyMap[iIn][0], this.getHeaders(urlToKeyMap[iIn][1]));
             let file = new File([syFile], fileRes.name, { lastModified: timestamp });
 
-            putFile(path, false, file, outputUrl, this.getHeaders(outputKey), timestamp);
-            upsertIndexes([path.replace("data/", "")], outputUrl, this.getHeaders(outputKey));
+            putFile(path, false, file, urlToKeyMap[iOut][0], this.getHeaders(urlToKeyMap[iOut][1]), timestamp);
+            upsertIndexes([path.replace("data/", "")], urlToKeyMap[iOut][0], this.getHeaders(urlToKeyMap[iOut][1]));
 
             console.log(`File ${fileRes.name} (${path}) synced successfully.`);
         }
