@@ -208,7 +208,7 @@ export class SyncManager {
 
         // Sync some files only if missing
         const syncIfMissing: string[] = [
-            "data/storage/petal/petal.json",
+            "data/storage/petal/petals.json",
         ];
 
         const syncifMissingPromises = syncIfMissing.map(filePath =>
