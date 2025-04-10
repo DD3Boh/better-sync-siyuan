@@ -175,7 +175,7 @@ export class SyncManager {
         let lastSyncTimeTwo = await this.getLastSyncTime(urlToKeyMap[1][0], urlToKeyMap[1][1]);
 
         // Get the least recent sync time
-        let lastSyncTime = [lastSyncTimeOne, lastSyncTimeTwo];
+        let lastSyncTime = Math.min(lastSyncTimeOne, lastSyncTimeTwo);
 
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
         const allNotebooks = new Map<string, Notebook>();
@@ -228,7 +228,7 @@ export class SyncManager {
         console.log("Sync completed.");
     }
 
-    async syncDirectory(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTime: number[] = [], deleteFoldersOnly: boolean = true) {
+    async syncDirectory(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTime: number, deleteFoldersOnly: boolean = true) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
         let filesOne = await this.getDirFilesRecursively(path, dirName, urlToKeyMap[0][0], urlToKeyMap[0][1]);
@@ -262,14 +262,14 @@ export class SyncManager {
             // Remove deleted files
             if (fileRes.isDir || !deleteFoldersOnly) {
                 if (!fileOne) {
-                    if (lastSyncTime[1] > timestampTwo) {
+                    if (lastSyncTime > timestampTwo) {
                         console.log(`Deleting remote ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
                         removeFile(path, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
                         removeIndexes([path.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
                         continue;
                     }
                 } else if (!fileTwo) {
-                    if (lastSyncTime[0] > timestampOne) {
+                    if (lastSyncTime > timestampOne) {
                         console.log(`Deleting local ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
                         removeFile(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
                         removeIndexes([path.replace("data/", "")], urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
