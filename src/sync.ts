@@ -29,7 +29,7 @@ export class SyncManager {
         let key = this.getKey()
 
         this.urlToKeyMap = []
-        this.urlToKeyMap.push(["http://localhost:6806", "SKIP"]);
+        this.urlToKeyMap.push(["", "SKIP"]);
         if (url && key)
             this.urlToKeyMap.push([url, key]);
     }
@@ -418,7 +418,7 @@ export class SyncManager {
             throw new Error(`Expected urlToKeyMap to have exactly 2 entries, but found ${urlToKeyMap.length}`);
 
         for (let i = 0; i < urlToKeyMap.length; i++) {
-            if (!urlToKeyMap[i][0] || !urlToKeyMap[i][1])
+            if ((!urlToKeyMap[i][0] && i != 0) || !urlToKeyMap[i][1])
                 throw new Error(`Siyuan URL or API Key is not set for entry ${i + 1}.`);
         }
     }
