@@ -1,0 +1,11 @@
+{
+    "cloudIconDesc": "与远程同步",
+    "siyuanUrl": "SiYuan URL",
+    "siyuanUrlDesc": "另一台设备上 SiYuan 实例的 URL，例如：http://192.168.1.45:6806",
+    "siyuanAPIKey": "SiYuan API 密钥",
+    "siyuanApiKeyDesc": "另一台设备的 SiYuan API 密钥",
+    "syncOnOpen": "启动时同步",
+    "syncOnOpenDesc": "打开 SiYuan 时与远程同步",
+    "autoSyncCurrentFile": "自动同步当前文件",
+    "autoSyncCurrentFileDesc": "编辑后自动将当前文件与远程同步"
+}

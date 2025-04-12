@@ -21,13 +21,16 @@
     "desktop-window"
   ],
   "displayName": {
-    "en_US": "Better sync"
+    "en_US": "Better sync",
+    "zh_CN": "更好同步"
   },
   "description": {
-    "en_US": "A plugin to make sync between SiYuan instances easier and faster."
+    "en_US": "A plugin to make sync between SiYuan instances easier and faster.",
+    "zh_CN": "一个让 SiYuan 实例之间同步更简单、更快的插件。"
   },
   "readme": {
-    "en_US": "README.md"
+    "en_US": "README.md",
+    "zh_CN": "README_zh_CN.md"
   },
   "funding": {
     "custom": [
@@ -36,9 +39,11 @@
   },
   "keywords": [
     "sync",
-    "better",
     "peer",
     "peer-to-peer",
-    "server"
+    "server",
+    "同步",
+    "点对点",
+    "服务器"
   ]
 }
