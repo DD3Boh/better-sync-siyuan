@@ -152,7 +152,13 @@ export class SyncManager {
             return 0;
         }
 
-        return dir[0].updated;
+        let file = dir.find(file => file.name === "status");
+        if (!file) {
+            console.log("No status file found.");
+            return 0;
+        }
+
+        return file.updated;
     }
 
     async syncHandler(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
