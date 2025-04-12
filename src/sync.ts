@@ -137,9 +137,9 @@ export class SyncManager {
     async setSyncStatus(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
-        let filePath = `/data/.siyuan/sync/.syncstatus`
+        let filePath = `/data/.siyuan/sync/status`
 
-        let file = new File([], ".syncstatus");
+        let file = new File([], "status");
         putFile(filePath, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
         putFile(filePath, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
     }
