@@ -1,7 +1,7 @@
 {
   "name": "better-sync",
   "author": "DD3Boh",
-  "url": "https://github.com/DD3Boh/better-sync",
+  "url": "https://github.com/DD3Boh/better-sync-siyuan",
   "version": "1.0.0",
   "minAppVersion": "3.0.12",
   "backends": [
@@ -21,7 +21,7 @@
     "desktop-window"
   ],
   "displayName": {
-    "en_US": "Better sync plugin"
+    "en_US": "Better sync"
   },
   "description": {
     "en_US": "A plugin to make sync between SiYuan instances easier and faster."
@@ -31,11 +31,14 @@
   },
   "funding": {
     "custom": [
-      ""
+      "https://www.paypal.me/DD3Boh"
     ]
   },
   "keywords": [
     "sync",
-    "better"
+    "better",
+    "peer",
+    "peer-to-peer",
+    "server"
   ]
 }
