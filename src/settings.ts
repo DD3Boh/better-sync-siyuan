@@ -60,6 +60,20 @@ export class SettingsManager {
         });
 
         this.settingUtils.addItem({
+            key: "syncOnClose",
+            value: true,
+            type: "checkbox",
+            title: this.plugin.i18n.syncOnClose,
+            description: this.plugin.i18n.syncOnCloseDesc,
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("syncOnClose");
+                    this.settingUtils.set("syncOnClose", value);
+                }
+            }
+        });
+
+        this.settingUtils.addItem({
             key: "autoSyncCurrentFile",
             value: true,
             type: "checkbox",

@@ -6,6 +6,8 @@
     "siyuanApiKeyDesc": "另一台设备的 SiYuan API 密钥",
     "syncOnOpen": "启动时同步",
     "syncOnOpenDesc": "打开 SiYuan 时与远程同步",
+    "syncOnClose": "关闭时同步",
+    "syncOnCloseDesc": "关闭 SiYuan 时与远程同步",
     "autoSyncCurrentFile": "自动同步当前文件",
     "autoSyncCurrentFileDesc": "编辑后自动将当前文件与远程同步"
 }

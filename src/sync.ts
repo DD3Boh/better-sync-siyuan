@@ -46,6 +46,14 @@ export class SyncManager {
     async customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
+        if (url.includes("/api/system/exit")) {
+            // Sync before closing if enabled
+            if (this.plugin.settingsManager.getPref("syncOnClose")) {
+                showMessage("Syncing before closing...");
+                await this.syncHandler();
+            }
+        }
+
         return originalFetch(input, init)
     }
 
