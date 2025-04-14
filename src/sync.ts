@@ -249,6 +249,9 @@ export class SyncManager {
         await Promise.all(syncDirPromises);
         await Promise.all(syncifMissingPromises);
 
+        // Sync petals list if empty
+        await this.syncPetalsListIfEmpty(urlToKeyMap);
+
         // Handle missing assets
         await this.syncMissingAssets(urlToKeyMap);
 
@@ -425,6 +428,23 @@ export class SyncManager {
         );
 
         await Promise.all(assetsPromises);
+    }
+
+    async syncPetalsListIfEmpty(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        this.checkUrlToKeyMap(urlToKeyMap);
+
+        let petalsListOne = await getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+        let petalsListTwo = await getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+
+        if (!petalsListOne || await petalsListOne.text() === "[]") {
+            console.log(`Syncing petals list from ${urlToKeyMap[1][0]} to ${urlToKeyMap[0][0]}`);
+            let file = new File([petalsListTwo], "petals.json");
+            putFile("/data/storage/petal/petals.json", false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+        } else if (!petalsListTwo || await petalsListTwo.text() === "[]") {
+            console.log(`Syncing petals list from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+            let file = new File([petalsListOne], "petals.json");
+            putFile("/data/storage/petal/petals.json", false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+        }
     }
 
     async pushFile(path: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
