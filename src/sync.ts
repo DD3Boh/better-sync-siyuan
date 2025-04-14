@@ -236,12 +236,13 @@ export class SyncManager {
         );
 
         // Sync some files only if missing
-        const syncIfMissing: string[] = [
-            "data/storage/petal/petals.json",
+        const syncIfMissing: [string, string][] = [
+            ["data/storage", "petal"],
+            ["data", "snippets"],
         ];
 
-        const syncifMissingPromises = syncIfMissing.map(filePath =>
-            this.syncFileIfMissing(filePath, urlToKeyMap)
+        const syncifMissingPromises = syncIfMissing.map(([path, dir]) =>
+            this.syncMissingFiles(path, dir, urlToKeyMap, lastSyncTime, true)
         );
 
         await Promise.all(syncPromises);
@@ -328,6 +329,65 @@ export class SyncManager {
             upsertIndexes([path.replace("data/", "")], urlToKeyMap[iOut][0], this.getHeaders(urlToKeyMap[iOut][1]));
 
             console.log(`File ${fileRes.name} (${path}) synced successfully.`);
+        }
+    }
+
+    async syncMissingFiles(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTime: number, avoidDeletions: boolean = false) {
+        this.checkUrlToKeyMap(urlToKeyMap);
+
+        console.log(`Syncing missing files in directory ${path}/${dirName}`);
+
+        let filesOne = await this.getDirFilesRecursively(path, dirName, urlToKeyMap[0][0], urlToKeyMap[0][1]);
+        let filesTwo = await this.getDirFilesRecursively(path, dirName, urlToKeyMap[1][0], urlToKeyMap[1][1]);
+
+        // Create a combined map of all files
+        const allFiles = new Map<string, IResReadDir>();
+
+        [...filesOne, ...filesTwo].forEach(pair => {
+            allFiles.set(pair[0], pair[1]);
+        });
+
+        // Synchronize files
+        for (const [path, fileRes] of allFiles.entries()) {
+            const fileOne = filesOne.get(path);
+            const fileTwo = filesTwo.get(path);
+
+            let timestampOne = fileOne ? fileOne.updated : 0;
+            let timestampTwo = fileTwo ? fileTwo.updated : 0;
+
+            // Multiply by 1000 because `putFile` makes the conversion automatically
+            let timestamp: number = Math.max(timestampOne, timestampTwo) * 1000;
+
+            // Remove deleted files
+            if (!fileOne) {
+                if (lastSyncTime > timestampTwo && !avoidDeletions) {
+                    console.log(`Deleting remote ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
+                    removeFile(path, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                    removeIndexes([path.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                } else {
+                    if (fileRes.isDir) continue;
+                    console.log(`Syncing file ${path} from ${urlToKeyMap[1][0]} to ${urlToKeyMap[0][0]}`);
+                    let syFile = await getFileBlob(path, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+
+                    let file = new File([syFile], path, { lastModified: timestamp });
+                    putFile(path, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]), timestamp);
+                    upsertIndexes([path.replace("data/", "")], urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                }
+            } else if (!fileTwo) {
+                if (lastSyncTime > timestampOne && !avoidDeletions) {
+                    console.log(`Deleting local ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${path})`);
+                    removeFile(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                    removeIndexes([path.replace("data/", "")], urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                } else {
+                    if (fileRes.isDir) continue;
+                    console.log(`Syncing file ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+                    let syFile = await getFileBlob(path, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+
+                    let file = new File([syFile], path, { lastModified: timestamp });
+                    putFile(path, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]), timestamp);
+                    upsertIndexes([path.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                }
+            }
         }
     }
 
