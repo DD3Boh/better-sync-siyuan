@@ -12,11 +12,10 @@ import {
 import BetterSyncPlugin from ".";
 import { showMessage } from "siyuan";
 
-const originalFetch = window.fetch;
-
 export class SyncManager {
     private plugin: BetterSyncPlugin;
-    private urlToKeyMap: [string, string][] = []
+    private urlToKeyMap: [string, string][] = [];
+    private originalFetch: typeof window.fetch;
 
     getUrl(): string {
         return this.plugin.settingsManager.getPref("siyuanUrl");
@@ -40,6 +39,7 @@ export class SyncManager {
         this.plugin = plugin;
         this.updateUrlKey();
 
+        this.originalFetch = window.fetch.bind(window);
         window.fetch = this.customFetch.bind(this);
     }
 
@@ -54,7 +54,7 @@ export class SyncManager {
             }
         }
 
-        return originalFetch(input, init)
+        return this.originalFetch(input, init)
     }
 
     async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
