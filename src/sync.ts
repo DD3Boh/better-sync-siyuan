@@ -184,13 +184,18 @@ export class SyncManager {
             await this.syncWithRemote(urlToKeyMap);
         } catch (error) {
             console.error("Error during sync:", error);
-            showMessage(`Sync with remote ${urlToKeyMap[1][0]} failed: ${error.message}`);
+            showMessage(
+                `Sync with remote ${urlToKeyMap[1][0]} failed: ${error.message}`,
+                6000,
+                "error"
+            );
         }
     }
 
     async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
+        showMessage(`Syncing with remote ${urlToKeyMap[1][0]}...`, 2000);
         console.log(`Syncing with remote server ${urlToKeyMap[1][0]}...`);
 
         let notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
@@ -248,8 +253,8 @@ export class SyncManager {
 
         this.setSyncStatus();
 
-        showMessage(`Sync with remote ${urlToKeyMap[1][0]} completed successfully!`);
-        console.log("Sync completed.");
+        showMessage("Sync completed successfully!", 2000);
+        console.log("Sync completed successfully!");
     }
 
     async syncDirectory(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTime: number, deleteFoldersOnly: boolean = true) {
