@@ -326,6 +326,11 @@ export class SyncManager {
             console.log(`timestampOne: ${timestampOne}, timestampTwo: ${timestampTwo}`);
 
             let syFile = await getFileBlob(path, urlToKeyMap[iIn][0], this.getHeaders(urlToKeyMap[iIn][1]));
+            if (!syFile) {
+                console.log(`File ${path} not found in ${urlToKeyMap[iIn][0]}`);
+                continue;
+            }
+
             let file = new File([syFile], fileRes.name, { lastModified: timestamp });
 
             putFile(path, false, file, urlToKeyMap[iOut][0], this.getHeaders(urlToKeyMap[iOut][1]), timestamp);
