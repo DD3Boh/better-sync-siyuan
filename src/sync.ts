@@ -25,6 +25,10 @@ export class SyncManager {
         return this.plugin.settingsManager.getPref("siyuanAPIKey");
     }
 
+    getNickname(): string {
+        return this.plugin.settingsManager.getPref("siyuanNickname");
+    }
+
     updateUrlKey() {
         let url = this.getUrl()
         let key = this.getKey()
@@ -184,8 +188,10 @@ export class SyncManager {
             await this.syncWithRemote(urlToKeyMap);
         } catch (error) {
             console.error("Error during sync:", error);
+            const nickname = this.getNickname();
+            const remoteName = nickname || urlToKeyMap[1][0];
             showMessage(
-                `Sync with remote ${urlToKeyMap[1][0]} failed: ${error.message}`,
+                `Sync with remote ${remoteName} failed: ${error.message}`,
                 6000,
                 "error"
             );
@@ -195,8 +201,11 @@ export class SyncManager {
     async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
-        showMessage(`Syncing with remote ${urlToKeyMap[1][0]}...`, 2000);
-        console.log(`Syncing with remote server ${urlToKeyMap[1][0]}...`);
+        const nickname = this.getNickname();
+        const remoteName = nickname || urlToKeyMap[1][0];
+
+        showMessage(`Syncing with remote ${remoteName}...`, 2000);
+        console.log(`Syncing with remote server ${remoteName}...`);
 
         let notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
         let notebooksTwo = await this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]);

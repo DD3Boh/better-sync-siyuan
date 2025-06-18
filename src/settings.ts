@@ -46,6 +46,19 @@ export class SettingsManager {
         });
 
         this.settingUtils.addItem({
+            key: "siyuanNickname",
+            value: "",
+            type: "textinput",
+            title: this.plugin.i18n.siyuanNickname,
+            description: this.plugin.i18n.siyuanNicknameDesc,
+            action: {
+                callback: () => {
+                    this.settingUtils.takeAndSave("siyuanNickname");
+                }
+            }
+        });
+
+        this.settingUtils.addItem({
             key: "syncOnOpen",
             value: true,
             type: "checkbox",

@@ -4,6 +4,8 @@
     "siyuanUrlDesc": "另一台设备上 SiYuan 实例的 URL，例如：http://192.168.1.45:6806",
     "siyuanAPIKey": "SiYuan API 密钥",
     "siyuanApiKeyDesc": "另一台设备的 SiYuan API 密钥",
+    "siyuanNickname": "对等设备昵称",
+    "siyuanNicknameDesc": "为对等设备设置一个昵称",
     "syncOnOpen": "启动时同步",
     "syncOnOpenDesc": "打开 SiYuan 时与远程同步",
     "syncOnClose": "关闭时同步",
