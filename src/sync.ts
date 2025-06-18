@@ -308,66 +308,16 @@ export class SyncManager {
 
             // Conflict detection
             if (isNotebook && !fileRes.isDir) {
-                const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
-                if (trackConflicts && isNotebook && !fileRes.isDir && lastSyncTimeOne > 0 && lastSyncTimeTwo > 0 &&
-                    fileOne && fileTwo && timestampOne > lastSyncTimeOne && timestampTwo > lastSyncTimeTwo && timestampOne !== timestampTwo) {
-
-                    console.log(`Conflict detected for file: ${path}`);
-
-                    const notebookId = dirName;
-
-                    const newerFileIndex = timestampOne > timestampTwo ? 0 : 1;
-                    const olderFileIndex = 1 - newerFileIndex;
-                    const olderFileTimestamp = olderFileIndex === 0 ? timestampOne : timestampTwo;
-
-                    const date = new Date(olderFileTimestamp * 1000);
-                    const pad = (n: number) => String(n).padStart(2, '0');
-
-                    const datePart = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-                    const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-
-                    console.log(`Conflict file timestamp: ${datePart} ${timePart}`);
-                    const formattedTimestamp = `${datePart} ${timePart}`;
-
-                    // Get document id
-                    const fileResName = fileRes.name.endsWith(".sy") ? fileRes.name.slice(0, -3) : fileRes.name;
-
-                    const humanReadablePath = await getHPathByID(fileResName, urlToKeyMap[olderFileIndex][0], this.getHeaders(urlToKeyMap[olderFileIndex][1]));
-                    console.log(`Human readable path for conflict file: ${humanReadablePath}`);
-
-                    showMessage(`Conflict detected for document: ${humanReadablePath.split("/").pop()}`, 5000);
-
-                    const conflictFilePath = `${humanReadablePath} - Conflict ${formattedTimestamp}`;
-                    console.log(`Conflict file will be saved as: ${conflictFilePath}`);
-
-                    const conflictFileTitle = conflictFilePath.split("/").pop();
-                    console.log(`Conflict file title: ${conflictFileTitle}`);
-
-                    const oldFileBlob = await getFileBlob(path, urlToKeyMap[olderFileIndex][0], this.getHeaders(urlToKeyMap[olderFileIndex][1]));
-                    if (!oldFileBlob) {
-                        console.log(`File ${path} not found in ${urlToKeyMap[olderFileIndex][0]}`);
-                        continue;
-                    }
-
-                    const conflictDocId = await createDocWithMd(
-                        notebookId,
-                        conflictFilePath,
-                        ""
-                    );
-
-                    console.log(`Created conflict document with ID: ${conflictDocId}`);
-
-                    let file = new File([oldFileBlob], `${conflictDocId}.sy`, { lastModified: olderFileTimestamp * 1000 });
-
-                    let conflictPath = path.replace(fileRes.name, `${conflictDocId}.sy`);
-
-                    await putFile(conflictPath, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]), olderFileTimestamp * 1000);
-                    await putFile(conflictPath, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]), olderFileTimestamp * 1000);
-                    await upsertIndexes([conflictPath.replace("data/", "")], urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
-                    await upsertIndexes([conflictPath.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
-                    await renameDocByID(conflictDocId, conflictFileTitle, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
-                    await renameDocByID(conflictDocId, conflictFileTitle, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
-                }
+                const conflictDetected = await this.handleConflictDetection(
+                    path,
+                    fileRes,
+                    fileOne,
+                    fileTwo,
+                    dirName,
+                    urlToKeyMap,
+                    lastSyncTimeOne,
+                    lastSyncTimeTwo
+                );
             }
 
             // Multiply by 1000 because `putFile` makes the conversion automatically
@@ -617,5 +567,93 @@ export class SyncManager {
             if ((!urlToKeyMap[i][0] && i != 0) || !urlToKeyMap[i][1])
                 throw new Error(`Siyuan URL or API Key is not set for entry ${i + 1}.`);
         }
+    }
+
+    private async handleConflictDetection(
+        path: string,
+        fileRes: IResReadDir,
+        fileOne: IResReadDir | undefined,
+        fileTwo: IResReadDir | undefined,
+        dirName: string,
+        urlToKeyMap: [string, string][],
+        lastSyncTimeOne: number,
+        lastSyncTimeTwo: number
+    ): Promise<boolean> {
+        if (!fileOne || !fileTwo) {
+            return false;
+        }
+
+        const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
+        if (!trackConflicts) {
+            return false;
+        }
+
+        const timestampOne = fileOne.updated;
+        const timestampTwo = fileTwo.updated;
+
+        if (lastSyncTimeOne > 0 && lastSyncTimeTwo > 0 &&
+            timestampOne > lastSyncTimeOne && timestampTwo > lastSyncTimeTwo && 
+            timestampOne !== timestampTwo) {
+
+            console.log(`Conflict detected for file: ${path}`);
+
+            const notebookId = dirName;
+
+            const newerFileIndex = timestampOne > timestampTwo ? 0 : 1;
+            const olderFileIndex = 1 - newerFileIndex;
+            const olderFileTimestamp = olderFileIndex === 0 ? timestampOne : timestampTwo;
+
+            const date = new Date(olderFileTimestamp * 1000);
+            const pad = (n: number) => String(n).padStart(2, '0');
+
+            const datePart = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+            const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+
+            console.log(`Conflict file timestamp: ${datePart} ${timePart}`);
+            const formattedTimestamp = `${datePart} ${timePart}`;
+
+            // Get document id
+            const fileResName = fileRes.name.endsWith(".sy") ? fileRes.name.slice(0, -3) : fileRes.name;
+
+            const humanReadablePath = await getHPathByID(fileResName, urlToKeyMap[olderFileIndex][0], this.getHeaders(urlToKeyMap[olderFileIndex][1]));
+            console.log(`Human readable path for conflict file: ${humanReadablePath}`);
+
+            showMessage(`Conflict detected for document: ${humanReadablePath.split("/").pop()}`, 5000);
+
+            const conflictFilePath = `${humanReadablePath} - Conflict ${formattedTimestamp}`;
+            console.log(`Conflict file will be saved as: ${conflictFilePath}`);
+
+            const conflictFileTitle = conflictFilePath.split("/").pop();
+            console.log(`Conflict file title: ${conflictFileTitle}`);
+
+            const oldFileBlob = await getFileBlob(path, urlToKeyMap[olderFileIndex][0], this.getHeaders(urlToKeyMap[olderFileIndex][1]));
+            if (!oldFileBlob) {
+                console.log(`File ${path} not found in ${urlToKeyMap[olderFileIndex][0]}`);
+                return true;
+            }
+
+            const conflictDocId = await createDocWithMd(
+                notebookId,
+                conflictFilePath,
+                ""
+            );
+
+            console.log(`Created conflict document with ID: ${conflictDocId}`);
+
+            let file = new File([oldFileBlob], `${conflictDocId}.sy`, { lastModified: olderFileTimestamp * 1000 });
+
+            let conflictPath = path.replace(fileRes.name, `${conflictDocId}.sy`);
+
+            await putFile(conflictPath, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]), olderFileTimestamp * 1000);
+            await putFile(conflictPath, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]), olderFileTimestamp * 1000);
+            await upsertIndexes([conflictPath.replace("data/", "")], urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+            await upsertIndexes([conflictPath.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+            await renameDocByID(conflictDocId, conflictFileTitle, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+            await renameDocByID(conflictDocId, conflictFileTitle, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+
+            return true;
+        }
+
+        return false;
     }
 }
