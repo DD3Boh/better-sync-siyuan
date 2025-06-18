@@ -100,6 +100,20 @@ export class SettingsManager {
             }
         });
 
+        this.settingUtils.addItem({
+            key: "trackConflicts",
+            value: true,
+            type: "checkbox",
+            title: "Track sync conflicts",
+            description: "When a file is modified on both devices since the last sync, the older version will be renamed as a conflict file instead of being overwritten.",
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("trackConflicts");
+                    this.settingUtils.set("trackConflicts", value);
+                }
+            }
+        });
+
         try {
             await this.settingUtils.load();
         } catch (error) {

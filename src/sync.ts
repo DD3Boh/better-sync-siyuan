@@ -1,5 +1,9 @@
 import {
+    createDocWithMd,
+    exportMdContent,
     getFileBlob,
+    getHPathByID,
+    getHPathByPath,
     getMissingAssets,
     listDocsByPath,
     lsNotebooks,
@@ -7,6 +11,7 @@ import {
     readDir,
     removeFile,
     removeIndexes,
+    renameDocByID,
     upsertIndexes
 } from "./api";
 import BetterSyncPlugin from ".";
@@ -43,7 +48,7 @@ export class SyncManager {
         this.plugin = plugin;
         this.updateUrlKey();
 
-        this.originalFetch = window.fetch.bind(window);
+        this.originalFetch = window.fetch.bind(this);
         window.fetch = this.customFetch.bind(this);
     }
 
@@ -227,7 +232,7 @@ export class SyncManager {
         const combinedNotebooks = Array.from(allNotebooks.values());
 
         const syncPromises = combinedNotebooks.map(notebook =>
-            this.syncDirectory("data", notebook.id, urlToKeyMap, lastSyncTime, false)
+            this.syncDirectory("data", notebook.id, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo, false)
         );
 
         // Sync other directories
@@ -241,7 +246,7 @@ export class SyncManager {
 
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(([path, dir]) =>
-            this.syncDirectory(path, dir, urlToKeyMap, lastSyncTime)
+            this.syncDirectory(path, dir, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo)
         );
 
         // Sync some files only if missing
@@ -270,13 +275,19 @@ export class SyncManager {
         console.log("Sync completed successfully!");
     }
 
-    async syncDirectory(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTime: number, deleteFoldersOnly: boolean = true) {
+    async syncDirectory(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTimeOne: number, lastSyncTimeTwo: number, deleteFoldersOnly: boolean = true) {
         this.checkUrlToKeyMap(urlToKeyMap);
+
+        const notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
+        const notebooksTwo = await this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]);
+
+        const allNotebookIds = new Set([...notebooksOne.map(n => n.id), ...notebooksTwo.map(n => n.id)]);
+        const isNotebook = allNotebookIds.has(dirName);
 
         let filesOne = await this.getDirFilesRecursively(path, dirName, urlToKeyMap[0][0], urlToKeyMap[0][1]);
         let filesTwo = await this.getDirFilesRecursively(path, dirName, urlToKeyMap[1][0], urlToKeyMap[1][1]);
 
-        console.log(`Syncing directory ${path}/${dirName}`);
+        console.log(`Syncing directory ${path}/${dirName}. Is notebook: ${isNotebook}`);
 
         // Create a combined map of all files
         const allFiles = new Map<string, IResReadDir>();
@@ -293,11 +304,79 @@ export class SyncManager {
             let timestampOne = fileOne ? fileOne.updated : 0;
             let timestampTwo = fileTwo ? fileTwo.updated : 0;
 
+            console.log(`Processing file: ${fileRes.name} (${path})`);
+
+            // Conflict detection
+            if (isNotebook && !fileRes.isDir) {
+                const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
+                if (trackConflicts && isNotebook && !fileRes.isDir && lastSyncTimeOne > 0 && lastSyncTimeTwo > 0 &&
+                    fileOne && fileTwo && timestampOne > lastSyncTimeOne && timestampTwo > lastSyncTimeTwo && timestampOne !== timestampTwo) {
+
+                    console.log(`Conflict detected for file: ${path}`);
+
+                    const notebookId = dirName;
+
+                    const newerFileIndex = timestampOne > timestampTwo ? 0 : 1;
+                    const olderFileIndex = 1 - newerFileIndex;
+                    const olderFileTimestamp = olderFileIndex === 0 ? timestampOne : timestampTwo;
+
+                    const date = new Date(olderFileTimestamp * 1000);
+                    const pad = (n: number) => String(n).padStart(2, '0');
+
+                    const datePart = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+                    const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+
+                    console.log(`Conflict file timestamp: ${datePart} ${timePart}`);
+                    const formattedTimestamp = `${datePart} ${timePart}`;
+
+                    // Get document id
+                    const fileResName = fileRes.name.endsWith(".sy") ? fileRes.name.slice(0, -3) : fileRes.name;
+
+                    const humanReadablePath = await getHPathByID(fileResName, urlToKeyMap[olderFileIndex][0], this.getHeaders(urlToKeyMap[olderFileIndex][1]));
+                    console.log(`Human readable path for conflict file: ${humanReadablePath}`);
+
+                    showMessage(`Conflict detected for document: ${humanReadablePath.split("/").pop()}`, 5000);
+
+                    const conflictFilePath = `${humanReadablePath} - Conflict ${formattedTimestamp}`;
+                    console.log(`Conflict file will be saved as: ${conflictFilePath}`);
+
+                    const conflictFileTitle = conflictFilePath.split("/").pop();
+                    console.log(`Conflict file title: ${conflictFileTitle}`);
+
+                    const oldFileBlob = await getFileBlob(path, urlToKeyMap[olderFileIndex][0], this.getHeaders(urlToKeyMap[olderFileIndex][1]));
+                    if (!oldFileBlob) {
+                        console.log(`File ${path} not found in ${urlToKeyMap[olderFileIndex][0]}`);
+                        continue;
+                    }
+
+                    const conflictDocId = await createDocWithMd(
+                        notebookId,
+                        conflictFilePath,
+                        ""
+                    );
+
+                    console.log(`Created conflict document with ID: ${conflictDocId}`);
+
+                    let file = new File([oldFileBlob], `${conflictDocId}.sy`, { lastModified: olderFileTimestamp * 1000 });
+
+                    let conflictPath = path.replace(fileRes.name, `${conflictDocId}.sy`);
+
+                    await putFile(conflictPath, false, file, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]), olderFileTimestamp * 1000);
+                    await putFile(conflictPath, false, file, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]), olderFileTimestamp * 1000);
+                    await upsertIndexes([conflictPath.replace("data/", "")], urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                    await upsertIndexes([conflictPath.replace("data/", "")], urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                    await renameDocByID(conflictDocId, conflictFileTitle, urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+                    await renameDocByID(conflictDocId, conflictFileTitle, urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
+                }
+            }
+
             // Multiply by 1000 because `putFile` makes the conversion automatically
             let timestamp: number = Math.max(timestampOne, timestampTwo) * 1000;
 
             let iOut: number;
             let iIn: number;
+
+            const lastSyncTime = Math.min(lastSyncTimeOne, lastSyncTimeTwo);
 
             // Remove deleted files
             if (fileRes.isDir || !deleteFoldersOnly) {

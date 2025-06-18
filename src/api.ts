@@ -91,13 +91,22 @@ export async function createDocWithMd(notebook: NotebookId, path: string, markdo
     return requestWithHeaders(url, data, headers);
 }
 
-export async function renameDoc(notebook: NotebookId, path: string, title: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<DocumentId> {
+export async function renameDoc(notebook: NotebookId, path: string, title: string, urlPrefix: string = '', headers?: Record<string, string>) {
     let data = {
         doc: notebook,
         path: path,
         title: title
     };
     let url = `${urlPrefix}/api/filetree/renameDoc`;
+    return requestWithHeaders(url, data, headers);
+}
+
+export async function renameDocByID(id: DocumentId, title: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<DocumentId> {
+    let data = {
+        id: id,
+        title: title
+    };
+    let url = `${urlPrefix}/api/filetree/renameDocByID`;
     return requestWithHeaders(url, data, headers);
 }
 
