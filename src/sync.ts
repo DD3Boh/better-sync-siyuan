@@ -21,6 +21,7 @@ export class SyncManager {
     private plugin: BetterSyncPlugin;
     private urlToKeyMap: [string, string][] = [];
     private originalFetch: typeof window.fetch;
+    private conflictDetected: boolean = false;
 
     getUrl(): string {
         return this.plugin.settingsManager.getPref("siyuanUrl");
@@ -271,8 +272,15 @@ export class SyncManager {
 
         this.setSyncStatus();
 
-        showMessage("Sync completed successfully!", 2000);
-        console.log("Sync completed successfully!");
+        if (this.conflictDetected) {
+            showMessage("Sync completed with conflicts", 2000);
+            console.warn("Sync completed with conflicts.");
+        } else {
+            showMessage("Sync completed successfully!", 2000);
+            console.log("Sync completed successfully!");
+        }
+
+        this.conflictDetected = false; // Reset conflict detection flag after sync
     }
 
     async syncDirectory(path: string, dirName: string, urlToKeyMap: [string, string][] = this.urlToKeyMap, lastSyncTimeOne: number, lastSyncTimeTwo: number, deleteFoldersOnly: boolean = true) {
@@ -318,6 +326,8 @@ export class SyncManager {
                     lastSyncTimeOne,
                     lastSyncTimeTwo
                 );
+
+                if (conflictDetected) this.conflictDetected = true;
             }
 
             // Multiply by 1000 because `putFile` makes the conversion automatically
