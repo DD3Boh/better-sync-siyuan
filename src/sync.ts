@@ -1,9 +1,7 @@
 import {
     createDocWithMd,
-    exportMdContent,
     getFileBlob,
     getHPathByID,
-    getHPathByPath,
     getMissingAssets,
     listDocsByPath,
     lsNotebooks,
@@ -12,7 +10,8 @@ import {
     removeFile,
     removeIndexes,
     renameDocByID,
-    upsertIndexes
+    upsertIndexes,
+    reloadFiletree
 } from "./api";
 import BetterSyncPlugin from ".";
 import { showMessage } from "siyuan";
@@ -269,6 +268,9 @@ export class SyncManager {
 
         // Handle missing assets
         await this.syncMissingAssets(urlToKeyMap);
+
+        await reloadFiletree(urlToKeyMap[0][0], this.getHeaders(urlToKeyMap[0][1]));
+        await reloadFiletree(urlToKeyMap[1][0], this.getHeaders(urlToKeyMap[1][1]));
 
         this.setSyncStatus();
 

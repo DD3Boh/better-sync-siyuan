@@ -514,3 +514,8 @@ export async function refreshFiletree(urlPrefix: string = '', headers?: Record<s
     let url = `${urlPrefix}/api/filetree/refreshFiletree`;
     return requestWithHeaders(url, {}, headers);
 }
+
+export async function reloadFiletree(urlPrefix: string = '', headers?: Record<string, string>) {
+    let url = `${urlPrefix}/api/ui/reloadFiletree`;
+    return requestWithHeaders(url, {}, headers);
+}
