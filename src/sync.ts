@@ -48,7 +48,7 @@ export class SyncManager {
         this.plugin = plugin;
         this.updateUrlKey();
 
-        this.originalFetch = window.fetch.bind(this);
+        this.originalFetch = window.fetch.bind(window);
         window.fetch = this.customFetch.bind(this);
     }
 
