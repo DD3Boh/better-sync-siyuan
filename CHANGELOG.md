@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Fix fetch function not binding to the window, causing issues all around
+
 ## 1.1.0
 
 - Add a method to track sync conflicts
