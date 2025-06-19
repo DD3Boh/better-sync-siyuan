@@ -11,5 +11,13 @@
     "syncOnClose": "Sync on app close",
     "syncOnCloseDesc": "Sync with the remote when closing SiYuan",
     "autoSyncCurrentFile": "Auto sync current file",
-    "autoSyncCurrentFileDesc": "Automatically sync the current file with the remote after editing"
+    "autoSyncCurrentFileDesc": "Automatically sync the current file with the remote after editing",
+    "trackConflicts": "Track sync conflicts",
+    "trackConflictsDesc": "When a file is modified on both devices since the last sync, the older version will be renamed as a conflict file instead of being overwritten.",
+    "syncingBeforeClosing": "Syncing before closing...",
+    "syncWithRemoteFailed": "Sync with remote {{remoteName}} failed: {{error}}",
+    "syncingWithRemote": "Syncing with remote {{remoteName}}...",
+    "syncCompletedWithConflicts": "Sync completed with conflicts",
+    "syncCompletedSuccessfully": "Sync completed successfully!",
+    "conflictDetectedForDocument": "Conflict detected for document: {{documentName}}"
 }

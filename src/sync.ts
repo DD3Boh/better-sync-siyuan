@@ -59,7 +59,7 @@ export class SyncManager {
         if (url.includes("/api/system/exit")) {
             // Sync before closing if enabled
             if (this.plugin.settingsManager.getPref("syncOnClose")) {
-                showMessage("Syncing before closing...");
+                showMessage(this.plugin.i18n.syncingBeforeClosing);
                 await this.syncHandler();
             }
         }
@@ -197,7 +197,7 @@ export class SyncManager {
             const nickname = this.getNickname();
             const remoteName = nickname || urlToKeyMap[1][0];
             showMessage(
-                `Sync with remote ${remoteName} failed: ${error.message}`,
+                this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remoteName).replace("{{error}}", error.message),
                 6000,
                 "error"
             );
@@ -210,7 +210,7 @@ export class SyncManager {
         const nickname = this.getNickname();
         const remoteName = nickname || urlToKeyMap[1][0];
 
-        showMessage(`Syncing with remote ${remoteName}...`, 2000);
+        showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remoteName), 2000);
         console.log(`Syncing with remote server ${remoteName}...`);
 
         let notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
@@ -273,10 +273,10 @@ export class SyncManager {
         this.setSyncStatus();
 
         if (this.conflictDetected) {
-            showMessage("Sync completed with conflicts", 2000);
+            showMessage(this.plugin.i18n.syncCompletedWithConflicts, 2000);
             console.warn("Sync completed with conflicts.");
         } else {
-            showMessage("Sync completed successfully!", 2000);
+            showMessage(this.plugin.i18n.syncCompletedSuccessfully, 2000);
             console.log("Sync completed successfully!");
         }
 
@@ -628,7 +628,7 @@ export class SyncManager {
             const humanReadablePath = await getHPathByID(fileResName, urlToKeyMap[olderFileIndex][0], this.getHeaders(urlToKeyMap[olderFileIndex][1]));
             console.log(`Human readable path for conflict file: ${humanReadablePath}`);
 
-            showMessage(`Conflict detected for document: ${humanReadablePath.split("/").pop()}`, 5000);
+            showMessage(this.plugin.i18n.conflictDetectedForDocument.replace("{{documentName}}", humanReadablePath.split("/").pop()), 5000);
 
             const conflictFilePath = `${humanReadablePath} - Conflict ${formattedTimestamp}`;
             console.log(`Conflict file will be saved as: ${conflictFilePath}`);

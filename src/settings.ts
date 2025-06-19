@@ -104,8 +104,8 @@ export class SettingsManager {
             key: "trackConflicts",
             value: true,
             type: "checkbox",
-            title: "Track sync conflicts",
-            description: "When a file is modified on both devices since the last sync, the older version will be renamed as a conflict file instead of being overwritten.",
+            title: this.plugin.i18n.trackConflicts,
+            description: this.plugin.i18n.trackConflictsDesc,
             action: {
                 callback: () => {
                     let value = !this.settingUtils.get("trackConflicts");

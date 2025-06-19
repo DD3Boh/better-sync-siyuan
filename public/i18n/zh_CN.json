@@ -11,5 +11,13 @@
     "syncOnClose": "关闭时同步",
     "syncOnCloseDesc": "关闭 SiYuan 时与远程同步",
     "autoSyncCurrentFile": "自动同步当前文件",
-    "autoSyncCurrentFileDesc": "编辑后自动将当前文件与远程同步"
+    "autoSyncCurrentFileDesc": "编辑后自动将当前文件与远程同步",
+    "trackConflicts": "跟踪同步冲突",
+    "trackConflictsDesc": "当文件在上次同步后在两台设备上都被修改时，较旧的版本将被重命名为冲突文件，而不是被覆盖。",
+    "syncingBeforeClosing": "关闭前同步中...",
+    "syncWithRemoteFailed": "与远程 {{remoteName}} 同步失败：{{error}}",
+    "syncingWithRemote": "正在与远程 {{remoteName}} 同步...",
+    "syncCompletedWithConflicts": "同步完成但有冲突",
+    "syncCompletedSuccessfully": "同步成功完成！",
+    "conflictDetectedForDocument": "检测到文档冲突：{{documentName}}"
 }
