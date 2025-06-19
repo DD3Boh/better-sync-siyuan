@@ -15,9 +15,9 @@
     "trackConflicts": "Track sync conflicts",
     "trackConflictsDesc": "When a file is modified on both devices since the last sync, the older version will be renamed as a conflict file instead of being overwritten.",
     "syncingBeforeClosing": "Syncing before closing...",
-    "syncWithRemoteFailed": "Sync with remote {{remoteName}} failed: {{error}}",
+    "syncWithRemoteFailed": "Sync with remote {{remoteName}} failed after {{duration}}s: {{error}}",
     "syncingWithRemote": "Syncing with remote {{remoteName}}...",
-    "syncCompletedWithConflicts": "Sync completed with conflicts",
-    "syncCompletedSuccessfully": "Sync completed successfully!",
+    "syncCompletedWithConflicts": "Sync completed with conflicts ({{duration}}s)",
+    "syncCompletedSuccessfully": "Sync completed successfully! ({{duration}}s)",
     "conflictDetectedForDocument": "Conflict detected for document: {{documentName}}"
 }

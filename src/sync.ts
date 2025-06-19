@@ -189,21 +189,23 @@ export class SyncManager {
     }
 
     async syncHandler(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        const startTime = Date.now();
         try {
-            await this.syncWithRemote(urlToKeyMap);
+            await this.syncWithRemote(urlToKeyMap, startTime);
         } catch (error) {
             console.error("Error during sync:", error);
             const nickname = this.getNickname();
             const remoteName = nickname || urlToKeyMap[1][0];
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
             showMessage(
-                this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remoteName).replace("{{error}}", error.message),
+                this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remoteName).replace("{{error}}", error.message).replace("{{duration}}", duration),
                 6000,
                 "error"
             );
         }
     }
 
-    async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+    async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap, startTime?: number) {
         this.checkUrlToKeyMap(urlToKeyMap);
 
         const nickname = this.getNickname();
@@ -274,12 +276,14 @@ export class SyncManager {
 
         this.setSyncStatus();
 
+        const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
+
         if (this.conflictDetected) {
-            showMessage(this.plugin.i18n.syncCompletedWithConflicts, 2000);
-            console.warn("Sync completed with conflicts.");
+            showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 2000);
+            console.warn(`Sync completed with conflicts in ${duration} seconds.`);
         } else {
-            showMessage(this.plugin.i18n.syncCompletedSuccessfully, 2000);
-            console.log("Sync completed successfully!");
+            showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 2000);
+            console.log(`Sync completed successfully in ${duration} seconds!`);
         }
 
         this.conflictDetected = false; // Reset conflict detection flag after sync
