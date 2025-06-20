@@ -253,8 +253,7 @@ export class SyncManager {
             const sourceName = iIn === 0 ? 'local' : 'remote';
             const targetName = iOut === 0 ? 'local' : 'remote';
 
-            console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath})`);
-            console.log(`timestampOne: ${timestampOne}, timestampTwo: ${timestampTwo}`);
+            console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${timestampOne} vs ${timestampTwo}`);
 
             const syFile = await getFileBlob(filePath, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
             if (!syFile) {
@@ -264,8 +263,6 @@ export class SyncManager {
 
             const file = new File([syFile], fileRes.name, { lastModified: timestamp });
             SyncUtils.putFile(filePath, file, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1], timestamp);
-
-            console.log(`File ${fileRes.name} (${filePath}) synced successfully.`);
         }
     }
 
@@ -276,11 +273,11 @@ export class SyncManager {
         let fileTwo = await getFileBlob(path, urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
 
         if (!fileOne) {
-            console.log(`Syncing file ${path} from ${urlToKeyMap[1][0]} to ${urlToKeyMap[0][0]}`);
+            console.log(`Syncing file ${path} from remote to local`);
             let file = new File([fileTwo], path.split("/").pop());
             SyncUtils.putFile(path, file, urlToKeyMap[0][0], urlToKeyMap[0][1]);
         } else if (!fileTwo) {
-            console.log(`Syncing file ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+            console.log(`Syncing file ${path} from local to remote`);
             let file = new File([fileOne], path.split("/").pop());
             SyncUtils.putFile(path, file, urlToKeyMap[1][0], urlToKeyMap[1][1]);
         }
@@ -312,11 +309,11 @@ export class SyncManager {
         let petalsListTwo = await getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
 
         if (!petalsListOne || await petalsListOne.text() === "[]") {
-            console.log(`Syncing petals list from ${urlToKeyMap[1][0]} to ${urlToKeyMap[0][0]}`);
+            console.log(`Syncing petals list from remote to local`);
             let file = new File([petalsListTwo], "petals.json");
             SyncUtils.putFile("/data/storage/petal/petals.json", file, urlToKeyMap[0][0], urlToKeyMap[0][1]);
         } else if (!petalsListTwo || await petalsListTwo.text() === "[]") {
-            console.log(`Syncing petals list from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+            console.log(`Syncing petals list from local to remote`);
             let file = new File([petalsListOne], "petals.json");
             SyncUtils.putFile("/data/storage/petal/petals.json", file, urlToKeyMap[1][0], urlToKeyMap[1][1]);
         }
@@ -327,11 +324,11 @@ export class SyncManager {
         let fileOne = await getFileBlob(path, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
 
         if (fileOne) {
-            console.log(`Pushing file ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
+            console.log(`Pushing file ${path} from local to remote`);
             let file = new File([fileOne], path.split("/").pop());
             SyncUtils.putFile(path, file, urlToKeyMap[1][0], urlToKeyMap[1][1]);
         } else {
-            console.log(`File ${path} not found in ${urlToKeyMap[0][0]}`);
+            console.log(`File ${path} not found in local`);
         }
     }
 
