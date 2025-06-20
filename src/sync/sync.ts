@@ -250,13 +250,15 @@ export class SyncManager {
 
             const iIn = timestampOne > timestampTwo ? 0 : 1;
             const iOut = timestampOne > timestampTwo ? 1 : 0;
+            const sourceName = iIn === 0 ? 'local' : 'remote';
+            const targetName = iOut === 0 ? 'local' : 'remote';
 
-            console.log(`Syncing file from ${iIn === 0 ? 'local' : 'remote'} to ${iOut === 0 ? 'local' : 'remote'}: ${fileRes.name} (${filePath})`);
+            console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath})`);
             console.log(`timestampOne: ${timestampOne}, timestampTwo: ${timestampTwo}`);
 
             const syFile = await getFileBlob(filePath, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
             if (!syFile) {
-                console.log(`File ${filePath} not found in source: ${iIn === 0 ? 'local' : 'remote'}`);
+                console.log(`File ${filePath} not found in source: ${sourceName}`);
                 continue;
             }
 
@@ -351,29 +353,28 @@ export class SyncManager {
             const fileTwo = dirTwo.find(it => it.name === file);
 
             if (!fileOne && !fileTwo) {
-                console.log(`File ${path} not found in both ${urlToKeyMap[0][0]} and ${urlToKeyMap[1][0]}`);
+                console.log(`File ${path} not found in either location.`);
                 continue;
             }
 
-            let timestampOne = fileOne ? fileOne.updated : 0;
-            let timestampTwo = fileTwo ? fileTwo.updated : 0;
+            const timestampOne = fileOne?.updated || 0;
+            const timestampTwo = fileTwo?.updated || 0;
 
-            if (timestampOne > timestampTwo) {
-                let fileBlob = await getFileBlob(path, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
-                if (fileBlob) {
-                    console.log(`Pushing notebook config ${path} from ${urlToKeyMap[0][0]} to ${urlToKeyMap[1][0]}`);
-                    let fileObj = new File([fileBlob], file);
-                    SyncUtils.putFile(path, fileObj, urlToKeyMap[1][0], urlToKeyMap[1][1]);
-                }
-            } else if (timestampTwo > timestampOne) {
-                let fileBlob = await getFileBlob(path, urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
-                if (fileBlob) {
-                    console.log(`Pushing notebook config ${path} from ${urlToKeyMap[1][0]} to ${urlToKeyMap[0][0]}`);
-                    let fileObj = new File([fileBlob], file);
-                    SyncUtils.putFile(path, fileObj, urlToKeyMap[0][0], urlToKeyMap[0][1]);
-                }
-            } else {
-                console.log(`File ${path} is up to date in both ${urlToKeyMap[0][0]} and ${urlToKeyMap[1][0]}`);
+            if (timestampOne === timestampTwo) {
+                console.log(`File ${path} is up to date in both locations.`);
+                continue;
+            }
+
+            const iIn = timestampOne > timestampTwo ? 0 : 1;
+            const iOut = timestampOne > timestampTwo ? 1 : 0;
+            const sourceName = iIn === 0 ? 'local' : 'remote';
+            const targetName = iOut === 0 ? 'local' : 'remote';
+
+            const fileBlob = await getFileBlob(path, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
+            if (fileBlob) {
+                console.log(`Pushing notebook config ${path} from ${sourceName} to ${targetName}`);
+                const fileObj = new File([fileBlob], file);
+                SyncUtils.putFile(path, fileObj, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1]);
             }
         }
     }
