@@ -1,5 +1,5 @@
 import { createDocWithMd, getFileBlob, getHPathByID, getPathByID, renameDocByID } from "@/api";
-import { SyncUtils } from "./sync";
+import { SyncUtils } from "@/sync";
 import { showMessage } from "siyuan";
 
 export class ConflictHandler {

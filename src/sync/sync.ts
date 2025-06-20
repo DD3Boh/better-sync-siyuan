@@ -1,4 +1,3 @@
-export { SyncUtils } from "./sync-utils";
 import { SyncUtils } from "./sync-utils";
 
 import {
@@ -10,7 +9,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { showMessage } from "siyuan";
-import { ConflictHandler } from "./conflict-handler";
+import { ConflictHandler } from "@/sync";
 
 export class SyncManager {
     private plugin: BetterSyncPlugin;
