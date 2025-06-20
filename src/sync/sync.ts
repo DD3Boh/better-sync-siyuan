@@ -141,18 +141,23 @@ export class SyncManager {
             })
         );
 
-        await Promise.all(syncPromises);
-        await Promise.all(syncDirPromises);
-        await Promise.all(syncIfMissingPromises);
+        const promises = [
+            ...syncPromises,
+            ...syncDirPromises,
+            ...syncIfMissingPromises,
+            this.syncPetalsListIfEmpty(urlToKeyMap),
+        ];
 
-        // Sync petals list if empty
-        await this.syncPetalsListIfEmpty(urlToKeyMap);
+        // Execute all sync operations concurrently
+        console.log(`Starting sync operations for ${combinedNotebooks.length} notebooks and ${directoriesToSync.length} directories...`);
+
+        await Promise.all(promises);
 
         // Handle missing assets
         await this.syncMissingAssets(urlToKeyMap);
 
-        await reloadFiletree(urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
-        await reloadFiletree(urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
+        reloadFiletree(urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
+        reloadFiletree(urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
 
         SyncUtils.setSyncStatus(urlToKeyMap);
 
