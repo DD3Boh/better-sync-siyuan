@@ -36,3 +36,8 @@ type DocsData = {
 type MissingAssets = {
     missingAssets: string[];
 }
+
+type StoragePath = {
+    notebook: string;
+    path: string;
+}

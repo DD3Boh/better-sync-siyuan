@@ -164,6 +164,14 @@ export async function getIDsByHPath(notebook: NotebookId, path: string, urlPrefi
     return requestWithHeaders(url, data, headers);
 }
 
+export async function getPathByID(id: BlockId, urlPrefix: string = '', headers?: Record<string, string>): Promise<StoragePath> {
+    let data = {
+        id: id
+    };
+    let url = `${urlPrefix}/api/filetree/getPathByID`;
+    return requestWithHeaders(url, data, headers);
+}
+
 // **************************************** Asset Files ****************************************
 
 export async function upload(assetsDirPath: string, files: any[], urlPrefix: string = '', headers?: Record<string, string>): Promise<IResUpload> {
