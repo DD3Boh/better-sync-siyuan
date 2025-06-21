@@ -527,3 +527,12 @@ export async function reloadFiletree(urlPrefix: string = '', headers?: Record<st
     let url = `${urlPrefix}/api/ui/reloadFiletree`;
     return requestWithHeaders(url, {}, headers);
 }
+
+// **************************************** Snapshots ****************************************
+export async function checkRepoInit(urlPrefix: string = '', headers?: Record<string, string>): Promise<boolean> {
+    let payload = {
+        page: "1"
+    };
+    let url = `${urlPrefix}/api/repo/getRepoSnapshots`;
+    return requestWithHeaders(url, payload, headers) !== null;
+}
