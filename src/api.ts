@@ -536,3 +536,11 @@ export async function checkRepoInit(urlPrefix: string = '', headers?: Record<str
     let url = `${urlPrefix}/api/repo/getRepoSnapshots`;
     return requestWithHeaders(url, payload, headers) !== null;
 }
+
+export async function createRepoSnapshot(title: string, urlPrefix: string = '', headers?: Record<string, string>) {
+    let payload = {
+        memo: title
+    };
+    let url = `${urlPrefix}/api/repo/createSnapshot`;
+    return requestWithHeaders(url, payload, headers);
+}
