@@ -19,5 +19,8 @@
     "syncingWithRemote": "正在与远程 {{remoteName}} 同步...",
     "syncCompletedWithConflicts": "同步完成但有冲突 ({{duration}}s)",
     "syncCompletedSuccessfully": "同步成功完成！({{duration}}s)",
-    "conflictDetectedForDocument": "检测到文档冲突：{{documentName}}"
+    "conflictDetectedForDocument": "检测到文档冲突：{{documentName}}",
+    "createDataSnapshots": "创建数据快照",
+    "createDataSnapshotsDesc": "在同步前创建一个新的数据快照。这允许您在需要时将数据恢复到同步前的状态。需要在 SiYuan 设置中设置数据仓库密钥。",
+    "initializeDataRepo": "{{remoteName}} 数据仓库未初始化，无法创建 {{remoteName}} 数据快照。"
 }

@@ -114,6 +114,20 @@ export class SettingsManager {
             }
         });
 
+        this.settingUtils.addItem({
+            key: "createDataSnapshots",
+            value: true,
+            type: "checkbox",
+            title: this.plugin.i18n.createDataSnapshots,
+            description: this.plugin.i18n.createDataSnapshotsDesc,
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("createDataSnapshots");
+                    this.settingUtils.set("createDataSnapshots", value);
+                }
+            }
+        });
+
         try {
             await this.settingUtils.load();
         } catch (error) {

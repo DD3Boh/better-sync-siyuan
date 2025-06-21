@@ -1,6 +1,8 @@
 import { SyncUtils } from "./sync-utils";
 
 import {
+    checkRepoInit,
+    createRepoSnapshot,
     getFileBlob,
     getMissingAssets,
     lsNotebooks,
@@ -137,6 +139,38 @@ export class SyncManager {
         }
     }
 
+    /**
+     * Create a data snapshot for both local and remote devices.
+     */
+    private async createDataSnapshots(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+
+        console.log("Creating data snapshots for both local and remote devices...");
+
+        const localUrl = urlToKeyMap[0][0];
+        const localKey = urlToKeyMap[0][1];
+        const remoteUrl = urlToKeyMap[1][0];
+        const remoteKey = urlToKeyMap[1][1];
+
+        const localRepoInited = await checkRepoInit(localUrl, SyncUtils.getHeaders(localKey));
+        const remoteRepoInited = await checkRepoInit(remoteUrl, SyncUtils.getHeaders(remoteKey));
+
+        // Check if the data repo is initialized
+        if (!localRepoInited) {
+            showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "local"), 6000);
+            console.warn("Local data repo is not initialized");
+        } else {
+            await createRepoSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
+        }
+
+        if (!remoteRepoInited) {
+            showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "remote"), 6000);
+            console.warn("Remote data repo is not initialized");
+        } else {
+            await createRepoSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
+        }
+    }
+
     async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap, startTime?: number) {
         SyncUtils.checkUrlToKeyMap(urlToKeyMap);
 
@@ -145,6 +179,11 @@ export class SyncManager {
 
         showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remoteName), 2000);
         console.log(`Syncing with remote server ${remoteName}...`);
+
+        // Create data snapshots if enabled
+        if (this.plugin.settingsManager.getPref("createDataSnapshots")) {
+            await this.createDataSnapshots(urlToKeyMap);
+        }
 
         let notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
         let notebooksTwo = await this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]);

@@ -19,5 +19,8 @@
     "syncingWithRemote": "Syncing with remote {{remoteName}}...",
     "syncCompletedWithConflicts": "Sync completed with conflicts ({{duration}}s)",
     "syncCompletedSuccessfully": "Sync completed successfully! ({{duration}}s)",
-    "conflictDetectedForDocument": "Conflict detected for document: {{documentName}}"
+    "conflictDetectedForDocument": "Conflict detected for document: {{documentName}}",
+    "createDataSnapshots": "Create data snapshots",
+    "createDataSnapshotsDesc": "Create a new data snapshot before syncing. This allows you to restore the data to the state before the sync if needed. The Data repo key needs to be set in the SiYuan settings.",
+    "initializeDataRepo": "The {{remoteName}} data repository is not initialized. Unable to create the {{remoteName}} data snapshot."
 }
