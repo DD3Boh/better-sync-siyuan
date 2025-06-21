@@ -116,7 +116,7 @@ export class SettingsManager {
 
         this.settingUtils.addItem({
             key: "createDataSnapshots",
-            value: true,
+            value: false,
             type: "checkbox",
             title: this.plugin.i18n.createDataSnapshots,
             description: this.plugin.i18n.createDataSnapshotsDesc,
