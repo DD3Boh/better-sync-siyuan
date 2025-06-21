@@ -160,7 +160,7 @@ export class SyncManager {
         const remoteSnapshots = await getRepoSnapshots(1, remoteUrl, SyncUtils.getHeaders(remoteKey));
 
         if (!localSnapshots) {
-            showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "local"), 6000);
+            showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, "local"), 6000);
             console.warn("Local data repo is not initialized");
         } else {
             if (localSnapshots.snapshots.length > 0) {
@@ -174,7 +174,7 @@ export class SyncManager {
         }
 
         if (!remoteSnapshots) {
-            showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "remote"), 6000);
+            showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, "remote"), 6000);
             console.warn("Remote data repo is not initialized");
         } else {
             if (remoteSnapshots.snapshots.length > 0) {
