@@ -529,15 +529,15 @@ export async function reloadFiletree(urlPrefix: string = '', headers?: Record<st
 }
 
 // **************************************** Snapshots ****************************************
-export async function checkRepoInit(urlPrefix: string = '', headers?: Record<string, string>): Promise<boolean> {
+export async function getRepoSnapshots(page: number = 1, urlPrefix: string = '', headers?: Record<string, string>): Promise<boolean> {
     let payload = {
-        page: "1"
+        page: page
     };
     let url = `${urlPrefix}/api/repo/getRepoSnapshots`;
-    return requestWithHeaders(url, payload, headers) !== null;
+    return requestWithHeaders(url, payload, headers);
 }
 
-export async function createRepoSnapshot(title: string, urlPrefix: string = '', headers?: Record<string, string>) {
+export async function createSnapshot(title: string, urlPrefix: string = '', headers?: Record<string, string>) {
     let payload = {
         memo: title
     };

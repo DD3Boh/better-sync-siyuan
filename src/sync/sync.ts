@@ -1,8 +1,8 @@
 import { SyncUtils } from "./sync-utils";
 
 import {
-    checkRepoInit,
-    createRepoSnapshot,
+    getRepoSnapshots,
+    createSnapshot,
     getFileBlob,
     getMissingAssets,
     lsNotebooks,
@@ -152,22 +152,22 @@ export class SyncManager {
         const remoteUrl = urlToKeyMap[1][0];
         const remoteKey = urlToKeyMap[1][1];
 
-        const localRepoInited = await checkRepoInit(localUrl, SyncUtils.getHeaders(localKey));
-        const remoteRepoInited = await checkRepoInit(remoteUrl, SyncUtils.getHeaders(remoteKey));
+        const localRepoInited = await getRepoSnapshots(1, localUrl, SyncUtils.getHeaders(localKey)) !== null;
+        const remoteRepoInited = await getRepoSnapshots(1, remoteUrl, SyncUtils.getHeaders(remoteKey)) !== null;
 
         // Check if the data repo is initialized
         if (!localRepoInited) {
             showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "local"), 6000);
             console.warn("Local data repo is not initialized");
         } else {
-            await createRepoSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
+            await createSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
         }
 
         if (!remoteRepoInited) {
             showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "remote"), 6000);
             console.warn("Remote data repo is not initialized");
         } else {
-            await createRepoSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
+            await createSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
         }
     }
 
