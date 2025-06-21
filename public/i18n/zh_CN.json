@@ -22,5 +22,7 @@
     "conflictDetectedForDocument": "检测到文档冲突：{{documentName}}",
     "createDataSnapshots": "创建数据快照",
     "createDataSnapshotsDesc": "在同步前创建一个新的数据快照。这允许您在需要时将数据恢复到同步前的状态。需要在 SiYuan 设置中设置数据仓库密钥。",
-    "initializeDataRepo": "{{remoteName}} 数据仓库未初始化，无法创建 {{remoteName}} 数据快照。"
+    "initializeDataRepo": "{{remoteName}} 数据仓库未初始化，无法创建 {{remoteName}} 数据快照。",
+    "minHoursBetweenSnapshots": "快照之间的最短小时数",
+    "minHoursBetweenSnapshotsDesc": "自动数据快照之间的最短小时数。"
 }

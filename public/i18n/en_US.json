@@ -22,5 +22,7 @@
     "conflictDetectedForDocument": "Conflict detected for document: {{documentName}}",
     "createDataSnapshots": "Create data snapshots",
     "createDataSnapshotsDesc": "Create a new data snapshot before syncing. This allows you to restore the data to the state before the sync if needed. The Data repo key needs to be set in the SiYuan settings.",
-    "initializeDataRepo": "The {{remoteName}} data repository is not initialized. Unable to create the {{remoteName}} data snapshot."
+    "initializeDataRepo": "The {{remoteName}} data repository is not initialized. Unable to create the {{remoteName}} data snapshot.",
+    "minHoursBetweenSnapshots": "Minimum hours between snapshots",
+    "minHoursBetweenSnapshotsDesc": "The minimum number of hours between automatic data snapshots."
 }

@@ -128,6 +128,14 @@ export class SettingsManager {
             }
         });
 
+        this.settingUtils.addItem({
+            key: "minHoursBetweenSnapshots",
+            value: 24,
+            type: "number",
+            title: this.plugin.i18n.minHoursBetweenSnapshots,
+            description: this.plugin.i18n.minHoursBetweenSnapshotsDesc
+        });
+
         try {
             await this.settingUtils.load();
         } catch (error) {

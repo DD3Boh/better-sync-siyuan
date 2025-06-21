@@ -152,22 +152,39 @@ export class SyncManager {
         const remoteUrl = urlToKeyMap[1][0];
         const remoteKey = urlToKeyMap[1][1];
 
-        const localRepoInited = await getRepoSnapshots(1, localUrl, SyncUtils.getHeaders(localKey)) !== null;
-        const remoteRepoInited = await getRepoSnapshots(1, remoteUrl, SyncUtils.getHeaders(remoteKey)) !== null;
+        const now = Date.now();
+        const minHours = this.plugin.settingsManager.getPref("minHoursBetweenSnapshots");
+        const minMilliseconds = minHours * 3600 * 1000;
 
-        // Check if the data repo is initialized
-        if (!localRepoInited) {
+        const localSnapshots = await getRepoSnapshots(1, localUrl, SyncUtils.getHeaders(localKey));
+        const remoteSnapshots = await getRepoSnapshots(1, remoteUrl, SyncUtils.getHeaders(remoteKey));
+
+        if (!localSnapshots) {
             showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "local"), 6000);
             console.warn("Local data repo is not initialized");
         } else {
-            await createSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
+            if (localSnapshots.snapshots.length > 0) {
+                if (now - localSnapshots.snapshots[0].created < minMilliseconds)
+                    console.log(`Skipping local snapshot, last one was less than ${minHours} hours ago.`);
+                else
+                    await createSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
+            } else {
+                await createSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
+            }
         }
 
-        if (!remoteRepoInited) {
+        if (!remoteSnapshots) {
             showMessage(this.plugin.i18n.initializeDataRepo.replace("{{remoteName}}", "remote"), 6000);
             console.warn("Remote data repo is not initialized");
         } else {
-            await createSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
+            if (remoteSnapshots.snapshots.length > 0) {
+                if (now - remoteSnapshots.snapshots[0].created < minMilliseconds)
+                    console.log(`Skipping remote snapshot, last one was less than ${minHours} hours ago.`);
+                else
+                    await createSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
+            } else {
+                await createSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
+            }
         }
     }
 
