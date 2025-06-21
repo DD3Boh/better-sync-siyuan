@@ -19,15 +19,15 @@ export class SyncManager {
     private originalFetch: typeof window.fetch;
     private conflictDetected: boolean = false;
 
-    getUrl(): string {
+    private getUrl(): string {
         return this.plugin.settingsManager.getPref("siyuanUrl");
     }
 
-    getKey(): string {
+    private getKey(): string {
         return this.plugin.settingsManager.getPref("siyuanAPIKey");
     }
 
-    getNickname(): string {
+    private getNickname(): string {
         return this.plugin.settingsManager.getPref("siyuanNickname");
     }
 
@@ -105,7 +105,7 @@ export class SyncManager {
         return this.originalFetch(input, init)
     }
 
-    async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
+    private async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
         let notebooks = await lsNotebooks(url, SyncUtils.getHeaders(key))
 
         return notebooks.notebooks;
@@ -171,7 +171,7 @@ export class SyncManager {
         }
     }
 
-    async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap, startTime?: number) {
+    private async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap, startTime?: number) {
         SyncUtils.checkUrlToKeyMap(urlToKeyMap);
 
         const nickname = this.getNickname();
@@ -266,7 +266,7 @@ export class SyncManager {
         this.conflictDetected = false; // Reset conflict detection flag after sync
     }
 
-    async syncDirectory(
+    private async syncDirectory(
         path: string,
         dirName: string,
         urlToKeyMap: [string, string][] = this.urlToKeyMap,
@@ -358,7 +358,7 @@ export class SyncManager {
         }
     }
 
-    async syncFileIfMissing(path: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+    private async syncFileIfMissing(path: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         SyncUtils.checkUrlToKeyMap(urlToKeyMap);
 
         let fileOne = await getFileBlob(path, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
@@ -375,7 +375,7 @@ export class SyncManager {
         }
     }
 
-    async syncMissingAssets(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+    private async syncMissingAssets(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         SyncUtils.checkUrlToKeyMap(urlToKeyMap);
 
         console.log(`Syncing missing assets`);
@@ -394,7 +394,7 @@ export class SyncManager {
         await Promise.all(assetsPromises);
     }
 
-    async syncPetalsListIfEmpty(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+    private async syncPetalsListIfEmpty(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         SyncUtils.checkUrlToKeyMap(urlToKeyMap);
 
         let petalsListOne = await getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
