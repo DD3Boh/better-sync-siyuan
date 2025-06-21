@@ -29,6 +29,48 @@ export class SyncManager {
         return this.plugin.settingsManager.getPref("siyuanNickname");
     }
 
+    private async acquireLock(url: string, key: string): Promise<void> {
+        const lockPath = "/data/.siyuan/sync/lock";
+        const lockFile = await getFileBlob(lockPath, url, SyncUtils.getHeaders(key));
+        if (lockFile)
+            throw new Error("Another sync is already in progress. If this is an error, please remove the lock file `/data/.siyuan/sync/lock`.");
+
+        const file = new File([], "lock", { type: "text/plain" });
+        await SyncUtils.putFile(lockPath, file, url, key);
+    }
+
+    private async acquireAllLocks(urlToKeyMap: [string, string][] = this.urlToKeyMap): Promise<void> {
+        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+        for (const [url, key] of urlToKeyMap) {
+            await this.acquireLock(url, key);
+        }
+
+        console.log("Acquired sync locks.");
+    }
+
+    private async releaseLock(url: string, key: string): Promise<void> {
+        const lockPath = "/data/.siyuan/sync/lock";
+        try {
+            const lockFileRes: IResReadDir = {
+                name: "lock",
+                isDir: false,
+                updated: Date.now(),
+                isSymlink: false
+            }
+            await SyncUtils.deleteFile(lockPath, lockFileRes, url, key);
+        } catch (error) {
+            console.error("Failed to release sync lock:", error);
+            showMessage("Failed to release sync lock, please remove it manually.", 6000, "error");
+        }
+    }
+
+    private async releaseAllLocks(urlToKeyMap: [string, string][] = this.urlToKeyMap): Promise<void> {
+        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+        for (const [url, key] of urlToKeyMap) {
+            await this.releaseLock(url, key);
+        }
+    }
+
     updateUrlKey() {
         let url = this.getUrl()
         let key = this.getKey()
@@ -69,7 +111,13 @@ export class SyncManager {
 
     async syncHandler(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         const startTime = Date.now();
+        let locked = false;
         try {
+            SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+
+            await this.acquireAllLocks(urlToKeyMap);
+            locked = true;
+
             await this.syncWithRemote(urlToKeyMap, startTime);
         } catch (error) {
             console.error("Error during sync:", error);
@@ -81,6 +129,11 @@ export class SyncManager {
                 6000,
                 "error"
             );
+        } finally {
+            if (locked) {
+                await this.releaseAllLocks(urlToKeyMap);
+                console.log("Released all sync locks.");
+            }
         }
     }
 
