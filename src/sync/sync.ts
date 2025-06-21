@@ -250,10 +250,15 @@ export class SyncManager {
             })
         );
 
+        const syncNotebookConfigPromises = combinedNotebooks.map(notebook =>
+            this.syncNotebookConfig(notebook.id, urlToKeyMap)
+        );
+
         const promises = [
             ...syncPromises,
             ...syncDirPromises,
             ...syncIfMissingPromises,
+            ...syncNotebookConfigPromises,
             this.syncPetalsListIfEmpty(urlToKeyMap),
         ];
 
