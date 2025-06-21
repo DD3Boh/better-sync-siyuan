@@ -41,3 +41,31 @@ type StoragePath = {
     notebook: string;
     path: string;
 }
+
+type ITypeCount = {
+    type: string;
+    count: number;
+}
+
+type ISnapshot = {
+    id: string;
+    memo: string;
+    created: number;
+    hCreated: string;
+    files: any;
+    count: number;
+    size: number;
+    hSize: string;
+    systemID: string;
+    systemName: string;
+    systemOS: string;
+    tag: string;
+    hTagUpdated: string;
+    typesCount: ITypeCount[];
+}
+
+type IResGetRepoSnapshots = {
+    pageCount: number;
+    snapshots: ISnapshot[];
+    totalCount: number;
+}

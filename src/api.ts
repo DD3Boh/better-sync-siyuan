@@ -529,7 +529,7 @@ export async function reloadFiletree(urlPrefix: string = '', headers?: Record<st
 }
 
 // **************************************** Snapshots ****************************************
-export async function getRepoSnapshots(page: number = 1, urlPrefix: string = '', headers?: Record<string, string>): Promise<boolean> {
+export async function getRepoSnapshots(page: number = 1, urlPrefix: string = '', headers?: Record<string, string>): Promise<IResGetRepoSnapshots> {
     let payload = {
         page: page
     };
