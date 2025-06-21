@@ -48,10 +48,10 @@ Better Sync is a plugin for [SiYuan](https://github.com/siyuan-note/siyuan) that
 The following features may be added in future versions of Better Sync:
 
 - [x] **Sync Conflicts Tracking**: Detect and manage sync conflicts between different devices
-- [ ] **Directional Sync Options**: Add capability to manually sync in push-only or pull-only mode
-- [ ] **History-Based Protection**: Add files to history before syncing to avoid data loss
-- [ ] **Sync Locking**: Implement a locking mechanism to prevent multiple devices from syncing simultaneously
+- [x] **History-Based Protection**: Add files to history before syncing to avoid data loss
+- [x] **Sync Locking**: Implement a locking mechanism to prevent multiple devices from syncing simultaneously
 - [ ] **Selective File Sync**: Allow users to include or exclude specific files or folders from synchronization
+- [ ] **Directional Sync Options**: Add capability to manually sync in push-only or pull-only mode
 - [ ] **Sync Status Logging**: Detailed logs of all sync operations for easier troubleshooting and outputing it to a log file on the disk
 - [ ] **Support for sync to multiple peers**: Allow syncing from one host to multiple different peers.
 

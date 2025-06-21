@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- Implement sync locking to prevent multiple syncs to happen at the same time
+- Implement automatic data snapshots before sync happens, to allow resets if something breaks
+- Allow the user to choose how frequently data snapshots are made
+- Refactor the code heavily making it easier to read
+
 ## 1.1.1
 
 - Fix fetch function not binding to the window, causing issues all around
