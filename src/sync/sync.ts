@@ -280,6 +280,21 @@ export class SyncManager {
             })
         );
 
+        // Sync without deletions
+        const syncWithoutDeletions: [string, string][] = [
+            ["conf/appearance", "themes"],
+            ["conf/appearance", "icons"],
+        ];
+
+        const syncWithoutDeletionsPromises = syncWithoutDeletions.map(([path, dir]) =>
+            this.syncDirectory(path, dir, remotes, [], {
+                deleteFoldersOnly: false,
+                onlyIfMissing: false,
+                avoidDeletions: true,
+                trackConflicts: false
+            })
+        );
+
         // Sync some files only if missing
         const syncIfMissing: [string, string][] = [
             ["data/storage", "petal"],
@@ -304,6 +319,7 @@ export class SyncManager {
             ...syncDirPromises,
             ...syncIfMissingPromises,
             ...syncNotebookConfigPromises,
+            ...syncWithoutDeletionsPromises,
             this.syncPetalsListIfEmpty(remotes),
         ];
 
