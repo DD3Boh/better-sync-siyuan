@@ -22,6 +22,16 @@ export class SyncManager {
     private originalFetch: typeof window.fetch;
     private conflictDetected: boolean = false;
 
+    /**
+     * Create a deep copy of RemoteInfo objects to prevent mutations
+     */
+    private copyRemotes(remotes: [RemoteInfo, RemoteInfo]): [RemoteInfo, RemoteInfo] {
+        return [
+            { ...remotes[0] },
+            { ...remotes[1] }
+        ];
+    }
+
     private getUrl(): string {
         return this.plugin.settingsManager.getPref("siyuanUrl");
     }
@@ -44,7 +54,7 @@ export class SyncManager {
         await SyncUtils.putFile(lockPath, file, url, key);
     }
 
-    private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.remotes): Promise<void> {
+    private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
         await Promise.all(remotes.map(remote => this.acquireLock(remote.url, remote.key)));
@@ -68,7 +78,7 @@ export class SyncManager {
         }
     }
 
-    private async releaseAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.remotes): Promise<void> {
+    private async releaseAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
         await Promise.all(remotes.map(remote => this.releaseLock(remote.url, remote.key)));
@@ -122,7 +132,7 @@ export class SyncManager {
         return notebooks.notebooks;
     }
 
-    async syncHandler(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+    async syncHandler(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         const startTime = Date.now();
         let locked = false;
         try {
@@ -153,7 +163,7 @@ export class SyncManager {
     /**
      * Create a data snapshot for both local and remote devices.
      */
-    private async createDataSnapshots(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+    private async createDataSnapshots(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
         console.log("Creating data snapshots for both local and remote devices...");
@@ -194,7 +204,7 @@ export class SyncManager {
         }
     }
 
-    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.remotes, startTime?: number) {
+    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes), startTime?: number) {
         SyncUtils.checkRemotes(remotes);
 
         const nickname = this.getNickname();
@@ -313,7 +323,7 @@ export class SyncManager {
             onlyIfMissing: boolean,
             avoidDeletions: boolean
         },
-        remotes: [RemoteFileInfo, RemoteFileInfo] = this.remotes,
+        remotes: [RemoteFileInfo, RemoteFileInfo] = this.copyRemotes(this.remotes),
     ) {
         const parentPath = filePath.replace(/\/[^/]+$/, "");
         const fileName = filePath.replace(/^.*\//, "");
@@ -441,7 +451,7 @@ export class SyncManager {
         }
     }
 
-    private async syncFileIfMissing(path: string, remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+    private async syncFileIfMissing(path: string, remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
         let fileOne = await getFileBlob(path, remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
@@ -477,7 +487,7 @@ export class SyncManager {
         await Promise.all(assetsPromises);
     }
 
-    private async syncPetalsListIfEmpty(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+    private async syncPetalsListIfEmpty(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
         const [petalsListOne, petalsListTwo] = await Promise.all([
@@ -496,7 +506,7 @@ export class SyncManager {
         }
     }
 
-    async syncNotebookConfig(notebookId: string, remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+    async syncNotebookConfig(notebookId: string, remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
         const files: string[] = [
