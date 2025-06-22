@@ -15,7 +15,10 @@ import { ConflictHandler } from "@/sync";
 
 export class SyncManager {
     private plugin: BetterSyncPlugin;
-    private urlToKeyMap: [string, string][] = [];
+    private remotes: [RemoteInfo, RemoteInfo] = [
+        { url: "", key: "SKIP", lastSyncTime: undefined },
+        { url: "", key: "", lastSyncTime: undefined }
+    ];
     private originalFetch: typeof window.fetch;
     private conflictDetected: boolean = false;
 
@@ -41,11 +44,10 @@ export class SyncManager {
         await SyncUtils.putFile(lockPath, file, url, key);
     }
 
-    private async acquireAllLocks(urlToKeyMap: [string, string][] = this.urlToKeyMap): Promise<void> {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
-        for (const [url, key] of urlToKeyMap) {
-            await this.acquireLock(url, key);
-        }
+    private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.remotes): Promise<void> {
+        SyncUtils.checkRemotes(remotes);
+
+        await Promise.all(remotes.map(remote => this.acquireLock(remote.url, remote.key)));
 
         console.log("Acquired sync locks.");
     }
@@ -66,21 +68,30 @@ export class SyncManager {
         }
     }
 
-    private async releaseAllLocks(urlToKeyMap: [string, string][] = this.urlToKeyMap): Promise<void> {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
-        for (const [url, key] of urlToKeyMap) {
-            await this.releaseLock(url, key);
-        }
+    private async releaseAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.remotes): Promise<void> {
+        SyncUtils.checkRemotes(remotes);
+
+        await Promise.all(remotes.map(remote => this.releaseLock(remote.url, remote.key)));
     }
 
     updateUrlKey() {
         let url = this.getUrl()
         let key = this.getKey()
 
-        this.urlToKeyMap = []
-        this.urlToKeyMap.push(["", "SKIP"]);
-        if (url && key)
-            this.urlToKeyMap.push([url, key]);
+        const lastSyncTimes = this.remotes.map(remote => remote.lastSyncTime);
+
+        this.remotes = [
+            {
+                url: "",
+                key: "SKIP",
+                lastSyncTime: lastSyncTimes[0] || undefined
+            },
+            {
+                url: url || "",
+                key: key || "",
+                lastSyncTime: lastSyncTimes[1] || undefined
+            }
+        ];
     }
 
     constructor(plugin: BetterSyncPlugin) {
@@ -111,20 +122,20 @@ export class SyncManager {
         return notebooks.notebooks;
     }
 
-    async syncHandler(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
+    async syncHandler(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
         const startTime = Date.now();
         let locked = false;
         try {
-            SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+            SyncUtils.checkRemotes(remotes);
 
-            await this.acquireAllLocks(urlToKeyMap);
+            await this.acquireAllLocks(remotes);
             locked = true;
 
-            await this.syncWithRemote(urlToKeyMap, startTime);
+            await this.syncWithRemote(remotes, startTime);
         } catch (error) {
             console.error("Error during sync:", error);
             const nickname = this.getNickname();
-            const remoteName = nickname || urlToKeyMap[1][0];
+            const remoteName = nickname || remotes[1].url;
             const duration = ((Date.now() - startTime) / 1000).toFixed(1);
             showMessage(
                 this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remoteName).replace("{{error}}", error.message).replace("{{duration}}", duration),
@@ -133,7 +144,7 @@ export class SyncManager {
             );
         } finally {
             if (locked) {
-                await this.releaseAllLocks(urlToKeyMap);
+                await this.releaseAllLocks(remotes);
                 console.log("Released all sync locks.");
             }
         }
@@ -142,22 +153,17 @@ export class SyncManager {
     /**
      * Create a data snapshot for both local and remote devices.
      */
-    private async createDataSnapshots(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+    private async createDataSnapshots(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+        SyncUtils.checkRemotes(remotes);
 
         console.log("Creating data snapshots for both local and remote devices...");
-
-        const localUrl = urlToKeyMap[0][0];
-        const localKey = urlToKeyMap[0][1];
-        const remoteUrl = urlToKeyMap[1][0];
-        const remoteKey = urlToKeyMap[1][1];
 
         const now = Date.now();
         const minHours = this.plugin.settingsManager.getPref("minHoursBetweenSnapshots");
         const minMilliseconds = minHours * 3600 * 1000;
 
-        const localSnapshots = await getRepoSnapshots(1, localUrl, SyncUtils.getHeaders(localKey));
-        const remoteSnapshots = await getRepoSnapshots(1, remoteUrl, SyncUtils.getHeaders(remoteKey));
+        const localSnapshots = await getRepoSnapshots(1, remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
+        const remoteSnapshots = await getRepoSnapshots(1, remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
         if (!localSnapshots) {
             showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, "local"), 6000);
@@ -167,9 +173,9 @@ export class SyncManager {
                 if (now - localSnapshots.snapshots[0].created < minMilliseconds)
                     console.log(`Skipping local snapshot, last one was less than ${minHours} hours ago.`);
                 else
-                    await createSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
+                    await createSnapshot("[better-sync] Cloud sync", remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
             } else {
-                await createSnapshot("[better-sync] Cloud sync", localUrl, SyncUtils.getHeaders(localKey));
+                await createSnapshot("[better-sync] Cloud sync", remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
             }
         }
 
@@ -181,45 +187,40 @@ export class SyncManager {
                 if (now - remoteSnapshots.snapshots[0].created < minMilliseconds)
                     console.log(`Skipping remote snapshot, last one was less than ${minHours} hours ago.`);
                 else
-                    await createSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
+                    await createSnapshot("[better-sync] Cloud sync", remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
             } else {
-                await createSnapshot("[better-sync] Cloud sync", remoteUrl, SyncUtils.getHeaders(remoteKey));
+                await createSnapshot("[better-sync] Cloud sync", remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
             }
         }
     }
 
-    private async syncWithRemote(urlToKeyMap: [string, string][] = this.urlToKeyMap, startTime?: number) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.remotes, startTime?: number) {
+        SyncUtils.checkRemotes(remotes);
 
         const nickname = this.getNickname();
-        const remoteName = nickname || urlToKeyMap[1][0];
+        const remoteName = nickname || remotes[1].url;
 
         showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remoteName), 2000);
         console.log(`Syncing with remote server ${remoteName}...`);
 
         // Create data snapshots if enabled
         if (this.plugin.settingsManager.getPref("createDataSnapshots")) {
-            await this.createDataSnapshots(urlToKeyMap);
+            await this.createDataSnapshots(remotes);
         }
 
-        const [notebooksOne, notebooksTwo, lastSyncTimeOne, lastSyncTimeTwo] = await Promise.all([
-            this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]),
-            this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]),
-            SyncUtils.getLastSyncTime(urlToKeyMap[0][0], urlToKeyMap[0][1]),
-            SyncUtils.getLastSyncTime(urlToKeyMap[1][0], urlToKeyMap[1][1])
+        // Update last sync times for both remotes
+        await Promise.all([
+            SyncUtils.getLastSyncTime(remotes[0].url, remotes[0].key).then(lastSyncTime => {
+                remotes[0].lastSyncTime = lastSyncTime;
+            }),
+            SyncUtils.getLastSyncTime(remotes[1].url, remotes[1].key).then(lastSyncTime => {
+                remotes[1].lastSyncTime = lastSyncTime;
+            })
         ]);
 
-        const remotes: RemoteInfo[] = await Promise.all([
-            {
-                url: urlToKeyMap[0][0],
-                key: urlToKeyMap[0][1],
-                lastSyncTime: lastSyncTimeOne
-            },
-            {
-                url: urlToKeyMap[1][0],
-                key: urlToKeyMap[1][1],
-                lastSyncTime: lastSyncTimeTwo
-            }
+        const [notebooksOne, notebooksTwo] = await Promise.all([
+            this.getNotebooks(remotes[0].url, remotes[0].key),
+            this.getNotebooks(remotes[1].url, remotes[1].key)
         ]);
 
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
@@ -266,7 +267,7 @@ export class SyncManager {
         );
 
         const syncNotebookConfigPromises = combinedNotebooks.map(notebook =>
-            this.syncNotebookConfig(notebook.id, urlToKeyMap)
+            this.syncNotebookConfig(notebook.id, remotes)
         );
 
         const promises = [
@@ -274,7 +275,7 @@ export class SyncManager {
             ...syncDirPromises,
             ...syncIfMissingPromises,
             ...syncNotebookConfigPromises,
-            this.syncPetalsListIfEmpty(urlToKeyMap),
+            this.syncPetalsListIfEmpty(remotes),
         ];
 
         // Execute all sync operations concurrently
@@ -283,12 +284,12 @@ export class SyncManager {
         await Promise.all(promises);
 
         // Handle missing assets
-        await this.syncMissingAssets(urlToKeyMap);
+        await this.syncMissingAssets(remotes);
 
-        reloadFiletree(urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
-        reloadFiletree(urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
+        reloadFiletree(remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
+        reloadFiletree(remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
-        SyncUtils.setSyncStatus(urlToKeyMap);
+        SyncUtils.setSyncStatus(remotes);
 
         const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
 
@@ -305,7 +306,7 @@ export class SyncManager {
 
     private async syncFile(
         filePath: string,
-        remotes: RemoteFileInfo[],
+        remotes: [RemoteFileInfo, RemoteFileInfo],
         dirName: string,
         isNotebook: boolean,
         options: {
@@ -314,14 +315,12 @@ export class SyncManager {
             avoidDeletions: boolean
         }
     ) {
-        if (remotes.length !== 2) {
-            throw new Error("syncFile requires exactly two remote file infos.");
-        }
-
         const fileRes = remotes[0].file || remotes[1].file;
 
-        remotes[0].file.updated = remotes[0].file.updated || 0;
-        remotes[1].file.updated = remotes[1].file.updated || 0;
+        const updated: [number, number] = [
+            remotes[0].file?.updated || 0,
+            remotes[1].file?.updated || 0
+        ];
 
         // Conflict detection
         const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
@@ -337,14 +336,14 @@ export class SyncManager {
         }
 
         // Multiply by 1000 because `putFile` makes the conversion automatically
-        const timestamp: number = Math.max(remotes[0].file.updated, remotes[1].file.updated) * 1000;
+        const timestamp: number = Math.max(updated[0], updated[1]) * 1000;
 
         const lastSyncTime = Math.min(remotes[0].lastSyncTime, remotes[1].lastSyncTime);
 
-        if (remotes[0].file && remotes[1].file && (remotes[0].file.updated === remotes[1].file.updated || options.onlyIfMissing)) return;
+        if (remotes[0].file && remotes[1].file && (updated[0] === updated[1] || options.onlyIfMissing)) return;
 
         // Remove deleted files
-        if ((!remotes[0].file && lastSyncTime > remotes[1].file.updated) || (!remotes[1].file && lastSyncTime > remotes[0].file.updated)) {
+        if ((!remotes[0].file && lastSyncTime > updated[1]) || (!remotes[1].file && lastSyncTime > updated[0])) {
             if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
                 const targetIndex = !remotes[0].file ? 1 : 0;
                 SyncUtils.deleteFile(filePath, fileRes, remotes[targetIndex].url, remotes[targetIndex].key);
@@ -355,12 +354,12 @@ export class SyncManager {
         // Avoid writing directories
         if (fileRes.isDir) return;
 
-        const iIn = remotes[0].file.updated > remotes[1].file.updated ? 0 : 1;
-        const iOut = remotes[0].file.updated > remotes[1].file.updated ? 1 : 0;
+        const iIn = updated[0] > updated[1] ? 0 : 1;
+        const iOut = updated[0] > updated[1] ? 1 : 0;
         const sourceName = iIn === 0 ? 'local' : 'remote';
         const targetName = iOut === 0 ? 'local' : 'remote';
 
-        console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${remotes[0].file.updated} vs ${remotes[1].file.updated}`);
+        console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
         const syFile = await getFileBlob(filePath, remotes[iIn].url, SyncUtils.getHeaders(remotes[iIn].key));
         if (!syFile) {
@@ -375,7 +374,7 @@ export class SyncManager {
     private async syncDirectory(
         path: string,
         dirName: string,
-        remotes: RemoteInfo[],
+        remotes: [RemoteInfo, RemoteInfo],
         excludedSubdirs: string[] = [],
         options: {
             deleteFoldersOnly: boolean,
@@ -411,7 +410,7 @@ export class SyncManager {
 
         // Synchronize files
         for (const [filePath] of allFiles.entries()) {
-            const remoteFileInfos: RemoteFileInfo[] = [
+            const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
                 {
                     ...remotes[0],
                     file: filesOne.get(filePath)
@@ -432,76 +431,76 @@ export class SyncManager {
         }
     }
 
-    private async syncFileIfMissing(path: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+    private async syncFileIfMissing(path: string, remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+        SyncUtils.checkRemotes(remotes);
 
-        let fileOne = await getFileBlob(path, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
-        let fileTwo = await getFileBlob(path, urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
+        let fileOne = await getFileBlob(path, remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
+        let fileTwo = await getFileBlob(path, remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
         if (!fileOne) {
             console.log(`Syncing file ${path} from remote to local`);
             let file = new File([fileTwo], path.split("/").pop());
-            SyncUtils.putFile(path, file, urlToKeyMap[0][0], urlToKeyMap[0][1]);
+            SyncUtils.putFile(path, file, remotes[0].url, remotes[0].key);
         } else if (!fileTwo) {
             console.log(`Syncing file ${path} from local to remote`);
             let file = new File([fileOne], path.split("/").pop());
-            SyncUtils.putFile(path, file, urlToKeyMap[1][0], urlToKeyMap[1][1]);
+            SyncUtils.putFile(path, file, remotes[1].url, remotes[1].key);
         }
     }
 
-    private async syncMissingAssets(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+    private async syncMissingAssets(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+        SyncUtils.checkRemotes(remotes);
 
         console.log(`Syncing missing assets`);
 
         const [localMissing, remoteMissing] = await Promise.all([
-            getMissingAssets(urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1])),
-            getMissingAssets(urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]))
+            getMissingAssets(remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+            getMissingAssets(remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
         ]);
 
         const allMissingAssets = [...localMissing.missingAssets, ...remoteMissing.missingAssets];
 
         const assetsPromises = allMissingAssets.map(asset =>
-            this.syncFileIfMissing(`/data/${asset}`, urlToKeyMap)
+            this.syncFileIfMissing(`/data/${asset}`, remotes)
         );
 
         await Promise.all(assetsPromises);
     }
 
-    private async syncPetalsListIfEmpty(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+    private async syncPetalsListIfEmpty(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+        SyncUtils.checkRemotes(remotes);
 
         const [petalsListOne, petalsListTwo] = await Promise.all([
-            getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1])),
-            getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]))
+            getFileBlob("/data/storage/petal/petals.json", remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+            getFileBlob("/data/storage/petal/petals.json", remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
         ]);
 
         if (!petalsListOne || await petalsListOne.text() === "[]") {
             console.log(`Syncing petals list from remote to local`);
             let file = new File([petalsListTwo], "petals.json");
-            SyncUtils.putFile("/data/storage/petal/petals.json", file, urlToKeyMap[0][0], urlToKeyMap[0][1]);
+            SyncUtils.putFile("/data/storage/petal/petals.json", file, remotes[0].url, remotes[0].key);
         } else if (!petalsListTwo || await petalsListTwo.text() === "[]") {
             console.log(`Syncing petals list from local to remote`);
             let file = new File([petalsListOne], "petals.json");
-            SyncUtils.putFile("/data/storage/petal/petals.json", file, urlToKeyMap[1][0], urlToKeyMap[1][1]);
+            SyncUtils.putFile("/data/storage/petal/petals.json", file, remotes[1].url, remotes[1].key);
         }
     }
 
-    async pushFile(path: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
-        let fileOne = await getFileBlob(path, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
+    async pushFile(path: string, remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+        SyncUtils.checkRemotes(remotes);
+        let fileOne = await getFileBlob(path, remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
 
         if (fileOne) {
             console.log(`Pushing file ${path} from local to remote`);
             let file = new File([fileOne], path.split("/").pop());
-            SyncUtils.putFile(path, file, urlToKeyMap[1][0], urlToKeyMap[1][1]);
+            SyncUtils.putFile(path, file, remotes[1].url, remotes[1].key);
         } else {
             console.log(`File ${path} not found in local`);
         }
     }
 
-    async syncNotebookConfig(notebookId: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
+    async syncNotebookConfig(notebookId: string, remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+        SyncUtils.checkRemotes(remotes);
 
         const files: string[] = [
             "conf.json",
@@ -509,8 +508,8 @@ export class SyncManager {
         ];
 
         const dirs = await Promise.all([
-            readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1])),
-            readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]))
+            readDir(`/data/${notebookId}/.siyuan/`, remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+            readDir(`/data/${notebookId}/.siyuan/`, remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
         ]);
 
         for (const file of files) {
@@ -538,11 +537,11 @@ export class SyncManager {
             const sourceName = iIn === 0 ? 'local' : 'remote';
             const targetName = iOut === 0 ? 'local' : 'remote';
 
-            const fileBlob = await getFileBlob(path, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
+            const fileBlob = await getFileBlob(path, remotes[iIn].url, SyncUtils.getHeaders(remotes[iIn].key));
             if (fileBlob) {
                 console.log(`Pushing notebook config ${path} from ${sourceName} to ${targetName}`);
                 const fileObj = new File([fileBlob], file, { lastModified: timestamps[iIn] * 1000 });
-                SyncUtils.putFile(path, fileObj, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1], timestamps[iIn] * 1000);
+                SyncUtils.putFile(path, fileObj, remotes[iOut].url, remotes[iOut].key, timestamps[iIn] * 1000);
             }
         }
     }

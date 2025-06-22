@@ -117,17 +117,17 @@ export class SyncUtils {
     }
 
     /**
-     * Validate and check the URL-to-key mapping array
+     * Validate and check the remotes array
      */
-    static checkUrlToKeyMap(urlToKeyMap: [string, string][]) {
-        if (!urlToKeyMap || !Array.isArray(urlToKeyMap))
-            throw new Error("urlToKeyMap is not properly initialized");
+    static checkRemotes(remotes: [RemoteInfo, RemoteInfo]) {
+        if (!remotes || !Array.isArray(remotes))
+            throw new Error("remotes is not properly initialized");
 
-        if (urlToKeyMap.length !== 2)
-            throw new Error(`Expected urlToKeyMap to have exactly 2 entries, but found ${urlToKeyMap.length}`);
+        if (remotes.length !== 2)
+            throw new Error(`Expected remotes to have exactly 2 entries, but found ${remotes.length}`);
 
-        for (let i = 0; i < urlToKeyMap.length; i++) {
-            if ((!urlToKeyMap[i][0] && i != 0) || !urlToKeyMap[i][1])
+        for (let i = 0; i < remotes.length; i++) {
+            if ((!remotes[i].url && i != 0) || !remotes[i].key)
                 throw new Error(`Siyuan URL or API Key is not set for entry ${i + 1}.`);
         }
     }
@@ -167,16 +167,14 @@ export class SyncUtils {
     }
 
     /**
-     * Set the sync status file with the provided URL-to-key mapping.
-     * @param urlToKeyMap An array of tuples containing URLs and API keys.
+     * Set the sync status file with the provided remotes or URL-to-key mapping.
      */
-    static async setSyncStatus(urlToKeyMap: [string, string][]) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
-
-        let filePath = `/data/.siyuan/sync/status`
-
+    static async setSyncStatus(remotes: [RemoteInfo, RemoteInfo]): Promise<void> {
+        let filePath = `/data/.siyuan/sync/status`;
         let file = new File([], "status");
-        SyncUtils.putFile(filePath, file, urlToKeyMap[0][0], urlToKeyMap[0][1]);
-        SyncUtils.putFile(filePath, file, urlToKeyMap[1][0], urlToKeyMap[1][1]);
+
+        SyncUtils.checkRemotes(remotes);
+        SyncUtils.putFile(filePath, file, remotes[0].url, remotes[0].key);
+        SyncUtils.putFile(filePath, file, remotes[1].url, remotes[1].key);
     }
 }

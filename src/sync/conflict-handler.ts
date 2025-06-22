@@ -32,14 +32,14 @@ export class ConflictHandler {
      * @param humanReadablePath - The human-readable path for the conflict file.
      * @param blob - The Blob object containing the file data.
      * @param olderFileTimestamp - The timestamp of the older file in seconds.
-     * @param remotes - An array of RemoteInfo objects containing remote server information.
+     * @param remotes - An array of exactly two RemoteFileInfo objects containing remote server information.
      */
     static async createConflictFile(
         notebookId: string,
         humanReadablePath: string,
         blob: Blob,
         olderFileTimestamp: number,
-        remotes: RemoteInfo[]
+        remotes: [RemoteFileInfo, RemoteFileInfo]
     ) {
         const timestamp = olderFileTimestamp * 1000; // Convert to milliseconds
         const originalNoteTitle = humanReadablePath.split("/").pop();
@@ -66,7 +66,7 @@ export class ConflictHandler {
             await renameDocByID(conflictDocId, conflictNoteTitle, remotes[index].url, SyncUtils.getHeaders(remotes[index].key));
         }
 
-        const promises = remotes.map((remote, index) => {
+        const promises = remotes.map((_, index) => {
             return createConflictFileInRemote(index).catch((error) => {
                 console.error(`Error creating conflict file`, error);
             });
@@ -80,55 +80,48 @@ export class ConflictHandler {
      *
      * @param path - The path of the file being synced.
      * @param dirName - The name of the directory where the files are located.
-     * @param data - An array of RemoteFileInfo objects containing file metadata.
+     * @param remotes - An array of exactly two RemoteFileInfo objects containing remote server information.
      * @param i18n - The internationalization object for localized messages.
      * @returns A Promise that resolves to a boolean indicating whether a conflict was detected.
      */
     static async handleConflictDetection(
         path: string,
         dirName: string,
-        data: RemoteFileInfo[],
+        remotes: [RemoteFileInfo, RemoteFileInfo],
         i18n: any
     ): Promise<boolean> {
-        if (data.length < 2) {
-            console.log("Not enough file information to check for conflicts.");
-            return false;
-        }
+        if (!remotes[0].file || !remotes[1].file) return false;
 
-        if (!data[0].file || !data[1].file) return false;
+        const fileRes = remotes[0].file || remotes[1].file;
 
-        const fileRes = data[0].file || data[1].file;
-
-        if (data[0].lastSyncTime > 0 && data[1].lastSyncTime > 0 &&
-            data[0].file.updated > data[0].lastSyncTime && data[1].file.updated > data[1].lastSyncTime &&
-            data[0].file.updated !== data[1].file.updated) {
+        if (remotes[0].lastSyncTime > 0 && remotes[1].lastSyncTime > 0 &&
+            remotes[0].file.updated > remotes[0].lastSyncTime && remotes[1].file.updated > remotes[1].lastSyncTime &&
+            remotes[0].file.updated !== remotes[1].file.updated) {
 
             console.log(`Conflict detected for file: ${path}`);
 
             // print timestamps and last sync times
-            console.log(`File One Timestamp: ${data[0].file.updated}, Last Sync Time One: ${data[0].lastSyncTime}`);
-            console.log(`File Two Timestamp: ${data[1].file.updated}, Last Sync Time Two: ${data[1].lastSyncTime}`);
+            console.log(`File One Timestamp: ${remotes[0].file.updated}, Last Sync Time One: ${remotes[0].lastSyncTime}`);
+            console.log(`File Two Timestamp: ${remotes[1].file.updated}, Last Sync Time Two: ${remotes[1].lastSyncTime}`);
 
             const notebookId = dirName;
 
-            const olderFileIndex = data[0].file.updated > data[1].file.updated ? 1 : 0;
-            const olderFileTimestamp = data[olderFileIndex].file.updated;
+            const olderFileIndex = remotes[0].file.updated > remotes[1].file.updated ? 1 : 0;
+            const olderFileTimestamp = remotes[olderFileIndex].file.updated;
 
             // Get document id
             const docId = fileRes.name.replace(/\.sy$/, "");
 
-            const humanReadablePath = await getHPathByID(docId, data[olderFileIndex].url, SyncUtils.getHeaders(data[olderFileIndex].key));
+            const humanReadablePath = await getHPathByID(docId, remotes[olderFileIndex].url, SyncUtils.getHeaders(remotes[olderFileIndex].key));
             console.log(`Human readable path for conflict file: ${humanReadablePath}`);
 
             showMessage(i18n.conflictDetectedForDocument.replace("{{documentName}}", humanReadablePath.split("/").pop()), 5000);
 
-            const oldFileBlob = await getFileBlob(path, data[olderFileIndex].url, SyncUtils.getHeaders(data[olderFileIndex].key));
+            const oldFileBlob = await getFileBlob(path, remotes[olderFileIndex].url, SyncUtils.getHeaders(remotes[olderFileIndex].key));
             if (!oldFileBlob) {
-                console.log(`File ${path} not found in ${data[olderFileIndex].url}`);
+                console.log(`File ${path} not found in ${remotes[olderFileIndex].url}`);
                 return true;
             }
-
-            const remotes: RemoteInfo[] = data.map(({ file, ...rest }) => rest);
 
             await this.createConflictFile(
                 notebookId,
