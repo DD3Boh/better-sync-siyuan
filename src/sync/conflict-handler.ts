@@ -82,7 +82,6 @@ export class ConflictHandler {
      */
     static async handleConflictDetection(
         path: string,
-        fileRes: IResReadDir,
         fileOne: IResReadDir | undefined,
         fileTwo: IResReadDir | undefined,
         dirName: string,
@@ -92,6 +91,8 @@ export class ConflictHandler {
         i18n: any
     ): Promise<boolean> {
         if (!fileOne || !fileTwo) return false;
+
+        const fileRes = fileOne || fileTwo;
 
         const timestampOne = fileOne.updated;
         const timestampTwo = fileTwo.updated;
@@ -112,9 +113,9 @@ export class ConflictHandler {
             const olderFileTimestamp = olderFileIndex === 0 ? timestampOne : timestampTwo;
 
             // Get document id
-            const fileResName = fileRes.name.endsWith(".sy") ? fileRes.name.slice(0, -3) : fileRes.name;
+            const fileName = fileRes.name.replace(/\.sy$/, "");
 
-            const humanReadablePath = await getHPathByID(fileResName, urlToKeyMap[olderFileIndex][0], SyncUtils.getHeaders(urlToKeyMap[olderFileIndex][1]));
+            const humanReadablePath = await getHPathByID(fileName, urlToKeyMap[olderFileIndex][0], SyncUtils.getHeaders(urlToKeyMap[olderFileIndex][1]));
             console.log(`Human readable path for conflict file: ${humanReadablePath}`);
 
             showMessage(i18n.conflictDetectedForDocument.replace("{{documentName}}", humanReadablePath.split("/").pop()), 5000);

@@ -288,6 +288,72 @@ export class SyncManager {
         this.conflictDetected = false; // Reset conflict detection flag after sync
     }
 
+    private async syncFile(
+        filePath: string,
+        fileOne: IResReadDir | undefined,
+        fileTwo: IResReadDir | undefined,
+        dirName: string,
+        urlToKeyMap: [string, string][],
+        lastSyncTimeOne: number,
+        lastSyncTimeTwo: number,
+        isNotebook: boolean,
+        options: {
+            deleteFoldersOnly: boolean,
+            onlyIfMissing: boolean,
+            avoidDeletions: boolean
+        }
+    ) {
+        const fileRes = fileOne || fileTwo;
+
+        const timestampOne = fileOne?.updated || 0;
+        const timestampTwo = fileTwo?.updated || 0;
+
+        // Conflict detection
+        const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
+        if (!options.onlyIfMissing && isNotebook && !fileRes.isDir && trackConflicts) {
+            const conflictDetected = await ConflictHandler.handleConflictDetection(
+                filePath, fileOne, fileTwo, dirName, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo, this.plugin.i18n
+            );
+
+            if (conflictDetected) this.conflictDetected = true;
+        }
+
+        // Multiply by 1000 because `putFile` makes the conversion automatically
+        const timestamp: number = Math.max(timestampOne, timestampTwo) * 1000;
+
+        const lastSyncTime = Math.min(lastSyncTimeOne, lastSyncTimeTwo);
+
+        if (fileOne && fileTwo && (timestampOne === timestampTwo || options.onlyIfMissing)) return;
+
+        // Remove deleted files
+        if ((!fileOne && lastSyncTime > timestampTwo) || (!fileTwo && lastSyncTime > timestampOne)) {
+            if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
+                const targetIndex = !fileOne ? 1 : 0;
+                SyncUtils.deleteFile(filePath, fileRes, urlToKeyMap[targetIndex][0], urlToKeyMap[targetIndex][1]);
+                return;
+            }
+        }
+
+        // Avoid writing directories
+        if (fileRes.isDir) return;
+
+        const iIn = timestampOne > timestampTwo ? 0 : 1;
+        const iOut = timestampOne > timestampTwo ? 1 : 0;
+        const sourceName = iIn === 0 ? 'local' : 'remote';
+        const targetName = iOut === 0 ? 'local' : 'remote';
+
+        console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${timestampOne} vs ${timestampTwo}`);
+
+        const syFile = await getFileBlob(filePath, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
+        if (!syFile) {
+            console.log(`File ${filePath} not found in source: ${sourceName}`);
+            return;
+        }
+
+        const file = new File([syFile], fileRes.name, { lastModified: timestamp });
+        SyncUtils.putFile(filePath, file, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1], timestamp);
+    }
+
     private async syncDirectory(
         path: string,
         dirName: string,
@@ -326,57 +392,21 @@ export class SyncManager {
         });
 
         // Synchronize files
-        for (const [filePath, fileRes] of allFiles.entries()) {
+        for (const [filePath] of allFiles.entries()) {
             const fileOne = filesOne.get(filePath);
             const fileTwo = filesTwo.get(filePath);
 
-            const timestampOne = fileOne?.updated || 0;
-            const timestampTwo = fileTwo?.updated || 0;
-
-            // Conflict detection
-            const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
-            if (!options.onlyIfMissing && isNotebook && !fileRes.isDir && trackConflicts) {
-                const conflictDetected = await ConflictHandler.handleConflictDetection(
-                    filePath, fileRes, fileOne, fileTwo, dirName, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo, this.plugin.i18n
-                );
-
-                if (conflictDetected) this.conflictDetected = true;
-            }
-
-            // Multiply by 1000 because `putFile` makes the conversion automatically
-            const timestamp: number = Math.max(timestampOne, timestampTwo) * 1000;
-
-            const lastSyncTime = Math.min(lastSyncTimeOne, lastSyncTimeTwo);
-
-            if (fileOne && fileTwo && (timestampOne === timestampTwo || options.onlyIfMissing)) continue;
-
-            // Remove deleted files
-            if ((!fileOne && lastSyncTime > timestampTwo) || (!fileTwo && lastSyncTime > timestampOne)) {
-                if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
-                    const targetIndex = !fileOne ? 1 : 0;
-                    SyncUtils.deleteFile(filePath, fileRes, urlToKeyMap[targetIndex][0], urlToKeyMap[targetIndex][1]);
-                    continue;
-                }
-            }
-
-            // Avoid writing directories
-            if (fileRes.isDir) continue;
-
-            const iIn = timestampOne > timestampTwo ? 0 : 1;
-            const iOut = timestampOne > timestampTwo ? 1 : 0;
-            const sourceName = iIn === 0 ? 'local' : 'remote';
-            const targetName = iOut === 0 ? 'local' : 'remote';
-
-            console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${timestampOne} vs ${timestampTwo}`);
-
-            const syFile = await getFileBlob(filePath, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
-            if (!syFile) {
-                console.log(`File ${filePath} not found in source: ${sourceName}`);
-                continue;
-            }
-
-            const file = new File([syFile], fileRes.name, { lastModified: timestamp });
-            SyncUtils.putFile(filePath, file, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1], timestamp);
+            await this.syncFile(
+                filePath,
+                fileOne,
+                fileTwo,
+                dirName,
+                urlToKeyMap,
+                lastSyncTimeOne,
+                lastSyncTimeTwo,
+                isNotebook,
+                options
+            );
         }
     }
 
