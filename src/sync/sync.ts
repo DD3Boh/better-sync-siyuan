@@ -244,8 +244,21 @@ export class SyncManager {
         // Convert back to array for processing if needed
         const combinedNotebooks = Array.from(allNotebooks.values());
 
-        const syncPromises = combinedNotebooks.map(notebook =>
-            this.syncDirectory("data", notebook.id, remotes, [".siyuan"])
+        const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
+
+        const notebookSyncPromises = combinedNotebooks.map(notebook =>
+            this.syncDirectory(
+                "data",
+                notebook.id,
+                remotes,
+                [".siyuan"],
+                {
+                    deleteFoldersOnly: false,
+                    onlyIfMissing: false,
+                    avoidDeletions: false,
+                    trackConflicts: trackConflicts
+                }
+            )
         );
 
         // Sync other directories
@@ -272,7 +285,8 @@ export class SyncManager {
             this.syncDirectory(path, dir, remotes, [], {
                 deleteFoldersOnly: false,
                 onlyIfMissing: true,
-                avoidDeletions: true
+                avoidDeletions: true,
+                trackConflicts: false
             })
         );
 
@@ -281,7 +295,7 @@ export class SyncManager {
         );
 
         const promises = [
-            ...syncPromises,
+            ...notebookSyncPromises,
             ...syncDirPromises,
             ...syncIfMissingPromises,
             ...syncNotebookConfigPromises,
@@ -321,7 +335,8 @@ export class SyncManager {
         options: {
             deleteFoldersOnly: boolean,
             onlyIfMissing: boolean,
-            avoidDeletions: boolean
+            avoidDeletions: boolean,
+            trackConflicts: boolean
         },
         remotes: [RemoteFileInfo, RemoteFileInfo] = this.copyRemotes(this.remotes),
     ) {
@@ -343,8 +358,7 @@ export class SyncManager {
         ];
 
         // Conflict detection
-        const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
-        if (!options.onlyIfMissing && isNotebook && !fileRes.isDir && trackConflicts) {
+        if (!options.onlyIfMissing && isNotebook && !fileRes.isDir && options.trackConflicts) {
             const conflictDetected = await ConflictHandler.handleConflictDetection(
                 filePath,
                 dirName,
@@ -399,11 +413,13 @@ export class SyncManager {
         options: {
             deleteFoldersOnly: boolean,
             onlyIfMissing: boolean,
-            avoidDeletions: boolean
+            avoidDeletions: boolean,
+            trackConflicts: boolean
         } = {
             deleteFoldersOnly: false,
             onlyIfMissing: false,
-            avoidDeletions: false
+            avoidDeletions: false,
+            trackConflicts: false
         }
     ) {
         const [notebooksOne, notebooksTwo] = await Promise.all([

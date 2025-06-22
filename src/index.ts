@@ -70,7 +70,8 @@ export default class BetterSyncPlugin extends Plugin {
                 {
                     deleteFoldersOnly: false,
                     onlyIfMissing: false,
-                    avoidDeletions: true
+                    avoidDeletions: true,
+                    trackConflicts: false
                 }
             );
 
