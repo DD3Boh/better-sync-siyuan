@@ -351,6 +351,11 @@ export class SyncManager {
 
         const fileRes = remotes[0].file || remotes[1].file;
 
+        if (!fileRes) {
+            console.log(`File ${filePath} not found in either remote.`);
+            return;
+        }
+
         const updated: [number, number] = [
             remotes[0].file?.updated || 0,
             remotes[1].file?.updated || 0
