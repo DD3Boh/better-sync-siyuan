@@ -272,7 +272,12 @@ export class SyncManager {
 
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(([path, dir]) =>
-            this.syncDirectory(path, dir, remotes)
+            this.syncDirectory(path, dir, remotes, [], {
+                deleteFoldersOnly: true,
+                onlyIfMissing: false,
+                avoidDeletions: false,
+                trackConflicts: false
+            })
         );
 
         // Sync some files only if missing
