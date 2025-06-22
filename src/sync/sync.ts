@@ -471,23 +471,6 @@ export class SyncManager {
         }
     }
 
-    private async syncFileIfMissing(path: string, remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
-        SyncUtils.checkRemotes(remotes);
-
-        let fileOne = await getFileBlob(path, remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
-        let fileTwo = await getFileBlob(path, remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
-
-        if (!fileOne) {
-            console.log(`Syncing file ${path} from remote to local`);
-            let file = new File([fileTwo], path.split("/").pop());
-            SyncUtils.putFile(path, file, remotes[0].url, remotes[0].key);
-        } else if (!fileTwo) {
-            console.log(`Syncing file ${path} from local to remote`);
-            let file = new File([fileOne], path.split("/").pop());
-            SyncUtils.putFile(path, file, remotes[1].url, remotes[1].key);
-        }
-    }
-
     private async syncMissingAssets(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
         SyncUtils.checkRemotes(remotes);
 
@@ -501,7 +484,17 @@ export class SyncManager {
         const allMissingAssets = [...localMissing.missingAssets, ...remoteMissing.missingAssets];
 
         const assetsPromises = allMissingAssets.map(asset =>
-            this.syncFileIfMissing(`/data/${asset}`, remotes)
+            this.syncFile(
+                `/data/${asset}`,
+                undefined,
+                {
+                    deleteFoldersOnly: false,
+                    onlyIfMissing: true,
+                    avoidDeletions: true,
+                    trackConflicts: false
+                },
+                remotes
+            )
         );
 
         await Promise.all(assetsPromises);
