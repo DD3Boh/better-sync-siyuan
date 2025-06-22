@@ -306,14 +306,14 @@ export class SyncManager {
 
     private async syncFile(
         filePath: string,
-        remotes: [RemoteFileInfo, RemoteFileInfo],
         dirName: string,
         isNotebook: boolean,
         options: {
             deleteFoldersOnly: boolean,
             onlyIfMissing: boolean,
             avoidDeletions: boolean
-        }
+        },
+        remotes: [RemoteFileInfo, RemoteFileInfo] = this.remotes,
     ) {
         const fileRes = remotes[0].file || remotes[1].file;
 
@@ -423,10 +423,10 @@ export class SyncManager {
 
             await this.syncFile(
                 filePath,
-                remoteFileInfos,
                 dirName,
                 isNotebook,
-                options
+                options,
+                remoteFileInfos
             );
         }
     }
