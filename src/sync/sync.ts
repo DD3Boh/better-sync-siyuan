@@ -202,10 +202,25 @@ export class SyncManager {
             await this.createDataSnapshots(urlToKeyMap);
         }
 
-        let notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
-        let notebooksTwo = await this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]);
-        let lastSyncTimeOne = await SyncUtils.getLastSyncTime(urlToKeyMap[0][0], urlToKeyMap[0][1]);
-        let lastSyncTimeTwo = await SyncUtils.getLastSyncTime(urlToKeyMap[1][0], urlToKeyMap[1][1]);
+        const [notebooksOne, notebooksTwo, lastSyncTimeOne, lastSyncTimeTwo] = await Promise.all([
+            this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]),
+            this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]),
+            SyncUtils.getLastSyncTime(urlToKeyMap[0][0], urlToKeyMap[0][1]),
+            SyncUtils.getLastSyncTime(urlToKeyMap[1][0], urlToKeyMap[1][1])
+        ]);
+
+        const remotes: RemoteInfo[] = await Promise.all([
+            {
+                url: urlToKeyMap[0][0],
+                key: urlToKeyMap[0][1],
+                lastSyncTime: lastSyncTimeOne
+            },
+            {
+                url: urlToKeyMap[1][0],
+                key: urlToKeyMap[1][1],
+                lastSyncTime: lastSyncTimeTwo
+            }
+        ]);
 
         // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
         const allNotebooks = new Map<string, Notebook>();
@@ -219,7 +234,7 @@ export class SyncManager {
         const combinedNotebooks = Array.from(allNotebooks.values());
 
         const syncPromises = combinedNotebooks.map(notebook =>
-            this.syncDirectory("data", notebook.id, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo, [".siyuan"])
+            this.syncDirectory("data", notebook.id, remotes, [".siyuan"])
         );
 
         // Sync other directories
@@ -233,7 +248,7 @@ export class SyncManager {
 
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(([path, dir]) =>
-            this.syncDirectory(path, dir, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo)
+            this.syncDirectory(path, dir, remotes)
         );
 
         // Sync some files only if missing
@@ -243,7 +258,7 @@ export class SyncManager {
         ];
 
         const syncIfMissingPromises = syncIfMissing.map(([path, dir]) =>
-            this.syncDirectory(path, dir, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo, [], {
+            this.syncDirectory(path, dir, remotes, [], {
                 deleteFoldersOnly: false,
                 onlyIfMissing: true,
                 avoidDeletions: true
@@ -290,12 +305,8 @@ export class SyncManager {
 
     private async syncFile(
         filePath: string,
-        fileOne: IResReadDir | undefined,
-        fileTwo: IResReadDir | undefined,
+        remotes: RemoteFileInfo[],
         dirName: string,
-        urlToKeyMap: [string, string][],
-        lastSyncTimeOne: number,
-        lastSyncTimeTwo: number,
         isNotebook: boolean,
         options: {
             deleteFoldersOnly: boolean,
@@ -303,33 +314,40 @@ export class SyncManager {
             avoidDeletions: boolean
         }
     ) {
-        const fileRes = fileOne || fileTwo;
+        if (remotes.length !== 2) {
+            throw new Error("syncFile requires exactly two remote file infos.");
+        }
 
-        const timestampOne = fileOne?.updated || 0;
-        const timestampTwo = fileTwo?.updated || 0;
+        const fileRes = remotes[0].file || remotes[1].file;
+
+        remotes[0].file.updated = remotes[0].file.updated || 0;
+        remotes[1].file.updated = remotes[1].file.updated || 0;
 
         // Conflict detection
         const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
         if (!options.onlyIfMissing && isNotebook && !fileRes.isDir && trackConflicts) {
             const conflictDetected = await ConflictHandler.handleConflictDetection(
-                filePath, fileOne, fileTwo, dirName, urlToKeyMap, lastSyncTimeOne, lastSyncTimeTwo, this.plugin.i18n
+                filePath,
+                dirName,
+                remotes,
+                this.plugin.i18n
             );
 
             if (conflictDetected) this.conflictDetected = true;
         }
 
         // Multiply by 1000 because `putFile` makes the conversion automatically
-        const timestamp: number = Math.max(timestampOne, timestampTwo) * 1000;
+        const timestamp: number = Math.max(remotes[0].file.updated, remotes[1].file.updated) * 1000;
 
-        const lastSyncTime = Math.min(lastSyncTimeOne, lastSyncTimeTwo);
+        const lastSyncTime = Math.min(remotes[0].lastSyncTime, remotes[1].lastSyncTime);
 
-        if (fileOne && fileTwo && (timestampOne === timestampTwo || options.onlyIfMissing)) return;
+        if (remotes[0].file && remotes[1].file && (remotes[0].file.updated === remotes[1].file.updated || options.onlyIfMissing)) return;
 
         // Remove deleted files
-        if ((!fileOne && lastSyncTime > timestampTwo) || (!fileTwo && lastSyncTime > timestampOne)) {
+        if ((!remotes[0].file && lastSyncTime > remotes[1].file.updated) || (!remotes[1].file && lastSyncTime > remotes[0].file.updated)) {
             if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
-                const targetIndex = !fileOne ? 1 : 0;
-                SyncUtils.deleteFile(filePath, fileRes, urlToKeyMap[targetIndex][0], urlToKeyMap[targetIndex][1]);
+                const targetIndex = !remotes[0].file ? 1 : 0;
+                SyncUtils.deleteFile(filePath, fileRes, remotes[targetIndex].url, remotes[targetIndex].key);
                 return;
             }
         }
@@ -337,29 +355,27 @@ export class SyncManager {
         // Avoid writing directories
         if (fileRes.isDir) return;
 
-        const iIn = timestampOne > timestampTwo ? 0 : 1;
-        const iOut = timestampOne > timestampTwo ? 1 : 0;
+        const iIn = remotes[0].file.updated > remotes[1].file.updated ? 0 : 1;
+        const iOut = remotes[0].file.updated > remotes[1].file.updated ? 1 : 0;
         const sourceName = iIn === 0 ? 'local' : 'remote';
         const targetName = iOut === 0 ? 'local' : 'remote';
 
-        console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${timestampOne} vs ${timestampTwo}`);
+        console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${remotes[0].file.updated} vs ${remotes[1].file.updated}`);
 
-        const syFile = await getFileBlob(filePath, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
+        const syFile = await getFileBlob(filePath, remotes[iIn].url, SyncUtils.getHeaders(remotes[iIn].key));
         if (!syFile) {
             console.log(`File ${filePath} not found in source: ${sourceName}`);
             return;
         }
 
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
-        SyncUtils.putFile(filePath, file, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1], timestamp);
+        SyncUtils.putFile(filePath, file, remotes[iOut].url, remotes[iOut].key, timestamp);
     }
 
     private async syncDirectory(
         path: string,
         dirName: string,
-        urlToKeyMap: [string, string][] = this.urlToKeyMap,
-        lastSyncTimeOne: number,
-        lastSyncTimeTwo: number,
+        remotes: RemoteInfo[],
         excludedSubdirs: string[] = [],
         options: {
             deleteFoldersOnly: boolean,
@@ -371,18 +387,16 @@ export class SyncManager {
             avoidDeletions: false
         }
     ) {
-        SyncUtils.checkUrlToKeyMap(urlToKeyMap);
-
-        const notebooksOne = await this.getNotebooks(urlToKeyMap[0][0], urlToKeyMap[0][1]);
-        const notebooksTwo = await this.getNotebooks(urlToKeyMap[1][0], urlToKeyMap[1][1]);
+        const notebooksOne = await this.getNotebooks(remotes[0].url, remotes[0].key);
+        const notebooksTwo = await this.getNotebooks(remotes[1].url, remotes[1].key);
 
         const allNotebookIds = new Set([...notebooksOne.map(n => n.id), ...notebooksTwo.map(n => n.id)]);
         const isNotebook = allNotebookIds.has(dirName);
 
         console.log(`Syncing directory ${path}/${dirName}. Is notebook: ${isNotebook}`);
 
-        let filesOne = await SyncUtils.getDirFilesRecursively(path, dirName, urlToKeyMap[0][0], urlToKeyMap[0][1], true, excludedSubdirs);
-        let filesTwo = await SyncUtils.getDirFilesRecursively(path, dirName, urlToKeyMap[1][0], urlToKeyMap[1][1], true, excludedSubdirs);
+        let filesOne = await SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedSubdirs);
+        let filesTwo = await SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedSubdirs);
 
         // Create a combined map of all files
         const allFiles = new Map<string, IResReadDir>();
@@ -393,17 +407,21 @@ export class SyncManager {
 
         // Synchronize files
         for (const [filePath] of allFiles.entries()) {
-            const fileOne = filesOne.get(filePath);
-            const fileTwo = filesTwo.get(filePath);
+            const remoteFileInfos: RemoteFileInfo[] = [
+                {
+                    ...remotes[0],
+                    file: filesOne.get(filePath)
+                },
+                {
+                    ...remotes[1],
+                    file: filesTwo.get(filePath)
+                }
+            ];
 
             await this.syncFile(
                 filePath,
-                fileOne,
-                fileTwo,
+                remoteFileInfos,
                 dirName,
-                urlToKeyMap,
-                lastSyncTimeOne,
-                lastSyncTimeTwo,
                 isNotebook,
                 options
             );
