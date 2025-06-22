@@ -304,7 +304,7 @@ export class SyncManager {
         this.conflictDetected = false; // Reset conflict detection flag after sync
     }
 
-    private async syncFile(
+    async syncFile(
         filePath: string,
         dirName: string,
         isNotebook: boolean,
