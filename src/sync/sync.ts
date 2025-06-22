@@ -315,6 +315,16 @@ export class SyncManager {
         },
         remotes: [RemoteFileInfo, RemoteFileInfo] = this.remotes,
     ) {
+        const parentPath = filePath.replace(/\/[^/]+$/, "");
+        const fileName = filePath.replace(/^.*\//, "");
+
+        await Promise.all(remotes.map(async (remote) => {
+            if (!remote.file) {
+                const dir = await readDir(parentPath, remote.url, SyncUtils.getHeaders(remote.key));
+                remote.file = dir?.find(it => it.name === fileName);
+            }
+        }));
+
         const fileRes = remotes[0].file || remotes[1].file;
 
         const updated: [number, number] = [
