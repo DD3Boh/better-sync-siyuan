@@ -66,7 +66,6 @@ export default class BetterSyncPlugin extends Plugin {
             const syncFilePromise = this.syncManager.syncFile(
                 `data/${protyle.notebookId}${protyle.path}`,
                 protyle.notebookId,
-                true,
                 {
                     deleteFoldersOnly: false,
                     onlyIfMissing: false,

@@ -331,7 +331,6 @@ export class SyncManager {
     async syncFile(
         filePath: string,
         dirName: string,
-        isNotebook: boolean,
         options: {
             deleteFoldersOnly: boolean,
             onlyIfMissing: boolean,
@@ -358,7 +357,7 @@ export class SyncManager {
         ];
 
         // Conflict detection
-        if (!options.onlyIfMissing && isNotebook && !fileRes.isDir && options.trackConflicts) {
+        if (!options.onlyIfMissing && !fileRes.isDir && options.trackConflicts) {
             const conflictDetected = await ConflictHandler.handleConflictDetection(
                 filePath,
                 dirName,
@@ -460,7 +459,6 @@ export class SyncManager {
             await this.syncFile(
                 filePath,
                 dirName,
-                isNotebook,
                 options,
                 remoteFileInfos
             );
