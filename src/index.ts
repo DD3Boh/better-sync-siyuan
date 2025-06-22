@@ -61,9 +61,9 @@ export default class BetterSyncPlugin extends Plugin {
         }
     }
 
-    private handleContentChange(protyle: IProtyle) {
+    private async handleContentChange(protyle: IProtyle) {
         if (this.settingsManager.getPref("autoSyncCurrentFile") == true) {
-            this.syncManager.syncFile(
+            const syncFilePromise = this.syncManager.syncFile(
                 `data/${protyle.notebookId}${protyle.path}`,
                 protyle.notebookId,
                 true,
@@ -74,7 +74,9 @@ export default class BetterSyncPlugin extends Plugin {
                 }
             );
 
-            this.syncManager.syncNotebookConfig(protyle.notebookId);
+            const syncNotebookConfigPromise = this.syncManager.syncNotebookConfig(protyle.notebookId);
+
+            await Promise.all([syncFilePromise, syncNotebookConfigPromise]);
         }
     }
 
