@@ -496,19 +496,6 @@ export class SyncManager {
         }
     }
 
-    async pushFile(path: string, remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
-        SyncUtils.checkRemotes(remotes);
-        let fileOne = await getFileBlob(path, remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
-
-        if (fileOne) {
-            console.log(`Pushing file ${path} from local to remote`);
-            let file = new File([fileOne], path.split("/").pop());
-            SyncUtils.putFile(path, file, remotes[1].url, remotes[1].key);
-        } else {
-            console.log(`File ${path} not found in local`);
-        }
-    }
-
     async syncNotebookConfig(notebookId: string, remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
         SyncUtils.checkRemotes(remotes);
 
