@@ -503,19 +503,19 @@ export class SyncManager {
     private async syncPetalsListIfEmpty(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
-        const [petalsListOne, petalsListTwo] = await Promise.all([
+        const petalsList = await Promise.all([
             getFileBlob("/data/storage/petal/petals.json", remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
             getFileBlob("/data/storage/petal/petals.json", remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
         ]);
 
-        if (!petalsListOne || await petalsListOne.text() === "[]") {
-            console.log(`Syncing petals list from remote to local`);
-            let file = new File([petalsListTwo], "petals.json");
-            SyncUtils.putFile("/data/storage/petal/petals.json", file, remotes[0].url, remotes[0].key);
-        } else if (!petalsListTwo || await petalsListTwo.text() === "[]") {
-            console.log(`Syncing petals list from local to remote`);
-            let file = new File([petalsListOne], "petals.json");
-            SyncUtils.putFile("/data/storage/petal/petals.json", file, remotes[1].url, remotes[1].key);
+        for (let index = 0; index < petalsList.length; index++) {
+            if (!petalsList[index] || await petalsList[index].text() === "[]") {
+                const otherIndex = index === 0 ? 1 : 0;
+                console.log(`Syncing petals list from ${index === 0 ? 'remote' : 'local'} to ${index === 0 ? 'local' : 'remote'}`);
+                let file = new File([petalsList[otherIndex]], "petals.json");
+                SyncUtils.putFile("/data/storage/petal/petals.json", file, remotes[index].url, remotes[index].key);
+                break;
+            }
         }
     }
 
