@@ -387,16 +387,20 @@ export class SyncManager {
             avoidDeletions: false
         }
     ) {
-        const notebooksOne = await this.getNotebooks(remotes[0].url, remotes[0].key);
-        const notebooksTwo = await this.getNotebooks(remotes[1].url, remotes[1].key);
+        const [notebooksOne, notebooksTwo] = await Promise.all([
+            this.getNotebooks(remotes[0].url, remotes[0].key),
+            this.getNotebooks(remotes[1].url, remotes[1].key)
+        ]);
 
         const allNotebookIds = new Set([...notebooksOne.map(n => n.id), ...notebooksTwo.map(n => n.id)]);
         const isNotebook = allNotebookIds.has(dirName);
 
         console.log(`Syncing directory ${path}/${dirName}. Is notebook: ${isNotebook}`);
 
-        let filesOne = await SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedSubdirs);
-        let filesTwo = await SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedSubdirs);
+        const [filesOne, filesTwo] = await Promise.all([
+            SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedSubdirs),
+            SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedSubdirs)
+        ]);
 
         // Create a combined map of all files
         const allFiles = new Map<string, IResReadDir>();
@@ -467,8 +471,10 @@ export class SyncManager {
     private async syncPetalsListIfEmpty(urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         SyncUtils.checkUrlToKeyMap(urlToKeyMap);
 
-        let petalsListOne = await getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
-        let petalsListTwo = await getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
+        const [petalsListOne, petalsListTwo] = await Promise.all([
+            getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1])),
+            getFileBlob("/data/storage/petal/petals.json", urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]))
+        ]);
 
         if (!petalsListOne || await petalsListOne.text() === "[]") {
             console.log(`Syncing petals list from remote to local`);
