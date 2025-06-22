@@ -537,7 +537,7 @@ export class SyncManager {
                 {
                     deleteFoldersOnly: false,
                     onlyIfMissing: false,
-                    avoidDeletions: true,
+                    avoidDeletions: false,
                     trackConflicts: false
                 },
                 remotes
