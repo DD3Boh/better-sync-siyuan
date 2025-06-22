@@ -449,35 +449,38 @@ export class SyncManager {
     async syncNotebookConfig(notebookId: string, urlToKeyMap: [string, string][] = this.urlToKeyMap) {
         SyncUtils.checkUrlToKeyMap(urlToKeyMap);
 
-        let files: string[] = [
+        const files: string[] = [
             "conf.json",
             "sort.json",
-        ]
+        ];
 
-        let dirOne = await readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1]));
-        let dirTwo = await readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]));
+        const dirs = await Promise.all([
+            readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[0][0], SyncUtils.getHeaders(urlToKeyMap[0][1])),
+            readDir(`/data/${notebookId}/.siyuan/`, urlToKeyMap[1][0], SyncUtils.getHeaders(urlToKeyMap[1][1]))
+        ]);
 
-        for (let file of files) {
-            let path = `/data/${notebookId}/.siyuan/${file}`;
+        for (const file of files) {
+            const path = `/data/${notebookId}/.siyuan/${file}`;
 
-            const fileOne = dirOne.find(it => it.name === file);
-            const fileTwo = dirTwo.find(it => it.name === file);
+            const fileInfos = [
+                dirs[0]?.find(it => it.name === file),
+                dirs[1]?.find(it => it.name === file)
+            ];
 
-            if (!fileOne && !fileTwo) {
+            if (!fileInfos[0] && !fileInfos[1]) {
                 console.log(`File ${path} not found in either location.`);
                 continue;
             }
 
-            const timestampOne = fileOne?.updated || 0;
-            const timestampTwo = fileTwo?.updated || 0;
+            const timestamps = fileInfos.map(f => f?.updated || 0);
 
-            if (timestampOne === timestampTwo) {
+            if (timestamps[0] === timestamps[1]) {
                 console.log(`File ${path} is up to date in both locations.`);
                 continue;
             }
 
-            const iIn = timestampOne > timestampTwo ? 0 : 1;
-            const iOut = timestampOne > timestampTwo ? 1 : 0;
+            const iIn = timestamps[0] > timestamps[1] ? 0 : 1;
+            const iOut = 1 - iIn;
             const sourceName = iIn === 0 ? 'local' : 'remote';
             const targetName = iOut === 0 ? 'local' : 'remote';
 
