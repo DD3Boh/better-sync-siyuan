@@ -534,42 +534,21 @@ export class SyncManager {
             "sort.json",
         ];
 
-        const dirs = await Promise.all([
-            readDir(`/data/${notebookId}/.siyuan/`, remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
-            readDir(`/data/${notebookId}/.siyuan/`, remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
-        ]);
+        console.log(`Syncing notebook config for notebook ${notebookId}`);
 
-        for (const file of files) {
-            const path = `/data/${notebookId}/.siyuan/${file}`;
-
-            const fileInfos = [
-                dirs[0]?.find(it => it.name === file),
-                dirs[1]?.find(it => it.name === file)
-            ];
-
-            if (!fileInfos[0] && !fileInfos[1]) {
-                console.log(`File ${path} not found in either location.`);
-                continue;
-            }
-
-            const timestamps = fileInfos.map(f => f?.updated || 0);
-
-            if (timestamps[0] === timestamps[1]) {
-                console.log(`File ${path} is up to date in both locations.`);
-                continue;
-            }
-
-            const iIn = timestamps[0] > timestamps[1] ? 0 : 1;
-            const iOut = 1 - iIn;
-            const sourceName = iIn === 0 ? 'local' : 'remote';
-            const targetName = iOut === 0 ? 'local' : 'remote';
-
-            const fileBlob = await getFileBlob(path, remotes[iIn].url, SyncUtils.getHeaders(remotes[iIn].key));
-            if (fileBlob) {
-                console.log(`Pushing notebook config ${path} from ${sourceName} to ${targetName}`);
-                const fileObj = new File([fileBlob], file, { lastModified: timestamps[iIn] * 1000 });
-                SyncUtils.putFile(path, fileObj, remotes[iOut].url, remotes[iOut].key, timestamps[iIn] * 1000);
-            }
-        }
+        await Promise.all(files.map(file => {
+            const filePath = `/data/${notebookId}/.siyuan/${file}`;
+            return this.syncFile(
+                filePath,
+                notebookId,
+                {
+                    deleteFoldersOnly: false,
+                    onlyIfMissing: false,
+                    avoidDeletions: true,
+                    trackConflicts: false
+                },
+                remotes
+            );
+        }));
     }
 }
