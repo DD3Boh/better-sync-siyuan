@@ -23,9 +23,9 @@ export class SyncManager {
     private conflictDetected: boolean = false;
 
     /**
-     * Create a deep copy of RemoteInfo objects to prevent mutations
+     * Create a deep copy of RemoteInfo or RemoteFileInfo objects to prevent mutations
      */
-    private copyRemotes(remotes: [RemoteInfo, RemoteInfo]): [RemoteInfo, RemoteInfo] {
+    private copyRemotes<T extends RemoteInfo>(remotes: [T, T]): [T, T] {
         return [
             { ...remotes[0] },
             { ...remotes[1] }
@@ -337,19 +337,20 @@ export class SyncManager {
             avoidDeletions: boolean,
             trackConflicts: boolean
         },
-        remotes: [RemoteFileInfo, RemoteFileInfo] = this.copyRemotes(this.remotes),
+        remotes: [RemoteFileInfo, RemoteFileInfo] = this.remotes,
     ) {
+        const copyRemotes = this.copyRemotes(remotes);
         const parentPath = filePath.replace(/\/[^/]+$/, "");
         const fileName = filePath.replace(/^.*\//, "");
 
-        await Promise.all(remotes.map(async (remote) => {
+        await Promise.all(copyRemotes.map(async (remote) => {
             if (!remote.file) {
                 const dir = await readDir(parentPath, remote.url, SyncUtils.getHeaders(remote.key));
                 remote.file = dir?.find(it => it.name === fileName);
             }
         }));
 
-        const fileRes = remotes[0].file || remotes[1].file;
+        const fileRes = copyRemotes[0].file || copyRemotes[1].file;
 
         if (!fileRes) {
             console.log(`File ${filePath} not found in either remote.`);
@@ -357,8 +358,8 @@ export class SyncManager {
         }
 
         const updated: [number, number] = [
-            remotes[0].file?.updated || 0,
-            remotes[1].file?.updated || 0
+            copyRemotes[0].file?.updated || 0,
+            copyRemotes[1].file?.updated || 0
         ];
 
         // Conflict detection
@@ -366,7 +367,7 @@ export class SyncManager {
             const conflictDetected = await ConflictHandler.handleConflictDetection(
                 filePath,
                 dirName,
-                remotes,
+                copyRemotes,
                 this.plugin.i18n
             );
 
@@ -376,15 +377,15 @@ export class SyncManager {
         // Multiply by 1000 because `putFile` makes the conversion automatically
         const timestamp: number = Math.max(updated[0], updated[1]) * 1000;
 
-        const lastSyncTime = Math.min(remotes[0].lastSyncTime, remotes[1].lastSyncTime);
+        const lastSyncTime = Math.min(copyRemotes[0].lastSyncTime, copyRemotes[1].lastSyncTime);
 
-        if (remotes[0].file && remotes[1].file && (updated[0] === updated[1] || options.onlyIfMissing)) return;
+        if (copyRemotes[0].file && copyRemotes[1].file && (updated[0] === updated[1] || options.onlyIfMissing)) return;
 
         // Remove deleted files
-        if ((!remotes[0].file && lastSyncTime > updated[1]) || (!remotes[1].file && lastSyncTime > updated[0])) {
+        if ((!copyRemotes[0].file && lastSyncTime > updated[1]) || (!copyRemotes[1].file && lastSyncTime > updated[0])) {
             if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
-                const targetIndex = !remotes[0].file ? 1 : 0;
-                SyncUtils.deleteFile(filePath, fileRes, remotes[targetIndex].url, remotes[targetIndex].key);
+                const targetIndex = !copyRemotes[0].file ? 1 : 0;
+                SyncUtils.deleteFile(filePath, fileRes, copyRemotes[targetIndex].url, copyRemotes[targetIndex].key);
                 return;
             }
         }
@@ -399,14 +400,14 @@ export class SyncManager {
 
         console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
-        const syFile = await getFileBlob(filePath, remotes[iIn].url, SyncUtils.getHeaders(remotes[iIn].key));
+        const syFile = await getFileBlob(filePath, copyRemotes[iIn].url, SyncUtils.getHeaders(copyRemotes[iIn].key));
         if (!syFile) {
             console.log(`File ${filePath} not found in source: ${sourceName}`);
             return;
         }
 
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
-        SyncUtils.putFile(filePath, file, remotes[iOut].url, remotes[iOut].key, timestamp);
+        SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
     }
 
     private async syncDirectory(
