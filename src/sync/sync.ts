@@ -487,8 +487,8 @@ export class SyncManager {
             const fileBlob = await getFileBlob(path, urlToKeyMap[iIn][0], SyncUtils.getHeaders(urlToKeyMap[iIn][1]));
             if (fileBlob) {
                 console.log(`Pushing notebook config ${path} from ${sourceName} to ${targetName}`);
-                const fileObj = new File([fileBlob], file);
-                SyncUtils.putFile(path, fileObj, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1]);
+                const fileObj = new File([fileBlob], file, { lastModified: timestamps[iIn] * 1000 });
+                SyncUtils.putFile(path, fileObj, urlToKeyMap[iOut][0], urlToKeyMap[iOut][1], timestamps[iIn] * 1000);
             }
         }
     }
