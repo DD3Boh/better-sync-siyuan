@@ -8,7 +8,7 @@ export class SyncUtils {
      * @param url The URL to use for API requests.
      * @param key The API key to use for authentication.
      * @param skipSymlinks Whether to skip symbolic links.
-     * @param excludedSubdirs Array of subdirectory names to exclude from sync.
+     * @param excludedItems Array of file/directory names to exclude from sync.
      * @returns A map of file paths to their metadata.
      */
     static async getDirFilesRecursively(
@@ -17,7 +17,7 @@ export class SyncUtils {
         url: string = "",
         key: string = "",
         skipSymlinks: boolean = true,
-        excludedSubdirs: string[] = []
+        excludedItems: string[] = []
     ): Promise<Map<string, IResReadDir>> {
         const filesMap = new Map<string, IResReadDir>();
 
@@ -46,7 +46,10 @@ export class SyncUtils {
             return filesMap;
         }
 
-        const dir = dirResponse.filter(file => !(skipSymlinks && file.isSymlink));
+        const dir = dirResponse
+            .filter(file => !(skipSymlinks && file.isSymlink))
+            .filter(file => !excludedItems.includes(file.name));
+
         if (!dir || dir.length === 0) {
             console.log("No files found or invalid response:", dir);
             return filesMap;
@@ -57,11 +60,10 @@ export class SyncUtils {
             filesMap.set(`${fullPath}/${file.name}`, file);
         });
 
-        // Collect all promises, filtering out excluded subdirectories
+        // Collect all promises for subdirectories
         const promises = dir
             .filter(file => file.isDir)
-            .filter(file => !excludedSubdirs.includes(file.name))
-            .map(file => SyncUtils.getDirFilesRecursively(fullPath, file.name, url, key, skipSymlinks, excludedSubdirs));
+            .map(file => SyncUtils.getDirFilesRecursively(fullPath, file.name, url, key, skipSymlinks, excludedItems));
 
         // Wait for all promises to resolve
         const results = await Promise.all(promises);
