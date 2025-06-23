@@ -1,6 +1,7 @@
 interface RemoteInfo {
     url: string;
     key: string;
+    name: string;
     lastSyncTime: number;
 }
 

@@ -16,8 +16,8 @@ import { ConflictHandler } from "@/sync";
 export class SyncManager {
     private plugin: BetterSyncPlugin;
     private remotes: [RemoteInfo, RemoteInfo] = [
-        { url: "", key: "SKIP", lastSyncTime: undefined },
-        { url: "", key: "", lastSyncTime: undefined }
+        { url: "", key: "SKIP", name: "local", lastSyncTime: undefined },
+        { url: "", key: "", name: "remote", lastSyncTime: undefined }
     ];
     private originalFetch: typeof window.fetch;
     private conflictDetected: boolean = false;
@@ -94,11 +94,13 @@ export class SyncManager {
             {
                 url: "",
                 key: "SKIP",
+                name: "local",
                 lastSyncTime: lastSyncTimes[0] || undefined
             },
             {
                 url: url || "",
                 key: key || "",
+                name: this.getNickname() || "remote",
                 lastSyncTime: lastSyncTimes[1] || undefined
             }
         ];
