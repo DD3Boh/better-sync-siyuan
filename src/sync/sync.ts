@@ -51,11 +51,27 @@ export class SyncManager {
     private async acquireLock(remote: RemoteInfo): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         const lockFile = await getFileBlob(lockPath, remote.url, SyncUtils.getHeaders(remote.key));
-        if (lockFile)
-            throw new Error(this.plugin.i18n.syncLockAlreadyExists.replace("{{remoteName}}", remote.name));
 
-        const file = new File([], "lock", { type: "text/plain" });
-        await SyncUtils.putFile(lockPath, file, remote.url, remote.key);
+        const now = Date.now();
+
+        if (lockFile) {
+            const lockDir = await readDir("/data/.siyuan/sync", remote.url, SyncUtils.getHeaders(remote.key));
+            const lockFileInfo = lockDir?.find(file => file.name === "lock");
+
+            if (lockFileInfo) {
+                const lockAge = now - (lockFileInfo.updated * 1000);
+                const fiveMinutesInMs = 5 * 60 * 1000;
+
+                if (lockAge > fiveMinutesInMs) {
+                    console.log(`Lock file is ${Math.round(lockAge / 1000)} seconds old, ignoring stale lock for ${remote.name}`);
+                } else {
+                    throw new Error(this.plugin.i18n.syncLockAlreadyExists.replace("{{remoteName}}", remote.name));
+                }
+            }
+        }
+
+        const file = new File([], "lock", { type: "text/plain", lastModified: now });
+        await SyncUtils.putFile(lockPath, file, remote.url, remote.key, now );
     }
 
     private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
