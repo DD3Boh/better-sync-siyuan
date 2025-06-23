@@ -163,29 +163,47 @@ export class SyncManager {
     async syncHandler(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         const startTime = Date.now();
         let locked = false;
+        let savedError: Error | null = null;
         try {
             SyncUtils.checkRemotes(remotes);
+
+            showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
+            console.log(`Syncing with remote server ${remotes[1].name}...`);
 
             await this.acquireAllLocks(remotes);
             locked = true;
 
-            await this.syncWithRemote(remotes, startTime);
+            await this.syncWithRemote(remotes);
         } catch (error) {
-            console.error("Error during sync:", error);
-            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-
-            this.dismissMainSyncNotification();
-
-            showMessage(
-                this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remotes[1].name).replace("{{error}}", error.message).replace("{{duration}}", duration),
-                6000,
-                "error"
-            );
+            savedError = error;
         } finally {
             if (locked) {
                 await this.releaseAllLocks(remotes);
                 console.log("Released all sync locks.");
             }
+
+            const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
+
+            // Remove the main sync message
+            this.dismissMainSyncNotification();
+
+            if (savedError !== null) {
+                console.error("Error during sync:", savedError);
+
+                showMessage(
+                    this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remotes[1].name).replace("{{error}}", savedError.message).replace("{{duration}}", duration),
+                    6000,
+                    "error"
+                );
+            } else if (this.conflictDetected) {
+                showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
+                console.warn(`Sync completed with conflicts in ${duration} seconds.`);
+            } else {
+                showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);
+                console.log(`Sync completed successfully in ${duration} seconds!`);
+            }
+
+            this.conflictDetected = false;
         }
     }
 
@@ -223,11 +241,8 @@ export class SyncManager {
         await Promise.all(promises);
     }
 
-    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes), startTime?: number) {
+    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
-
-        showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
-        console.log(`Syncing with remote server ${remotes[1].name}...`);
 
         // Create data snapshots if enabled
         if (this.plugin.settingsManager.getPref("createDataSnapshots")) {
@@ -351,21 +366,6 @@ export class SyncManager {
         reloadFiletree(remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
         SyncUtils.setSyncStatus(remotes);
-
-        const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
-
-        // Remove the main sync message
-        this.dismissMainSyncNotification();
-
-        if (this.conflictDetected) {
-            showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
-            console.warn(`Sync completed with conflicts in ${duration} seconds.`);
-        } else {
-            showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);
-            console.log(`Sync completed successfully in ${duration} seconds!`);
-        }
-
-        this.conflictDetected = false; // Reset conflict detection flag after sync
     }
 
     async syncFile(
