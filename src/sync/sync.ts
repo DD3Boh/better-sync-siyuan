@@ -168,40 +168,30 @@ export class SyncManager {
 
         console.log("Creating data snapshots for both local and remote devices...");
 
-        const now = Date.now();
         const minHours = this.plugin.settingsManager.getPref("minHoursBetweenSnapshots");
         const minMilliseconds = minHours * 3600 * 1000;
 
-        const localSnapshots = await getRepoSnapshots(1, remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
-        const remoteSnapshots = await getRepoSnapshots(1, remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
+        const snapshots = await Promise.all([
+            getRepoSnapshots(1, remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+            getRepoSnapshots(1, remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
+        ]);
 
-        if (!localSnapshots) {
-            showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, "local"), 6000);
-            console.warn("Local data repo is not initialized");
-        } else {
-            if (localSnapshots.snapshots.length > 0) {
-                if (now - localSnapshots.snapshots[0].created < minMilliseconds)
-                    console.log(`Skipping local snapshot, last one was less than ${minHours} hours ago.`);
-                else
-                    await createSnapshot("[better-sync] Cloud sync", remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
-            } else {
-                await createSnapshot("[better-sync] Cloud sync", remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
+        const promises: Promise<void>[] = [];
+
+        for (let i = 0; i < snapshots.length; i++) {
+            if (!snapshots[i] || snapshots[i].snapshots.length <= 0) {
+                showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, remotes[i].name), 6000);
+                console.warn(`Failed to fetch snapshots for ${remotes[i].name}, skipping snapshot creation.`);
+                return;
             }
+
+            if (Date.now() - snapshots[i].snapshots[0].created > minMilliseconds)
+                promises.push(createSnapshot("[better-sync] Cloud sync", remotes[i].url, SyncUtils.getHeaders(remotes[i].key)));
+            else
+                console.log(`Skipping snapshot for ${remotes[i].name}, last one was less than ${minHours} hours ago.`);
         }
 
-        if (!remoteSnapshots) {
-            showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, "remote"), 6000);
-            console.warn("Remote data repo is not initialized");
-        } else {
-            if (remoteSnapshots.snapshots.length > 0) {
-                if (now - remoteSnapshots.snapshots[0].created < minMilliseconds)
-                    console.log(`Skipping remote snapshot, last one was less than ${minHours} hours ago.`);
-                else
-                    await createSnapshot("[better-sync] Cloud sync", remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
-            } else {
-                await createSnapshot("[better-sync] Cloud sync", remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
-            }
-        }
+        await Promise.all(promises);
     }
 
     private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes), startTime?: number) {
