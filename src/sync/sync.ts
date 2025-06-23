@@ -277,13 +277,13 @@ export class SyncManager {
         );
 
         // Sync without deletions
-        const syncWithoutDeletions: [string, string][] = [
-            ["conf/appearance", "themes"],
-            ["conf/appearance", "icons"],
+        const syncWithoutDeletions: [string, string, string[]][] = [
+            ["conf/appearance", "themes", ["daylight", "midnight"]],
+            ["conf/appearance", "icons", ["ant", "material", "index.html"]],
         ];
 
-        const syncWithoutDeletionsPromises = syncWithoutDeletions.map(([path, dir]) =>
-            this.syncDirectory(path, dir, remotes, [], {
+        const syncWithoutDeletionsPromises = syncWithoutDeletions.map(([path, dir, excludedItems]) =>
+            this.syncDirectory(path, dir, remotes, excludedItems, {
                 deleteFoldersOnly: false,
                 onlyIfMissing: false,
                 avoidDeletions: true,
