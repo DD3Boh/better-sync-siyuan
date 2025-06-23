@@ -44,6 +44,10 @@ export class SyncManager {
         return this.plugin.settingsManager.getPref("siyuanNickname");
     }
 
+    private dismissMainSyncNotification() {
+        showMessage("", 1, "info", "mainSyncNotification");
+    }
+
     private async acquireLock(url: string, key: string): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         const lockFile = await getFileBlob(lockPath, url, SyncUtils.getHeaders(key));
@@ -73,6 +77,8 @@ export class SyncManager {
             }
             await SyncUtils.deleteFile(lockPath, lockFileRes, url, key);
         } catch (error) {
+            this.dismissMainSyncNotification();
+
             console.error("Failed to release sync lock:", error);
             showMessage("Failed to release sync lock, please remove it manually.", 6000, "error");
         }
@@ -147,6 +153,9 @@ export class SyncManager {
         } catch (error) {
             console.error("Error during sync:", error);
             const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+
+            this.dismissMainSyncNotification();
+
             showMessage(
                 this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remotes[1].name).replace("{{error}}", error.message).replace("{{duration}}", duration),
                 6000,
@@ -197,7 +206,7 @@ export class SyncManager {
     private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes), startTime?: number) {
         SyncUtils.checkRemotes(remotes);
 
-        showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 2000);
+        showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
         console.log(`Syncing with remote server ${remotes[1].name}...`);
 
         // Create data snapshots if enabled
@@ -325,11 +334,14 @@ export class SyncManager {
 
         const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
 
+        // Remove the main sync message
+        this.dismissMainSyncNotification();
+
         if (this.conflictDetected) {
-            showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 2000);
+            showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
             console.warn(`Sync completed with conflicts in ${duration} seconds.`);
         } else {
-            showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 2000);
+            showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);
             console.log(`Sync completed successfully in ${duration} seconds!`);
         }
 
