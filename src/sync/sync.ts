@@ -61,7 +61,11 @@ export class SyncManager {
     private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
-        await Promise.all(remotes.map(remote => this.acquireLock(remote.url, remote.key)));
+        // Acquire the remote lock first
+        await this.acquireLock(remotes[1].url, remotes[1].key);
+
+        // Acquire the local lock
+        await this.acquireLock(remotes[0].url, remotes[0].key);
 
         console.log("Acquired sync locks.");
     }
