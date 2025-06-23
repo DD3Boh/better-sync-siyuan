@@ -48,29 +48,29 @@ export class SyncManager {
         showMessage("", 1, "info", "mainSyncNotification");
     }
 
-    private async acquireLock(url: string, key: string): Promise<void> {
+    private async acquireLock(remote: RemoteInfo): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
-        const lockFile = await getFileBlob(lockPath, url, SyncUtils.getHeaders(key));
+        const lockFile = await getFileBlob(lockPath, remote.url, SyncUtils.getHeaders(remote.key));
         if (lockFile)
             throw new Error("Another sync is already in progress. If this is an error, please remove the lock file `/data/.siyuan/sync/lock`.");
 
         const file = new File([], "lock", { type: "text/plain" });
-        await SyncUtils.putFile(lockPath, file, url, key);
+        await SyncUtils.putFile(lockPath, file, remote.url, remote.key);
     }
 
     private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
         // Acquire the remote lock first
-        await this.acquireLock(remotes[1].url, remotes[1].key);
+        await this.acquireLock(remotes[1]);
 
         // Acquire the local lock
-        await this.acquireLock(remotes[0].url, remotes[0].key);
+        await this.acquireLock(remotes[0]);
 
         console.log("Acquired sync locks.");
     }
 
-    private async releaseLock(url: string, key: string): Promise<void> {
+    private async releaseLock(remote: RemoteInfo): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         try {
             const lockFileRes: IResReadDir = {
@@ -79,7 +79,7 @@ export class SyncManager {
                 updated: Date.now(),
                 isSymlink: false
             }
-            await SyncUtils.deleteFile(lockPath, lockFileRes, url, key);
+            await SyncUtils.deleteFile(lockPath, lockFileRes, remote.url, remote.key);
         } catch (error) {
             this.dismissMainSyncNotification();
 
@@ -91,7 +91,7 @@ export class SyncManager {
     private async releaseAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
-        await Promise.all(remotes.map(remote => this.releaseLock(remote.url, remote.key)));
+        await Promise.all(remotes.map(remote => this.releaseLock(remote)));
     }
 
     updateUrlKey() {
