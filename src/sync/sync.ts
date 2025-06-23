@@ -146,11 +146,9 @@ export class SyncManager {
             await this.syncWithRemote(remotes, startTime);
         } catch (error) {
             console.error("Error during sync:", error);
-            const nickname = this.getNickname();
-            const remoteName = nickname || remotes[1].url;
             const duration = ((Date.now() - startTime) / 1000).toFixed(1);
             showMessage(
-                this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remoteName).replace("{{error}}", error.message).replace("{{duration}}", duration),
+                this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remotes[1].name).replace("{{error}}", error.message).replace("{{duration}}", duration),
                 6000,
                 "error"
             );
@@ -209,11 +207,8 @@ export class SyncManager {
     private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes), startTime?: number) {
         SyncUtils.checkRemotes(remotes);
 
-        const nickname = this.getNickname();
-        const remoteName = nickname || remotes[1].url;
-
-        showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remoteName), 2000);
-        console.log(`Syncing with remote server ${remoteName}...`);
+        showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 2000);
+        console.log(`Syncing with remote server ${remotes[1].name}...`);
 
         // Create data snapshots if enabled
         if (this.plugin.settingsManager.getPref("createDataSnapshots")) {
@@ -418,14 +413,12 @@ export class SyncManager {
 
         const iIn = updated[0] > updated[1] ? 0 : 1;
         const iOut = updated[0] > updated[1] ? 1 : 0;
-        const sourceName = iIn === 0 ? 'local' : 'remote';
-        const targetName = iOut === 0 ? 'local' : 'remote';
 
-        console.log(`Syncing file from ${sourceName} to ${targetName}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
+        console.log(`Syncing file from ${copyRemotes[iIn].name} to ${copyRemotes[iOut].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
         const syFile = await getFileBlob(filePath, copyRemotes[iIn].url, SyncUtils.getHeaders(copyRemotes[iIn].key));
         if (!syFile) {
-            console.log(`File ${filePath} not found in source: ${sourceName}`);
+            console.log(`File ${filePath} not found in source: ${copyRemotes[iIn].name}`);
             return;
         }
 
@@ -534,7 +527,7 @@ export class SyncManager {
         for (let index = 0; index < petalsList.length; index++) {
             if (!petalsList[index] || await petalsList[index].text() === "[]") {
                 const otherIndex = index === 0 ? 1 : 0;
-                console.log(`Syncing petals list from ${index === 0 ? 'remote' : 'local'} to ${index === 0 ? 'local' : 'remote'}`);
+                console.log(`Syncing petals list from ${remotes[otherIndex].name} to ${remotes[index].name}`);
                 let file = new File([petalsList[otherIndex]], "petals.json");
                 SyncUtils.putFile("/data/storage/petal/petals.json", file, remotes[index].url, remotes[index].key);
                 break;
