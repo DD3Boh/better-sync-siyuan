@@ -15,7 +15,7 @@ export async function request(url: string, data: any) {
     return res;
 }
 
-export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>) {
+export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>, timeoutMs: number = 5000) {
     const init: RequestInit = {
         method: "POST",
         headers: headers,
@@ -25,8 +25,25 @@ export async function requestWithHeaders(url: string, data: any, headers?: Recor
     if (data && data instanceof FormData)
         init.body = data;
 
-    const response = await (await fetch(url, init)).json() as IWebSocketData;
-    return response.code === 0 ? response.data : null;
+    try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error(`Request timeout`)), timeoutMs);
+        });
+
+        const fetchPromise = fetch(url, init);
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+        if (!response.ok) {
+            console.error(`Request failed for ${url}:`, response.statusText);
+            return null;
+        }
+
+        const jsonResponse = await response.json() as IWebSocketData;
+        return jsonResponse.code === 0 ? jsonResponse.data : null;
+    } catch (error) {
+        console.error(`Request failed for ${url}:`, error);
+        throw error;
+    }
 };
 
 // **************************************** Noteboook ****************************************
@@ -370,23 +387,37 @@ export async function copyFile(src: string, dest: string, urlPrefix: string = ''
     return requestWithHeaders(url, data, headers);
 }
 
-export const getFileBlob = async (path: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<Blob | null> => {
+export const getFileBlob = async (path: string, urlPrefix: string = '', headers?: Record<string, string>, timeoutMs: number = 5000): Promise<Blob | null> => {
     const endpoint = `${urlPrefix}/api/file/getFile`;
-    let response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            ...headers
-        },
-        body: JSON.stringify({
-            path: path
-        })
-    });
-    if (!response.ok || response.status !== 200) {
-        return null;
+
+    try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error(`Request timeout`)), timeoutMs);
+        });
+
+        const fetchPromise = fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...headers
+            },
+            body: JSON.stringify({
+                path: path
+            })
+        });
+
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+        if (!response.ok || response.status !== 200) {
+            return null;
+        }
+
+        const data = await response.blob();
+        return data;
+    } catch (error) {
+        console.error(`getFileBlob failed for ${endpoint}:`, error);
+        throw error;
     }
-    let data = await response.blob();
-    return data;
 }
 
 export async function putFile(path: string, isDir: boolean, file: any, urlPrefix: string = '', headers?: Record<string, string>, modTime: number = Date.now()) {
