@@ -52,7 +52,7 @@ export class SyncManager {
         const lockPath = "/data/.siyuan/sync/lock";
         const lockFile = await getFileBlob(lockPath, remote.url, SyncUtils.getHeaders(remote.key));
         if (lockFile)
-            throw new Error("Another sync is already in progress. If this is an error, please remove the lock file `/data/.siyuan/sync/lock`.");
+            throw new Error(this.plugin.i18n.syncLockAlreadyExists.replace("{{remoteName}}", remote.name));
 
         const file = new File([], "lock", { type: "text/plain" });
         await SyncUtils.putFile(lockPath, file, remote.url, remote.key);
