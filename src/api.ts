@@ -519,6 +519,74 @@ export async function forwardProxy(
     return requestWithHeaders(url1, data, customHeaders);
 }
 
+// **************************************** Broadcast ****************************************
+
+/**
+ * Post a message to a broadcast channel.
+ *
+ * @param channel The channel name.
+ * @param message The message to post.
+ * @param urlPrefix The Siyuan API URL prefix.
+ * @param headers Optional headers.
+ */
+export async function postBroadcastMessage(channel: string, message: string, urlPrefix: string = '', headers?: Record<string, string>) {
+    const url = `${urlPrefix}/api/broadcast/postMessage`;
+    return requestWithHeaders(url, { channel, message }, headers);
+}
+
+/**
+ * Publishes messages to a broadcast channel. This can include string and binary data.
+ * @param channel The channel name.
+ * @param data An object containing arrays of strings and/or binary data to publish.
+ * @param urlPrefix The Siyuan API URL prefix.
+ * @param headers Optional headers.
+ */
+export async function broadcastPublish(
+    channel: string,
+    data: { strings?: string[], binaries?: { file: Blob, filename: string }[] },
+    urlPrefix: string = '',
+    headers?: Record<string, string>
+) {
+    const url = `${urlPrefix}/api/broadcast/publish`;
+    const formData = new FormData();
+
+    if (data.strings)
+        data.strings.forEach(s => formData.append(channel, s));
+
+    if (data.binaries)
+        data.binaries.forEach(b => formData.append(channel, b.file, b.filename));
+
+    // When sending FormData, we should not set the Content-Type header.
+    // The browser will do it automatically with the correct boundary.
+    const customHeaders = { ...headers };
+    if (customHeaders) {
+        delete customHeaders['Content-Type'];
+    }
+
+    return requestWithHeaders(url, formData, customHeaders);
+}
+
+/**
+ * Create a new WebSocket connection to a broadcast channel.
+ *
+ * @param channel The channel name.
+ * @param urlPrefix The Siyuan API URL.
+ * @param token Optional authentication token to include in the WebSocket URL.
+ * @returns A WebSocket object.
+ */
+export function newBroadcastWebSocket(channel: string, urlPrefix: string = "ws://localhost:6806", token: string = ''): WebSocket {
+    let wsUrl: string = urlPrefix;
+    if (urlPrefix)
+        wsUrl = wsUrl.replace(/^http/, 'ws');
+
+    let url = `${wsUrl}/ws/broadcast?channel=${channel}`;
+
+    // The standard WebSocket API does not support setting headers directly
+    if (token && token !== "SKIP") url += `&token=${token}`;
+
+    return new WebSocket(url);
+}
+
 // **************************************** System ****************************************
 
 export async function bootProgress(urlPrefix: string = '', headers?: Record<string, string>): Promise<IResBootProgress> {
