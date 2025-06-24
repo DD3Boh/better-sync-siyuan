@@ -61,9 +61,22 @@ export class ConflictHandler {
 
         let file = new File([blob], `${conflictDocId}.sy`, { lastModified: timestamp });
 
+        /*
+        * Function to create the conflict file in each remote server.
+        * It uploads the file as is, which means that the title would not be changed.
+        * The file gets renamed later to include the conflict title.
+        * After that, the file is updated again to ensure the correct timestamp.
+        */
         async function createConflictFileInRemote(index: number) {
             await SyncUtils.putFile(conflictPathString, file, remotes[index].url, remotes[index].key, timestamp);
             await renameDocByID(conflictDocId, conflictNoteTitle, remotes[index].url, SyncUtils.getHeaders(remotes[index].key));
+
+            file = new File(
+                [await getFileBlob(conflictPathString, remotes[index].url, SyncUtils.getHeaders(remotes[index].key))],
+                `${conflictDocId}.sy`,
+                { lastModified: timestamp }
+            );
+            await SyncUtils.putFile(conflictPathString, file, remotes[index].url, remotes[index].key, timestamp);
         }
 
         const promises = remotes.map((_, index) => {
