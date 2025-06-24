@@ -564,6 +564,14 @@ export async function reloadFiletree(urlPrefix: string = '', headers?: Record<st
     return requestWithHeaders(url, {}, headers);
 }
 
+export async function reloadProtyle(id: string, urlPrefix: string = '', headers?: Record<string, string>) {
+    let payload = {
+        id: id
+    };
+    let url = `${urlPrefix}/api/ui/reloadProtyle`;
+    return requestWithHeaders(url, payload, headers);
+}
+
 // **************************************** Snapshots ****************************************
 export async function getRepoSnapshots(page: number = 1, urlPrefix: string = '', headers?: Record<string, string>): Promise<IResGetRepoSnapshots> {
     let payload = {
