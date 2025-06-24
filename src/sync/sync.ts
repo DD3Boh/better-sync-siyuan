@@ -490,6 +490,8 @@ export class SyncManager {
             allFiles.set(pair[0], pair[1]);
         });
 
+        const promises: Promise<void>[] = [];
+
         // Synchronize files
         for (const [filePath] of allFiles.entries()) {
             const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
@@ -503,13 +505,15 @@ export class SyncManager {
                 }
             ];
 
-            await this.syncFile(
+            promises.push(this.syncFile(
                 filePath,
                 dirName,
                 options,
                 remoteFileInfos
-            );
+            ));
         }
+
+        await Promise.all(promises);
     }
 
     private async getUnusedAssetsNames(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<string[]> {
