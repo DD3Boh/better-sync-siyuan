@@ -206,6 +206,11 @@ export async function getMissingAssets(urlPrefix: string = '', headers?: Record<
     return requestWithHeaders(url, null, headers);
 }
 
+export async function getUnusedAssets(urlPrefix: string = '', headers?: Record<string, string>): Promise<UnusedAssets> {
+    let url = `${urlPrefix}/api/asset/getUnusedAssets`;
+    return requestWithHeaders(url, null, headers);
+}
+
 // **************************************** Block ****************************************
 type DataType = "markdown" | "dom";
 export async function insertBlock(

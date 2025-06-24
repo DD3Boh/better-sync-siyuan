@@ -37,6 +37,10 @@ type MissingAssets = {
     missingAssets: string[];
 }
 
+type UnusedAssets = {
+    unusedAssets: string[];
+}
+
 type StoragePath = {
     notebook: string;
     path: string;
