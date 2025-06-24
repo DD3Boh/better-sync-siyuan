@@ -23,7 +23,20 @@ export default class BetterSyncPlugin extends Plugin {
         });
 
         this.eventBus.on("switch-protyle", async ({ detail }) => {
+            this.syncManager.setActiveProtyle(detail.protyle.getInstance());
             this.setupContentObserver(detail.protyle);
+        });
+
+        this.eventBus.on("loaded-protyle-dynamic", async ({ detail }) => {
+            this.syncManager.insertProtyle(detail.protyle.getInstance());
+        });
+
+        this.eventBus.on("loaded-protyle-static", async ({ detail }) => {
+            this.syncManager.insertProtyle(detail.protyle.getInstance());
+        });
+
+        this.eventBus.on("destroy-protyle", async ({ detail }) => {
+            this.syncManager.removeProtyle(detail.protyle.getInstance());
         });
     }
 

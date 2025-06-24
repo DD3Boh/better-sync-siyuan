@@ -10,7 +10,7 @@ import {
     getUnusedAssets
 } from "@/api";
 import BetterSyncPlugin from "..";
-import { showMessage } from "siyuan";
+import { Protyle, showMessage } from "siyuan";
 import { ConflictHandler } from "@/sync";
 
 export class SyncManager {
@@ -19,6 +19,9 @@ export class SyncManager {
         { url: "", key: "SKIP", name: "local", lastSyncTime: undefined },
         { url: "", key: "", name: "remote", lastSyncTime: undefined }
     ];
+    private loadedProtyles: Map<string, Protyle> = new Map();
+    private activeProtyle: Protyle | null = null;
+    private locallyUpdatedFiles: Set<string> = new Set();
     private originalFetch: typeof window.fetch;
     private conflictDetected: boolean = false;
 
@@ -46,6 +49,23 @@ export class SyncManager {
 
     private dismissMainSyncNotification() {
         showMessage("", 1, "info", "mainSyncNotification");
+    }
+
+    insertProtyle(protyle: Protyle) {
+        const path = `data/${protyle.protyle.notebookId}${protyle.protyle.path}`;
+
+        this.loadedProtyles.set(path, protyle);
+    }
+
+    removeProtyle(protyle: Protyle) {
+        this.loadedProtyles.delete(`data/${protyle.protyle.notebookId}${protyle.protyle.path}`);
+
+        if (this.activeProtyle === protyle)
+            this.activeProtyle = null;
+    }
+
+    setActiveProtyle(protyle: Protyle | null) {
+        this.activeProtyle = protyle;
     }
 
     private async acquireLock(remote: RemoteInfo): Promise<void> {
@@ -204,6 +224,7 @@ export class SyncManager {
             }
 
             this.conflictDetected = false;
+            this.locallyUpdatedFiles.clear();
         }
     }
 
@@ -376,6 +397,14 @@ export class SyncManager {
         reloadFiletree(remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
         reloadFiletree(remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
+        for (const [path, protyle] of this.loadedProtyles) {
+            if (this.locallyUpdatedFiles.has(path)) {
+                console.log(`Locally updated file ${path} is currently loaded in protyle ${protyle.protyle.id}`);
+
+                protyle.reload(this.activeProtyle === protyle);
+            }
+        }
+
         SyncUtils.setSyncStatus(remotes);
     }
 
@@ -457,6 +486,8 @@ export class SyncManager {
 
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
         await SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
+
+        if (iOut === 0) this.locallyUpdatedFiles.add(filePath);
     }
 
     private async syncDirectory(
