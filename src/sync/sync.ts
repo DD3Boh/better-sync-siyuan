@@ -280,6 +280,8 @@ export class SyncManager {
             })
         ]);
 
+        console.log(`Last sync times: ${remotes[0].lastSyncTime} (${remotes[0].name}), ${remotes[1].lastSyncTime} (${remotes[1].name})`);
+
         const [notebooksOne, notebooksTwo] = await Promise.all([
             this.getNotebooks(remotes[0].url, remotes[0].key),
             this.getNotebooks(remotes[1].url, remotes[1].key)
