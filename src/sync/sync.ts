@@ -14,27 +14,64 @@ import { Protyle, showMessage } from "siyuan";
 import { ConflictHandler } from "@/sync";
 
 export class SyncManager {
+    // Plugin instance
     private plugin: BetterSyncPlugin;
+
+    /**
+     * Remotes array containing information about local and remote servers.
+     * The first element is always the local server, the second is the remote server.
+     */
     private remotes: [RemoteInfo, RemoteInfo] = [
         { url: "", key: "SKIP", name: "local", lastSyncTime: undefined },
         { url: "", key: "", name: "remote", lastSyncTime: undefined }
     ];
+
+    /**
+     * Map of loaded Protyles, where the key is the file path and the value is the Protyle instance.
+     * This allows for quick access to Protyles by their file path.
+     */
     private loadedProtyles: Map<string, Protyle> = new Map();
+
+    /**
+     * The currently active Protyle instance, if any.
+     * This is used to set the focus on the correct Protyle after syncing.
+     */
     private activeProtyle: Protyle | null = null;
+
+    /**
+     * Set of file paths that have been updated locally during the current sync session.
+     * This is used to determine which files need to be reloaded in the Protyle instances.
+     */
     private locallyUpdatedFiles: Set<string> = new Set();
+
+    /**
+     * Original fetch function to restore after overriding it for custom sync behavior.
+     * This is used to ensure that the original fetch functionality is preserved.
+     */
     private originalFetch: typeof window.fetch;
+
+    /**
+     * Flag to indicate if a conflict was detected during the sync process.
+     * This is used to show appropriate messages after the sync completes.
+     */
     private conflictDetected: boolean = false;
 
     /**
-     * Create a deep copy of RemoteInfo or RemoteFileInfo objects to prevent mutations
+     * Constructor for the SyncManager class.
+     * Initializes the plugin instance and overrides the fetch function to handle sync operations.
+     * @param plugin The BetterSyncPlugin instance.
      */
-    private copyRemotes<T extends RemoteInfo>(remotes: [T, T]): [T, T] {
-        return [
-            { ...remotes[0] },
-            { ...remotes[1] }
-        ];
+    constructor(plugin: BetterSyncPlugin) {
+        this.plugin = plugin;
+        this.updateUrlKey();
+
+        this.originalFetch = window.fetch.bind(window);
+        window.fetch = this.customFetch.bind(this);
     }
 
+    /**
+     * Getters
+     */
     private getUrl(): string {
         return this.plugin.settingsManager.getPref("siyuanUrl");
     }
@@ -47,16 +84,50 @@ export class SyncManager {
         return this.plugin.settingsManager.getPref("siyuanNickname");
     }
 
-    private dismissMainSyncNotification() {
-        showMessage("", 1, "info", "mainSyncNotification");
+    /**
+     * Update the remotes array with the current Siyuan URL and API key.
+     * This is called whenever the settings change to ensure the remotes are up-to-date.
+     */
+    updateUrlKey() {
+        let url = this.getUrl()
+        let key = this.getKey()
+
+        const lastSyncTimes = this.remotes.map(remote => remote.lastSyncTime);
+
+        this.remotes = [
+            {
+                url: "",
+                key: "SKIP",
+                name: "local",
+                lastSyncTime: lastSyncTimes[0] || undefined
+            },
+            {
+                url: url || "",
+                key: key || "",
+                name: this.getNickname() || "remote",
+                lastSyncTime: lastSyncTimes[1] || undefined
+            }
+        ];
     }
 
+    /* Protyle management */
+
+    /**
+     * Insert a Protyle instance into the loadedProtyles map.
+     * The key is constructed from the notebook ID and path to ensure uniqueness.
+     * @param protyle The Protyle instance to insert.
+     */
     insertProtyle(protyle: Protyle) {
         const path = `data/${protyle.protyle.notebookId}${protyle.protyle.path}`;
 
         this.loadedProtyles.set(path, protyle);
     }
 
+    /**
+     * Remove a Protyle instance from the loadedProtyles map.
+     * If the removed Protyle is the active one, it sets activeProtyle to null.
+     * @param protyle The Protyle instance to remove.
+     */
     removeProtyle(protyle: Protyle) {
         this.loadedProtyles.delete(`data/${protyle.protyle.notebookId}${protyle.protyle.path}`);
 
@@ -64,10 +135,22 @@ export class SyncManager {
             this.activeProtyle = null;
     }
 
+    /**
+     * Set the currently active Protyle instance.
+     * This is used to focus the correct Protyle after syncing.
+     * @param protyle The Protyle instance to set as active, or null to clear it.
+     */
     setActiveProtyle(protyle: Protyle | null) {
         this.activeProtyle = protyle;
     }
 
+    /* Lock management */
+
+    /**
+     * Acquire a lock for the specified remote.
+     * This is used to prevent concurrent sync operations on the same remote.
+     * @param remote The remote to acquire the lock for.
+     */
     private async acquireLock(remote: RemoteInfo): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         const lockFile = await getFileBlob(lockPath, remote.url, SyncUtils.getHeaders(remote.key));
@@ -94,18 +177,11 @@ export class SyncManager {
         await SyncUtils.putFile(lockPath, file, remote.url, remote.key, now );
     }
 
-    private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
-        SyncUtils.checkRemotes(remotes);
-
-        // Acquire the remote lock first
-        await this.acquireLock(remotes[1]);
-
-        // Acquire the local lock
-        await this.acquireLock(remotes[0]);
-
-        console.log("Acquired sync locks.");
-    }
-
+    /**
+     * Release the lock for the specified remote.
+     * This is used to allow other sync operations to proceed.
+     * @param remote The remote to release the lock for.
+     */
     private async releaseLock(remote: RemoteInfo): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         try {
@@ -124,42 +200,42 @@ export class SyncManager {
         }
     }
 
+    /**
+     * Acquire locks for both local and remote remotes.
+     * This ensures that both sides are locked before starting the sync process.
+     * @param remotes The remotes to acquire locks for, defaults to the current remotes.
+     */
+    private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
+        SyncUtils.checkRemotes(remotes);
+
+        // Acquire the remote lock first
+        await this.acquireLock(remotes[1]);
+
+        // Acquire the local lock
+        await this.acquireLock(remotes[0]);
+
+        console.log("Acquired sync locks.");
+    }
+
+    /**
+     * Release locks for both local and remote remotes.
+     * This is called after the sync process is complete to ensure both sides are unlocked.
+     * @param remotes The remotes to release locks for, defaults to the current remotes.
+     */
     private async releaseAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
         await Promise.all(remotes.map(remote => this.releaseLock(remote)));
     }
 
-    updateUrlKey() {
-        let url = this.getUrl()
-        let key = this.getKey()
-
-        const lastSyncTimes = this.remotes.map(remote => remote.lastSyncTime);
-
-        this.remotes = [
-            {
-                url: "",
-                key: "SKIP",
-                name: "local",
-                lastSyncTime: lastSyncTimes[0] || undefined
-            },
-            {
-                url: url || "",
-                key: key || "",
-                name: this.getNickname() || "remote",
-                lastSyncTime: lastSyncTimes[1] || undefined
-            }
-        ];
-    }
-
-    constructor(plugin: BetterSyncPlugin) {
-        this.plugin = plugin;
-        this.updateUrlKey();
-
-        this.originalFetch = window.fetch.bind(window);
-        window.fetch = this.customFetch.bind(this);
-    }
-
+    /**
+     * Custom fetch function to handle sync operations before closing the app.
+     * This is used to ensure that any pending sync operations are completed before the app exits.
+     * All other fetch requests will be handled by the original fetch function.
+     * @param input The request information or URL to fetch.
+     * @param init Optional request initialization parameters.
+     * @returns A Promise that resolves to the Response object.
+     */
     async customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
@@ -174,12 +250,25 @@ export class SyncManager {
         return this.originalFetch(input, init)
     }
 
+    /**
+     * Get the list of notebooks from the specified remote.
+     * @param url The URL of the remote.
+     * @param key The access key for the remote.
+     * @returns A Promise that resolves to an array of Notebook objects.
+     */
     private async getNotebooks(url: string = "", key: string = null): Promise<Notebook[]> {
         let notebooks = await lsNotebooks(url, SyncUtils.getHeaders(key))
 
         return notebooks.notebooks;
     }
 
+    /**
+     * Main sync handler function.
+     * This is called to initiate the sync process with the specified remotes.
+     * It acquires locks and calls the syncWithRemote function to handle synchronization,
+     * and handles any exceptions that may occur during the process.
+     * @param remotes The remotes to sync with, defaults to the current remotes.
+     */
     async syncHandler(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         const startTime = Date.now();
         let locked = false;
@@ -229,39 +318,11 @@ export class SyncManager {
     }
 
     /**
-     * Create a data snapshot for both local and remote devices.
+     * Synchronize data with a remote server.
+     * This function handles the main synchronization logic, including fetching notebooks,
+     * creating data snapshots if enabled, and syncing directories and files.
+     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
      */
-    private async createDataSnapshots(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
-        SyncUtils.checkRemotes(remotes);
-
-        console.log("Creating data snapshots for both local and remote devices...");
-
-        const minHours = this.plugin.settingsManager.getPref("minHoursBetweenSnapshots");
-        const minMilliseconds = minHours * 3600 * 1000;
-
-        const snapshots = await Promise.all([
-            getRepoSnapshots(1, remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
-            getRepoSnapshots(1, remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
-        ]);
-
-        const promises: Promise<void>[] = [];
-
-        for (let i = 0; i < snapshots.length; i++) {
-            if (!snapshots[i] || snapshots[i].snapshots.length <= 0) {
-                showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, remotes[i].name), 6000);
-                console.warn(`Failed to fetch snapshots for ${remotes[i].name}, skipping snapshot creation.`);
-                return;
-            }
-
-            if (Date.now() - snapshots[i].snapshots[0].created > minMilliseconds)
-                promises.push(createSnapshot("[better-sync] Cloud sync", remotes[i].url, SyncUtils.getHeaders(remotes[i].key)));
-            else
-                console.log(`Skipping snapshot for ${remotes[i].name}, last one was less than ${minHours} hours ago.`);
-        }
-
-        await Promise.all(promises);
-    }
-
     private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
@@ -410,6 +471,86 @@ export class SyncManager {
         SyncUtils.setSyncStatus(remotes);
     }
 
+    /**
+     * Synchronize a directory between local and remote devices, in both directions.
+     * @param path The path to the directory to synchronize.
+     * @param dirName The name of the directory to synchronize.
+     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     * @param excludedItems An array of item names to exclude from synchronization.
+     * @param options Synchronization options including:
+     * - deleteFoldersOnly: If true, only delete folders and not single files.
+     * - onlyIfMissing: If true, only synchronize files that are missing in one of the remotes.
+     * - avoidDeletions: If true, do not delete files in any remote.
+     * - trackConflicts: If true, track conflicts during synchronization.
+     */
+    private async syncDirectory(
+        path: string,
+        dirName: string,
+        remotes: [RemoteInfo, RemoteInfo],
+        excludedItems: string[] = [],
+        options: {
+            deleteFoldersOnly: boolean,
+            onlyIfMissing: boolean,
+            avoidDeletions: boolean,
+            trackConflicts: boolean
+        } = {
+            deleteFoldersOnly: false,
+            onlyIfMissing: false,
+            avoidDeletions: false,
+            trackConflicts: false
+        }
+    ) {
+        console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
+
+        const [filesOne, filesTwo] = await Promise.all([
+            SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems),
+            SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems)
+        ]);
+
+        // Create a combined map of all files
+        const allFiles = new Map<string, IResReadDir>();
+
+        [...filesOne, ...filesTwo].forEach(pair => {
+            allFiles.set(pair[0], pair[1]);
+        });
+
+        const promises: Promise<void>[] = [];
+
+        // Synchronize files
+        for (const [filePath] of allFiles.entries()) {
+            const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
+                {
+                    ...remotes[0],
+                    file: filesOne.get(filePath)
+                },
+                {
+                    ...remotes[1],
+                    file: filesTwo.get(filePath)
+                }
+            ];
+
+            promises.push(this.syncFile(
+                filePath,
+                dirName,
+                options,
+                remoteFileInfos
+            ));
+        }
+
+        await Promise.all(promises);
+    }
+
+    /**
+     * Synchronize a file between local and remote devices.
+     * @param filePath The path to the file to synchronize.
+     * @param dirName The name of the directory containing the file.
+     * @param options Synchronization options including:
+     * - deleteFoldersOnly: If true, only delete folders and not single files.
+     * - onlyIfMissing: If true, only synchronize files that are missing in one of the remotes.
+     * - avoidDeletions: If true, do not delete files in any remote.
+     * - trackConflicts: If true, track conflicts during synchronization.
+     * @param remotes An array of exactly two RemoteFileInfo objects containing remote server information.
+     */
     async syncFile(
         filePath: string,
         dirName: string,
@@ -492,79 +633,11 @@ export class SyncManager {
         if (iOut === 0) this.locallyUpdatedFiles.add(filePath);
     }
 
-    private async syncDirectory(
-        path: string,
-        dirName: string,
-        remotes: [RemoteInfo, RemoteInfo],
-        excludedItems: string[] = [],
-        options: {
-            deleteFoldersOnly: boolean,
-            onlyIfMissing: boolean,
-            avoidDeletions: boolean,
-            trackConflicts: boolean
-        } = {
-            deleteFoldersOnly: false,
-            onlyIfMissing: false,
-            avoidDeletions: false,
-            trackConflicts: false
-        }
-    ) {
-        console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
-
-        const [filesOne, filesTwo] = await Promise.all([
-            SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems),
-            SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems)
-        ]);
-
-        // Create a combined map of all files
-        const allFiles = new Map<string, IResReadDir>();
-
-        [...filesOne, ...filesTwo].forEach(pair => {
-            allFiles.set(pair[0], pair[1]);
-        });
-
-        const promises: Promise<void>[] = [];
-
-        // Synchronize files
-        for (const [filePath] of allFiles.entries()) {
-            const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
-                {
-                    ...remotes[0],
-                    file: filesOne.get(filePath)
-                },
-                {
-                    ...remotes[1],
-                    file: filesTwo.get(filePath)
-                }
-            ];
-
-            promises.push(this.syncFile(
-                filePath,
-                dirName,
-                options,
-                remoteFileInfos
-            ));
-        }
-
-        await Promise.all(promises);
-    }
-
-    private async getUnusedAssetsNames(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<string[]> {
-        SyncUtils.checkRemotes(remotes);
-
-        const [unusedAssetsOne, unusedAssetsTwo] = await Promise.all([
-            getUnusedAssets(remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
-            getUnusedAssets(remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
-        ]);
-
-        // Get the assets filenames by replacing anything before the last slash
-        const unusedAssetsNames = [...unusedAssetsOne.unusedAssets, ...unusedAssetsTwo.unusedAssets].map(asset => {
-            return asset.replace(/.*\//, "");
-        });
-
-        return unusedAssetsNames;
-    }
-
+    /**
+     * Synchronize the petals list between local and remote devices.
+     * This function checks if the petals list is empty in either remote and syncs it if necessary.
+     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     */
     private async syncPetalsListIfEmpty(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
@@ -584,6 +657,12 @@ export class SyncManager {
         }
     }
 
+    /**
+     * Synchronize the notebook configuration files for a specific notebook.
+     * This function syncs the configuration files like `conf.json` and `sort.json` for the specified notebook ID.
+     * @param notebookId The ID of the notebook to sync configuration for.
+     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     */
     async syncNotebookConfig(notebookId: string, remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
@@ -608,5 +687,85 @@ export class SyncManager {
                 remotes
             );
         }));
+    }
+
+    /**
+     * Get the names of unused assets from both local and remote devices.
+     * This function fetches the list of unused assets from both remotes and combines them.
+     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     * @returns A Promise that resolves to an array of asset names that are not used in either remote.
+     */
+    private async getUnusedAssetsNames(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<string[]> {
+        SyncUtils.checkRemotes(remotes);
+
+        const [unusedAssetsOne, unusedAssetsTwo] = await Promise.all([
+            getUnusedAssets(remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+            getUnusedAssets(remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
+        ]);
+
+        // Get the assets filenames by replacing anything before the last slash
+        const unusedAssetsNames = [...unusedAssetsOne.unusedAssets, ...unusedAssetsTwo.unusedAssets].map(asset => {
+            return asset.replace(/.*\//, "");
+        });
+
+        return unusedAssetsNames;
+    }
+
+    /**
+     * Create a data snapshot for both local and remote devices.
+     *
+     * This function checks the last snapshot creation time and creates a new snapshot
+     * if the minimum time between snapshots has passed.
+     * @param remotes - An array of exactly two RemoteInfo objects containing remote server information.
+     */
+    private async createDataSnapshots(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
+        SyncUtils.checkRemotes(remotes);
+
+        console.log("Creating data snapshots for both local and remote devices...");
+
+        const minHours = this.plugin.settingsManager.getPref("minHoursBetweenSnapshots");
+        const minMilliseconds = minHours * 3600 * 1000;
+
+        const snapshots = await Promise.all([
+            getRepoSnapshots(1, remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+            getRepoSnapshots(1, remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
+        ]);
+
+        const promises: Promise<void>[] = [];
+
+        for (let i = 0; i < snapshots.length; i++) {
+            if (!snapshots[i] || snapshots[i].snapshots.length <= 0) {
+                showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, remotes[i].name), 6000);
+                console.warn(`Failed to fetch snapshots for ${remotes[i].name}, skipping snapshot creation.`);
+                return;
+            }
+
+            if (Date.now() - snapshots[i].snapshots[0].created > minMilliseconds)
+                promises.push(createSnapshot("[better-sync] Cloud sync", remotes[i].url, SyncUtils.getHeaders(remotes[i].key)));
+            else
+                console.log(`Skipping snapshot for ${remotes[i].name}, last one was less than ${minHours} hours ago.`);
+        }
+
+        await Promise.all(promises);
+    }
+
+    /* Utility functions */
+
+    /**
+     * Create a deep copy of RemoteInfo or RemoteFileInfo objects to prevent mutations
+     */
+    private copyRemotes<T extends RemoteInfo>(remotes: [T, T]): [T, T] {
+        return [
+            { ...remotes[0] },
+            { ...remotes[1] }
+        ];
+    }
+
+    /**
+     * Dismiss the main sync notification message.
+     * This is used to remove the sync message after the sync process completes.
+     */
+    private dismissMainSyncNotification() {
+        showMessage("", 1, "info", "mainSyncNotification");
     }
 }
