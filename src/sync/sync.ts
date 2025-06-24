@@ -311,6 +311,18 @@ export class SyncManager {
      */
     private async handleWebSocketMessage(message: string) {
         console.log("WebSocket message received:", message);
+
+        // Parse the message and handle it accordingly
+        switch (message) {
+            case "reload-protyles":
+                console.log("Reloading all Protyles due to WebSocket message.");
+                await this.reloadProtyles();
+                break;
+
+            default:
+                console.warn("Unknown WebSocket message:", message);
+                break;
+        }
     }
 
     /**
@@ -531,6 +543,9 @@ export class SyncManager {
                 protyle.reload(this.activeProtyle === protyle);
             }
         }
+
+        // Reload remote protyles
+        this.transmitWebSocketMessage("reload-protyles");
 
         SyncUtils.setSyncStatus(remotes);
     }
