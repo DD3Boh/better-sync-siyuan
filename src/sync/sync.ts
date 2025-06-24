@@ -452,7 +452,7 @@ export class SyncManager {
         path: string,
         dirName: string,
         remotes: [RemoteInfo, RemoteInfo],
-        excludedSubdirs: string[] = [],
+        excludedItems: string[] = [],
         options: {
             deleteFoldersOnly: boolean,
             onlyIfMissing: boolean,
@@ -465,19 +465,11 @@ export class SyncManager {
             trackConflicts: false
         }
     ) {
-        const [notebooksOne, notebooksTwo] = await Promise.all([
-            this.getNotebooks(remotes[0].url, remotes[0].key),
-            this.getNotebooks(remotes[1].url, remotes[1].key)
-        ]);
-
-        const allNotebookIds = new Set([...notebooksOne.map(n => n.id), ...notebooksTwo.map(n => n.id)]);
-        const isNotebook = allNotebookIds.has(dirName);
-
-        console.log(`Syncing directory ${path}/${dirName}. Is notebook: ${isNotebook}`);
+        console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
 
         const [filesOne, filesTwo] = await Promise.all([
-            SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedSubdirs),
-            SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedSubdirs)
+            SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems),
+            SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems)
         ]);
 
         // Create a combined map of all files
