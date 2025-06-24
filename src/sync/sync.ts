@@ -4,10 +4,10 @@ import {
     getRepoSnapshots,
     createSnapshot,
     getFileBlob,
-    getMissingAssets,
     lsNotebooks,
     readDir,
-    reloadFiletree
+    reloadFiletree,
+    getUnusedAssets
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { showMessage } from "siyuan";
@@ -360,7 +360,7 @@ export class SyncManager {
         await Promise.all(promises);
 
         // Handle missing assets
-        await this.syncMissingAssets(remotes);
+        await this.syncAssets(remotes);
 
         reloadFiletree(remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
         reloadFiletree(remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
@@ -501,33 +501,36 @@ export class SyncManager {
         }
     }
 
-    private async syncMissingAssets(remotes: [RemoteInfo, RemoteInfo] = this.remotes) {
+    private async syncAssets(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
+        console.log(`Syncing assets`);
 
-        console.log(`Syncing missing assets`);
-
-        const [localMissing, remoteMissing] = await Promise.all([
-            getMissingAssets(remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
-            getMissingAssets(remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
+        const [unusedAssetsOne, unusedAssetsTwo] = await Promise.all([
+            getUnusedAssets(remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+            getUnusedAssets(remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
         ]);
 
-        const allMissingAssets = [...localMissing.missingAssets, ...remoteMissing.missingAssets];
+        // Get the assets filenames by replacing anything before the last slash
+        const unusedAssetsNames = [...unusedAssetsOne.unusedAssets, ...unusedAssetsTwo.unusedAssets].map(asset => {
+            return asset.replace(/.*\//, "");
+        });
 
-        const assetsPromises = allMissingAssets.map(asset =>
-            this.syncFile(
-                `/data/${asset}`,
-                undefined,
-                {
-                    deleteFoldersOnly: false,
-                    onlyIfMissing: true,
-                    avoidDeletions: true,
-                    trackConflicts: false
-                },
-                remotes
-            )
-        );
-
-        await Promise.all(assetsPromises);
+        this.syncDirectory(
+            "data",
+            "assets",
+            remotes,
+            unusedAssetsNames,
+            {
+                deleteFoldersOnly: false,
+                onlyIfMissing: false,
+                avoidDeletions: true,
+                trackConflicts: false
+            }
+        ).then(() => {
+            console.log("Assets synced successfully.");
+        }).catch(error => {
+            console.error("Error syncing assets:", error);
+        });
     }
 
     private async syncPetalsListIfEmpty(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
