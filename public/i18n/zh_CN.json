@@ -12,6 +12,8 @@
     "syncOnCloseDesc": "关闭 SiYuan 时与远程同步",
     "autoSyncCurrentFile": "自动同步当前文件",
     "autoSyncCurrentFileDesc": "编辑后自动将当前文件与远程同步",
+    "useExperimentalWebSocket": "使用实验性 WebSocket 连接",
+    "useExperimentalWebSocketDesc": "使用 WebSocket 连接进行实时同步。此功能为实验性功能，可能不稳定。",
     "trackConflicts": "跟踪同步冲突",
     "trackConflictsDesc": "当文件在上次同步后在两台设备上都被修改时，较旧的版本将被重命名为冲突文件，而不是被覆盖。",
     "syncingBeforeClosing": "关闭前同步中...",

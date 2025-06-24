@@ -290,6 +290,9 @@ export class SyncManager {
      * and sets up message handling for incoming WebSocket messages.
      */
     async setupWebSockets() {
+        if (!this.plugin.settingsManager.getPref("useExperimentalWebSocket"))
+            return;
+
         const remotes = this.copyRemotes(this.remotes);
 
         this.localWebSocketManager = new WebSocketManager(remotes[0]);
@@ -332,6 +335,9 @@ export class SyncManager {
      * @param message The message to transmit.
      */
     async transmitWebSocketMessage(message: string) {
+        if (!this.remoteWebSocketManager)
+            return;
+
         console.log("Transmitting WebSocket message:", message);
         await this.remoteWebSocketManager.sendMessage(message);
     }

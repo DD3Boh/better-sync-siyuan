@@ -136,6 +136,20 @@ export class SettingsManager {
             description: this.plugin.i18n.minHoursBetweenSnapshotsDesc
         });
 
+        this.settingUtils.addItem({
+            key: "useExperimentalWebSocket",
+            value: false,
+            type: "checkbox",
+            title: this.plugin.i18n.useExperimentalWebSocket,
+            description: this.plugin.i18n.useExperimentalWebSocketDesc,
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("useExperimentalWebSocket");
+                    this.settingUtils.set("useExperimentalWebSocket", value);
+                }
+            }
+        });
+
         try {
             await this.settingUtils.load();
         } catch (error) {

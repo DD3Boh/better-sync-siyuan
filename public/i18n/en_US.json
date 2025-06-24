@@ -12,6 +12,8 @@
     "syncOnCloseDesc": "Sync with the remote when closing SiYuan",
     "autoSyncCurrentFile": "Auto sync current file",
     "autoSyncCurrentFileDesc": "Automatically sync the current file with the remote after editing",
+    "useExperimentalWebSocket": "Use experimental WebSocket connection",
+    "useExperimentalWebSocketDesc": "Use a WebSocket connection for real-time synchronization. This feature is experimental and may be unstable.",
     "trackConflicts": "Track sync conflicts",
     "trackConflictsDesc": "When a file is modified on both devices since the last sync, the older version will be renamed as a conflict file instead of being overwritten.",
     "syncingBeforeClosing": "Syncing before closing...",
