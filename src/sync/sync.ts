@@ -12,10 +12,18 @@ import {
 import BetterSyncPlugin from "..";
 import { Protyle, showMessage } from "siyuan";
 import { ConflictHandler } from "@/sync";
+import { WebSocketManager } from "./websocket";
 
 export class SyncManager {
     // Plugin instance
     private plugin: BetterSyncPlugin;
+
+    /**
+     * WebSocket managers for local and remote servers.
+     * These are used to handle real-time updates and notifications during the sync process.
+     */
+    private localWebSocketManager: WebSocketManager;
+    private remoteWebSocketManager: WebSocketManager;
 
     /**
      * Remotes array containing information about local and remote servers.
@@ -67,6 +75,8 @@ export class SyncManager {
 
         this.originalFetch = window.fetch.bind(window);
         window.fetch = this.customFetch.bind(this);
+
+        this.setupWebSockets();
     }
 
     /**
@@ -261,6 +271,51 @@ export class SyncManager {
 
         return notebooks.notebooks;
     }
+
+    /* WebSocket management */
+
+    /**
+     * Set up WebSocket connections for local and remote remotes.
+     *
+     * This initializes the WebSocket managers for both local and remote servers,
+     * and sets up message handling for incoming WebSocket messages.
+     */
+    async setupWebSockets() {
+        const remotes = this.copyRemotes(this.remotes);
+
+        this.localWebSocketManager = new WebSocketManager(remotes[0]);
+        this.remoteWebSocketManager = new WebSocketManager(remotes[1]);
+
+        await this.localWebSocketManager.initWebSocket();
+        await this.remoteWebSocketManager.initWebSocket();
+
+        this.localWebSocketManager.connectOnMessage((message) => {
+            this.handleWebSocketMessage(message);
+        });
+    }
+
+    /**
+     * Handle incoming WebSocket messages.
+     * This function is called whenever a message is received from the WebSocket.
+     *
+     * @param message The message received from the WebSocket.
+     */
+    private async handleWebSocketMessage(message: string) {
+        console.log("WebSocket message received:", message);
+    }
+
+    /**
+     * Transmit a message through the remote WebSocket connection.
+     * This function is used to send messages to the remote server via WebSocket.
+     *
+     * @param message The message to transmit.
+     */
+    async transmitWebSocketMessage(message: string) {
+        console.log("Transmitting WebSocket message:", message);
+        await this.remoteWebSocketManager.sendMessage(message);
+    }
+
+    /* Sync logic */
 
     /**
      * Main sync handler function.
