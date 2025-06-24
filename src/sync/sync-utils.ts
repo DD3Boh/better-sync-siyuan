@@ -93,8 +93,8 @@ export class SyncUtils {
     ) {
         try {
             console.log(`Deleting ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${filePath})`);
-            removeFile(filePath, url, SyncUtils.getHeaders(key));
-            removeIndexes([filePath.replace("data/", "")], url, SyncUtils.getHeaders(key));
+            await removeFile(filePath, url, SyncUtils.getHeaders(key));
+            await removeIndexes([filePath.replace("data/", "")], url, SyncUtils.getHeaders(key));
         } catch (error) {
             console.error(`Error deleting file ${filePath}:`, error);
         }

@@ -436,7 +436,7 @@ export class SyncManager {
         if ((!copyRemotes[0].file && lastSyncTime > updated[1]) || (!copyRemotes[1].file && lastSyncTime > updated[0])) {
             if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
                 const targetIndex = !copyRemotes[0].file ? 1 : 0;
-                SyncUtils.deleteFile(filePath, fileRes, copyRemotes[targetIndex].url, copyRemotes[targetIndex].key);
+                await SyncUtils.deleteFile(filePath, fileRes, copyRemotes[targetIndex].url, copyRemotes[targetIndex].key);
                 return;
             }
         }
@@ -456,7 +456,7 @@ export class SyncManager {
         }
 
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
-        SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
+        await SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
     }
 
     private async syncDirectory(
