@@ -299,7 +299,6 @@ export class SyncManager {
         this.remoteWebSocketManager = new WebSocketManager(remotes[1]);
 
         await this.localWebSocketManager.initWebSocket();
-        await this.remoteWebSocketManager.initWebSocket();
 
         this.localWebSocketManager.connectOnMessage((message) => {
             this.handleWebSocketMessage(message);
