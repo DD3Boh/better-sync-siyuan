@@ -587,6 +587,36 @@ export function newBroadcastWebSocket(channel: string, urlPrefix: string = "ws:/
     return new WebSocket(url);
 }
 
+/**
+ * Subscribe to a broadcast channel using Server-Sent Events (SSE).
+ *
+ * @param channels An array of channel names to subscribe to. If empty, subscribes to all channels.
+ * @param urlPrefix The Siyuan API URL. Defaults to the current origin or localhost.
+ * @param retry Optional retry interval in milliseconds for the connection.
+ * @returns An EventSource object connected to the broadcast channel.
+ */
+export function broadcastSubscribe(channels: string[], urlPrefix: string = '', token: string = '', retry?: number): EventSource {
+    let url = `${urlPrefix}/es/broadcast/subscribe`;
+    const params: string[] = [];
+
+    if (retry)
+        params.push(`retry=${retry}`);
+
+    channels.forEach(channel => {
+        params.push(`channel=${encodeURIComponent(channel)}`);
+    });
+
+    if (token && token !== "SKIP")
+        params.push(`token=${encodeURIComponent(token)}`);
+
+    if (params.length > 0)
+        url += `?${params.join('&')}`;
+
+    console.log(`Connecting to broadcast channel: ${url}`);
+
+    return new EventSource(url);
+}
+
 // **************************************** System ****************************************
 
 export async function bootProgress(urlPrefix: string = '', headers?: Record<string, string>): Promise<IResBootProgress> {
