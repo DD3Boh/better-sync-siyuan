@@ -172,11 +172,13 @@ export class SyncUtils {
      * Set the sync status file with the provided remotes or URL-to-key mapping.
      */
     static async setSyncStatus(remotes: [RemoteInfo, RemoteInfo]): Promise<void> {
+        const timestamp = Date.now();
+
         let filePath = `/data/.siyuan/sync/status`;
-        let file = new File([], "status");
+        let file = new File([], "status", { lastModified: timestamp });
 
         SyncUtils.checkRemotes(remotes);
-        SyncUtils.putFile(filePath, file, remotes[0].url, remotes[0].key);
-        SyncUtils.putFile(filePath, file, remotes[1].url, remotes[1].key);
+        await SyncUtils.putFile(filePath, file, remotes[0].url, remotes[0].key, timestamp);
+        await SyncUtils.putFile(filePath, file, remotes[1].url, remotes[1].key, timestamp);
     }
 }
