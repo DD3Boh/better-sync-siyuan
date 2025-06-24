@@ -154,6 +154,15 @@ export class SyncManager {
         this.activeProtyle = protyle;
     }
 
+    /**
+     * Reload currently loaded Protyles.
+     * This function is used to refresh the Protyles in the editor.
+     */
+    async reloadProtyles() {
+        for (const protyle of this.loadedProtyles.values())
+            await protyle.reload(false);
+    }
+
     /* Lock management */
 
     /**
