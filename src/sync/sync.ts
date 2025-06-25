@@ -66,6 +66,12 @@ export class SyncManager {
     private conflictDetected: boolean = false;
 
     /**
+     * Map of pending directory requests, where the key is the request ID and the value is the resolve function.
+     * This is used to handle asynchronous directory file requests via WebSocket.
+     */
+    private pendingDirRequests: Map<string, (files: Map<string, IResReadDir>) => void> = new Map();
+
+    /**
      * Constructor for the SyncManager class.
      * Initializes the plugin instance and overrides the fetch function to handle sync operations.
      * @param plugin The BetterSyncPlugin instance.
@@ -325,6 +331,25 @@ export class SyncManager {
                 await this.reloadProtyles();
                 break;
 
+            case "get-dir-files": {
+                const { path, dirName, excludedItems, requestId } = payload.data;
+                console.log(`Received request for directory files: ${path}/${dirName}`);
+                const files = await SyncUtils.getDirFilesRecursively(path, dirName, "", "SKIP", true, excludedItems);
+                const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
+                await this.transmitWebSocketMessage(responsePayload.toString());
+                break;
+            }
+
+            case "dir-files-response": {
+                const { files: fileArray, requestId } = payload.data;
+                if (this.pendingDirRequests.has(requestId)) {
+                    const filesMap = new Map<string, IResReadDir>(fileArray);
+                    this.pendingDirRequests.get(requestId)(filesMap);
+                    this.pendingDirRequests.delete(requestId);
+                }
+                break;
+            }
+
             default:
                 console.warn("Unknown WebSocket message:", payload);
                 break;
@@ -574,6 +599,24 @@ export class SyncManager {
         SyncUtils.setSyncStatus(remotes);
     }
 
+    private getRemoteDirFilesViaWebSocket(path: string, dirName: string, excludedItems: string[]): Promise<Map<string, IResReadDir>> {
+        return new Promise(async (resolve, reject) => {
+            const requestId = Math.random().toString(36).substring(2, 15);
+            this.pendingDirRequests.set(requestId, resolve);
+
+            // Timeout to prevent waiting forever
+            setTimeout(() => {
+                if (this.pendingDirRequests.has(requestId)) {
+                    this.pendingDirRequests.delete(requestId);
+                    reject(new Error(`Request for directory files timed out: ${path}/${dirName}`));
+                }
+            }, 5000);
+
+            const payload = new Payload("get-dir-files", { path, dirName, excludedItems, requestId });
+            await this.transmitWebSocketMessage(payload.toString());
+        });
+    }
+
     /**
      * Synchronize a directory between local and remote devices, in both directions.
      * @param path The path to the directory to synchronize.
@@ -605,9 +648,17 @@ export class SyncManager {
     ) {
         console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
 
+        const useWebSocket: boolean = !!this.remoteWebSocketManager;
+
+        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
+
+        const filesTwoPromise = useWebSocket
+            ? this.getRemoteDirFilesViaWebSocket(path, dirName, excludedItems)
+            : SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems);
+
         const [filesOne, filesTwo] = await Promise.all([
-            SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems),
-            SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems)
+            filesOnePromise,
+            filesTwoPromise
         ]);
 
         // Create a combined map of all files
