@@ -328,10 +328,6 @@ export class SyncManager {
         this.inputWebSocketManagers[0].connectOnMessage((message) => {
             this.webSocketInputCallback(message);
         });
-
-        this.outputWebSocketManagers[1].connectOnMessage((message) => {
-            this.webSocketOutputCallback(message);
-        });
     }
 
     /**
@@ -431,6 +427,30 @@ export class SyncManager {
         await webSocketManager.broadcastContent(data);
     }
 
+    /**
+     * Connect to the remote output WebSocket.
+     */
+    async connectRemoteOutputWebSocket() {
+        if (this.outputWebSocketManagers[1]) {
+            await this.outputWebSocketManagers[1].initWebSocket();
+
+            this.outputWebSocketManagers[1].connectOnMessage((message) => {
+                this.webSocketOutputCallback(message);
+            });
+        } else
+            console.warn("Remote output WebSocket manager is not initialized.");
+    }
+
+    /**
+     * Disconnect the remote output WebSocket.
+     */
+    async disconnectRemoteOutputWebSocket() {
+        if (this.outputWebSocketManagers[1])
+            await this.outputWebSocketManagers[1].closeWebSocket();
+        else
+            console.warn("Remote output WebSocket manager is not initialized.");
+    }
+
     /* Sync logic */
 
     /**
@@ -449,6 +469,9 @@ export class SyncManager {
 
             showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
             console.log(`Syncing with remote server ${remotes[1].name}...`);
+
+            if (this.shouldUseWebSocket())
+                await this.connectRemoteOutputWebSocket();
 
             await this.acquireAllLocks(remotes);
             locked = true;
@@ -485,6 +508,7 @@ export class SyncManager {
 
             this.conflictDetected = false;
             this.locallyUpdatedFiles.clear();
+            this.disconnectRemoteOutputWebSocket();
         }
     }
 
