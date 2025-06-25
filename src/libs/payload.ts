@@ -1,8 +1,8 @@
 export class Payload {
     public type: string;
-    public data: Record<string, any>;
+    public data: any;
 
-    constructor(type: string, data: Record<string, any>) {
+    constructor(type: string, data: any) {
         this.type = type;
         this.data = data;
     }
@@ -12,8 +12,13 @@ export class Payload {
      * The format is `b-sync-payload:<type>:<base64-encoded-json-data>`
      */
     public toString(): string {
-        const encodedData = btoa(JSON.stringify(this.data));
-        return `b-sync-payload:${this.type}:${encodedData}`;
+        try {
+            const encodedData = btoa(JSON.stringify(this.data));
+            return `b-sync-payload:${this.type}:${encodedData}`;
+        } catch (e) {
+            console.error("Failed to encode Payload", e);
+            throw new Error("Failed to encode Payload");
+        }
     }
 
     /**
