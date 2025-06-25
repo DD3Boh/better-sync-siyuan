@@ -323,7 +323,7 @@ export class SyncManager {
         this.outputWebSocketManagers[1] = new WebSocketManager("output", remotes[1]);
 
         await this.inputWebSocketManagers[0].initWebSocket();
-        await this.outputWebSocketManagers[1].initWebSocket();
+        await this.outputWebSocketManagers[0].initWebSocket();
 
         this.inputWebSocketManagers[0].connectOnMessage((message) => {
             this.webSocketInputCallback(message);
