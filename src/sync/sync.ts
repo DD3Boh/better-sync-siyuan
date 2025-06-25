@@ -341,6 +341,21 @@ export class SyncManager {
         await this.remoteWebSocketManager.sendMessage(message);
     }
 
+    /**
+     * Broadcast a message to all connected clients via the remote WebSocket.
+     * This function is used to send messages to all clients connected to the remote server.
+     *
+     * @param data The data to broadcast, which can include strings and binaries.
+     */
+    async broadcastContent(
+        data: { strings?: string[], binaries?: { file: Blob, filename: string }[] }
+    ) {
+        if (!this.remoteWebSocketManager)
+            return;
+
+        await this.remoteWebSocketManager.broadcastContent(data);
+    }
+
     /* Sync logic */
 
     /**

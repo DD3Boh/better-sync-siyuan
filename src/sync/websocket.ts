@@ -1,4 +1,4 @@
-import { newBroadcastWebSocket, postBroadcastMessage } from "@/api";
+import { broadcastPublish, newBroadcastWebSocket, postBroadcastMessage } from "@/api";
 import { SyncUtils } from "@/sync";
 
 const broadcastChannel = "better-sync";
@@ -60,5 +60,22 @@ export class WebSocketManager {
     connectOnMessage(callback: (message: string) => void): void {
         if (this.socket)
             this.socket.onmessage = (event) => callback(event.data);
+    }
+
+    /**
+     * Publish a message to the broadcast channel.
+     * This can include strings and binary files.
+     *
+     * @param data The data to broadcast, which can include strings and binary files.
+     */
+    async broadcastContent(
+        data: { strings?: string[], binaries?: { file: Blob, filename: string }[] },
+    ) {
+        await broadcastPublish(
+            broadcastChannel,
+            data,
+            this.remote?.url,
+            SyncUtils.getHeaders(this.remote?.key)
+        );
     }
 }
