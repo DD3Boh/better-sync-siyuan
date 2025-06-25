@@ -66,6 +66,15 @@ export class WebSocketManager {
     }
 
     /**
+     * Connect to the onerror event of the WebSocket.
+     * @param callback The callback function to handle errors.
+     */
+    connectOnError(callback: (error: any) => void): void {
+        if (this.socket)
+            this.socket.onerror = (error) => callback(error);
+    }
+
+    /**
      * Publish a message to the broadcast channel.
      * This can include strings and binary files.
      *
