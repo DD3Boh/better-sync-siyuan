@@ -9,6 +9,9 @@ export class WebSocketManager {
     private remote: RemoteInfo | null = null;
     private broadcastChannel: string;
 
+    // WebSocket connection status
+    private connected: boolean = false;
+
     constructor(channel: "input" | "output", remote: RemoteInfo | null) {
         this.broadcastChannel = channel === "input" ? inputChannel : outputChannel;
         this.remote = remote;
@@ -23,15 +26,18 @@ export class WebSocketManager {
 
             this.socket.onopen = () => {
                 console.log("WebSocket connection established.");
+                this.connected = true;
             };
 
             this.socket.onerror = (error) => {
                 console.error("WebSocket error:", error);
+                this.connected = false;
             };
 
             this.socket.onclose = () => {
                 console.log("WebSocket connection closed.");
                 this.socket = null;
+                this.connected = false;
             };
         } catch (error) {
             console.error("Failed to initialize WebSocket:", error);
@@ -106,5 +112,14 @@ export class WebSocketManager {
             this.broadcastChannel, this.remote?.url, SyncUtils.getHeaders(this.remote?.key)
         );
         return channelInfo?.channel?.count > 0;
+    }
+
+    /**
+     * Get the current status of the WebSocket connection.
+     *
+     * @returns The current status, as a boolean indicating if the WebSocket is connected.
+     */
+    isConnected(): boolean {
+        return this.connected;
     }
 }
