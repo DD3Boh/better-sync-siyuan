@@ -301,7 +301,7 @@ export class SyncManager {
         await this.localWebSocketManager.initWebSocket();
 
         this.localWebSocketManager.connectOnMessage((message) => {
-            this.handleWebSocketMessage(message);
+            this.webSocketCallback(message);
         });
     }
 
@@ -311,18 +311,18 @@ export class SyncManager {
      *
      * @param message The message received from the WebSocket.
      */
-    private async handleWebSocketMessage(message: string) {
-        console.log("WebSocket message received:", message);
+    private async webSocketCallback(data: any) {
+        console.log("WebSocket message received:", data);
 
         // Parse the message and handle it accordingly
-        switch (message) {
+        switch (data) {
             case "reload-protyles":
                 console.log("Reloading all Protyles due to WebSocket message.");
                 await this.reloadProtyles();
                 break;
 
             default:
-                console.warn("Unknown WebSocket message:", message);
+                console.warn("Unknown WebSocket message:", data);
                 break;
         }
     }

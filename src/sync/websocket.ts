@@ -57,7 +57,7 @@ export class WebSocketManager {
      * Connect to the onmessage event of the WebSocket.
      * @param callback The callback function to handle incoming messages.
      */
-    connectOnMessage(callback: (message: string) => void): void {
+    connectOnMessage(callback: (data: any) => void): void {
         if (this.socket)
             this.socket.onmessage = (event) => callback(event.data);
     }
