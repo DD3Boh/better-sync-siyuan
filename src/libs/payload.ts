@@ -9,12 +9,12 @@ export class Payload {
 
     /**
      * Encodes the payload into a string.
-     * The format is `b-sync-payload:<type>:<base64-encoded-json-data>`
+     * The format is `b-sync-payload:<type>:<json-data>`
      */
     public toString(): string {
         try {
-            const encodedData = btoa(JSON.stringify(this.data));
-            return `b-sync-payload:${this.type}:${encodedData}`;
+            const jsonData = JSON.stringify(this.data);
+            return `b-sync-payload:${this.type}:${jsonData}`;
         } catch (e) {
             console.error("Failed to encode Payload", e);
             throw new Error("Failed to encode Payload");
@@ -27,14 +27,23 @@ export class Payload {
      * @returns A Payload instance, or null if parsing fails.
      */
     public static fromString(str: string): Payload | null {
-        const parts = str.split(':');
-        if (parts.length !== 3 || parts[0] !== 'b-sync-payload') {
+        const prefix = 'b-sync-payload:';
+        if (!str.startsWith(prefix)) {
+            console.warn("String does not start with expected prefix:", prefix);
+            return null;
+        }
+
+        const rest = str.substring(prefix.length);
+        const typeEndIndex = rest.indexOf(':');
+
+        if (typeEndIndex === -1) {
             return null;
         }
 
         try {
-            const [, type, encodedData] = parts;
-            const data = JSON.parse(atob(encodedData));
+            const type = rest.substring(0, typeEndIndex);
+            const jsonData = rest.substring(typeEndIndex + 1);
+            const data = JSON.parse(jsonData);
             return new Payload(type, data);
         } catch (e) {
             console.error("Failed to parse Payload string", e);
