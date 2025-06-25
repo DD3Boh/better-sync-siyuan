@@ -20,7 +20,7 @@ export class WebSocketManager {
     /**
      * Initialize the WebSocket connection.
      */
-    async initWebSocket(): Promise<void> {
+    initWebSocket() {
         try {
             this.socket = newBroadcastWebSocket(this.broadcastChannel, this.remote?.url, this.remote?.key);
 
@@ -47,12 +47,11 @@ export class WebSocketManager {
     /**
      * Close the WebSocket connection.
      */
-    async closeWebSocket(): Promise<void> {
-        if (this.socket) {
+    closeWebSocket() {
+        if (this.socket)
             this.socket.close();
-        } else {
+        else
             console.warn("WebSocket connection is already closed or not initialized.");
-        }
     }
 
     /**
