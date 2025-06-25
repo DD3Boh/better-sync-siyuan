@@ -291,6 +291,18 @@ export class SyncManager {
     /* WebSocket management */
 
     /**
+     * Function to choose whether to use WebSocket or not.
+     * This function checks the plugin settings to determine if WebSocket should be used for synchronization.
+     * It also checks if the other remote's WebSocket is being listened to.
+     */
+    private async shouldUseWebSocket(): Promise<boolean> {
+        const useWebSocket = this.plugin.settingsManager.getPref("useExperimentalWebSocket");
+        const isRemoteListening = await this.inputWebSocketManagers[1]?.isListening();
+
+        return useWebSocket && isRemoteListening;
+    }
+
+    /**
      * Set up WebSocket connections for input and output.
      *
      * This function initializes WebSocket connections for both input and output channels.
@@ -682,7 +694,7 @@ export class SyncManager {
     ) {
         console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
 
-        const useWebSocket: boolean = this.plugin.settingsManager.getPref("useExperimentalWebSocket");
+        const useWebSocket: boolean = await this.shouldUseWebSocket();
 
         const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
 

@@ -1,4 +1,4 @@
-import { broadcastPublish, newBroadcastWebSocket, postBroadcastMessage } from "@/api";
+import { broadcastPublish, getChannelInfo, newBroadcastWebSocket, postBroadcastMessage } from "@/api";
 import { SyncUtils } from "@/sync";
 
 const inputChannel = "better-sync-input";
@@ -89,5 +89,16 @@ export class WebSocketManager {
             this.remote?.url,
             SyncUtils.getHeaders(this.remote?.key)
         );
+    }
+
+    /**
+     * Method to check if the WebSocket is being listened to.
+     * @returns true if the WebSocket is open and listening, false otherwise.
+     */
+    async isListening(): Promise<boolean> {
+        const channelInfo = await getChannelInfo(
+            this.broadcastChannel, this.remote?.url, SyncUtils.getHeaders(this.remote?.key)
+        );
+        return channelInfo?.channel?.count > 0;
     }
 }
