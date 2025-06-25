@@ -82,8 +82,6 @@ export class SyncManager {
 
         this.originalFetch = window.fetch.bind(window);
         window.fetch = this.customFetch.bind(this);
-
-        this.setupWebSockets();
     }
 
     /**
@@ -125,6 +123,10 @@ export class SyncManager {
                 lastSyncTime: lastSyncTimes[1] || undefined
             }
         ];
+
+        // Update WebSocket managers with the new remotes
+        this.cleanupWebSockets();
+        this.setupWebSockets();
     }
 
     /* Protyle management */
@@ -311,7 +313,7 @@ export class SyncManager {
      * We set up callbacks for handling input messages on the local input WebSocket and
      * output messages on the remote output WebSocket.
      */
-    async setupWebSockets() {
+    setupWebSockets() {
         if (!this.plugin.settingsManager.getPref("useExperimentalWebSocket"))
             return;
 
@@ -322,12 +324,23 @@ export class SyncManager {
         this.inputWebSocketManagers[1] = new WebSocketManager("input", remotes[1]);
         this.outputWebSocketManagers[1] = new WebSocketManager("output", remotes[1]);
 
-        await this.inputWebSocketManagers[0].initWebSocket();
-        await this.outputWebSocketManagers[0].initWebSocket();
+        this.inputWebSocketManagers[0].initWebSocket();
+        this.outputWebSocketManagers[0].initWebSocket();
 
         this.inputWebSocketManagers[0].connectOnMessage((message) => {
             this.webSocketInputCallback(message);
         });
+    }
+
+    /**
+     * Cleanup WebSocket connections.
+     */
+    cleanupWebSockets() {
+        const webSocketManagers = [...this.inputWebSocketManagers, ...this.outputWebSocketManagers];
+
+        for (const manager of webSocketManagers) {
+            if (manager) manager.closeWebSocket();
+        }
     }
 
     /**
