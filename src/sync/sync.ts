@@ -361,12 +361,15 @@ export class SyncManager {
      * This function is used to send messages to the remote server via WebSocket.
      *
      * @param message The message to transmit.
+     * @param webSocketManager The WebSocket manager to use for sending the message.
      */
-    async transmitWebSocketMessage(message: string) {
-        if (!this.remoteWebSocketManager)
-            return;
+    async transmitWebSocketMessage(
+        message: string,
+        webSocketManager: WebSocketManager = this.remoteWebSocketManager
+    ) {
+        if (!webSocketManager) return;
 
-        await this.remoteWebSocketManager.sendMessage(message);
+        await webSocketManager.sendMessage(message);
     }
 
     /**
@@ -374,14 +377,15 @@ export class SyncManager {
      * This function is used to send messages to all clients connected to the remote server.
      *
      * @param data The data to broadcast, which can include strings and binaries.
+     * @param webSocketManager The WebSocket manager to use for broadcasting the content.
      */
     async broadcastContent(
-        data: { strings?: string[], binaries?: { file: Blob, filename: string }[] }
+        data: { strings?: string[], binaries?: { file: Blob, filename: string }[] },
+        webSocketManager: WebSocketManager = this.remoteWebSocketManager
     ) {
-        if (!this.remoteWebSocketManager)
-            return;
+        if (!webSocketManager) return;
 
-        await this.remoteWebSocketManager.broadcastContent(data);
+        await webSocketManager.broadcastContent(data);
     }
 
     /* Sync logic */
