@@ -73,3 +73,10 @@ type IResGetRepoSnapshots = {
     snapshots: ISnapshot[];
     totalCount: number;
 }
+
+type ChannelInfo = {
+    channel: {
+        name: string;
+        count: number;
+    };
+}

@@ -617,6 +617,22 @@ export function broadcastSubscribe(channels: string[], urlPrefix: string = '', t
     return new EventSource(url);
 }
 
+/**
+ * Get information about a broadcast channel.
+ *
+ * @param name The channel name.
+ * @param urlPrefix The Siyuan API URL prefix.
+ * @param headers Optional headers.
+ * @returns A promise that resolves to a ChannelInfo object containing details about the channel.
+ */
+export async function getChannelInfo(name: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<ChannelInfo> {
+    const payload = {
+        name: name
+    };
+    const url = `${urlPrefix}/api/broadcast/getChannelInfo`;
+    return requestWithHeaders(url, payload, headers);
+}
+
 // **************************************** System ****************************************
 
 export async function bootProgress(urlPrefix: string = '', headers?: Record<string, string>): Promise<IResBootProgress> {
