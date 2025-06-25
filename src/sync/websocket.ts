@@ -1,13 +1,16 @@
 import { broadcastPublish, newBroadcastWebSocket, postBroadcastMessage } from "@/api";
 import { SyncUtils } from "@/sync";
 
-const broadcastChannel = "better-sync";
+const inputChannel = "better-sync-input";
+const outputChannel = "better-sync-output";
 
 export class WebSocketManager {
     private socket: WebSocket | null = null;
     private remote: RemoteInfo | null = null;
+    private broadcastChannel: string;
 
-    constructor(remote: RemoteInfo | null) {
+    constructor(channel: "input" | "output", remote: RemoteInfo | null) {
+        this.broadcastChannel = channel === "input" ? inputChannel : outputChannel;
         this.remote = remote;
     }
 
@@ -21,7 +24,7 @@ export class WebSocketManager {
         }
 
         try {
-            this.socket = newBroadcastWebSocket(broadcastChannel, this.remote?.url, this.remote?.key);
+            this.socket = newBroadcastWebSocket(this.broadcastChannel, this.remote?.url, this.remote?.key);
 
             this.socket.onopen = () => {
                 console.log("WebSocket connection established.");
@@ -46,7 +49,7 @@ export class WebSocketManager {
      */
     async sendMessage(message: string): Promise<void> {
         await postBroadcastMessage(
-            broadcastChannel,
+            this.broadcastChannel,
             message,
             this.remote?.url,
             SyncUtils.getHeaders(this.remote?.key)
@@ -72,7 +75,7 @@ export class WebSocketManager {
         data: { strings?: string[], binaries?: { file: Blob, filename: string }[] },
     ) {
         await broadcastPublish(
-            broadcastChannel,
+            this.broadcastChannel,
             data,
             this.remote?.url,
             SyncUtils.getHeaders(this.remote?.key)

@@ -23,8 +23,8 @@ export class SyncManager {
      * WebSocket managers for local and remote servers.
      * These are used to handle real-time updates and notifications during the sync process.
      */
-    private localWebSocketManager: WebSocketManager;
-    private remoteWebSocketManager: WebSocketManager;
+    private inputWebSocketManagers: [WebSocketManager, WebSocketManager] = [null, null];
+    private outputWebSocketManagers: [WebSocketManager, WebSocketManager] = [null, null];
 
     /**
      * Remotes array containing information about local and remote servers.
@@ -291,10 +291,13 @@ export class SyncManager {
     /* WebSocket management */
 
     /**
-     * Set up WebSocket connections for local and remote remotes.
+     * Set up WebSocket connections for input and output.
      *
-     * This initializes the WebSocket managers for both local and remote servers,
-     * and sets up message handling for incoming WebSocket messages.
+     * This function initializes WebSocket connections for both input and output channels.
+     * It creates two WebSocketManager instances for each channel, one for the local remote and
+     * one for the remote remote.
+     * We set up callbacks for handling input messages on the local input WebSocket and
+     * output messages on the remote output WebSocket.
      */
     async setupWebSockets() {
         if (!this.plugin.settingsManager.getPref("useExperimentalWebSocket"))
@@ -302,26 +305,33 @@ export class SyncManager {
 
         const remotes = this.copyRemotes(this.remotes);
 
-        this.localWebSocketManager = new WebSocketManager(remotes[0]);
-        this.remoteWebSocketManager = new WebSocketManager(remotes[1]);
+        this.inputWebSocketManagers[0] = new WebSocketManager("input", remotes[0]);
+        this.outputWebSocketManagers[0] = new WebSocketManager("output", remotes[0]);
+        this.inputWebSocketManagers[1] = new WebSocketManager("input", remotes[1]);
+        this.outputWebSocketManagers[1] = new WebSocketManager("output", remotes[1]);
 
-        await this.localWebSocketManager.initWebSocket();
+        await this.inputWebSocketManagers[0].initWebSocket();
+        await this.outputWebSocketManagers[1].initWebSocket();
 
-        this.localWebSocketManager.connectOnMessage((message) => {
-            this.webSocketCallback(message);
+        this.inputWebSocketManagers[0].connectOnMessage((message) => {
+            this.webSocketInputCallback(message);
+        });
+
+        this.outputWebSocketManagers[1].connectOnMessage((message) => {
+            this.webSocketOutputCallback(message);
         });
     }
 
     /**
-     * Handle incoming WebSocket messages.
-     * This function is called whenever a message is received from the WebSocket.
+     * Handle incoming WebSocket input messages.
+     * This function is called whenever a message is received from the input WebSocket.
      *
-     * @param message The message received from the WebSocket.
+     * @param data The data received from the WebSocket.
      */
-    private async webSocketCallback(data: any) {
+    private async webSocketInputCallback(data: any) {
         const payload = Payload.fromString(data);
         if (!payload) {
-            console.warn("Received invalid WebSocket message:", data);
+            console.warn("Received invalid WebSocket input message:", data);
             return;
         }
 
@@ -336,10 +346,31 @@ export class SyncManager {
                 console.log(`Received request for directory files: ${path}/${dirName}`);
                 const files = await SyncUtils.getDirFilesRecursively(path, dirName, "", "SKIP", true, excludedItems);
                 const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
-                await this.transmitWebSocketMessage(responsePayload.toString());
+                await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
                 break;
             }
 
+            default:
+                console.warn("Unknown WebSocket message:", payload);
+                break;
+        }
+    }
+
+    /**
+     * Handle incoming WebSocket output messages.
+     * This function is called whenever a message is received from the output WebSocket.
+     * This is used to handle responses from the remote server.
+     *
+     * @param data The data received from the WebSocket.
+     */
+    private async webSocketOutputCallback(data: any) {
+        const payload = Payload.fromString(data);
+        if (!payload) {
+            console.warn("Received invalid WebSocket output message:", data);
+            return;
+        }
+
+        switch (payload.type) {
             case "dir-files-response": {
                 const { files: fileArray, requestId } = payload.data;
                 if (this.pendingDirRequests.has(requestId)) {
@@ -365,7 +396,7 @@ export class SyncManager {
      */
     async transmitWebSocketMessage(
         message: string,
-        webSocketManager: WebSocketManager = this.remoteWebSocketManager
+        webSocketManager: WebSocketManager
     ) {
         if (!webSocketManager) return;
 
@@ -381,7 +412,7 @@ export class SyncManager {
      */
     async broadcastContent(
         data: { strings?: string[], binaries?: { file: Blob, filename: string }[] },
-        webSocketManager: WebSocketManager = this.remoteWebSocketManager
+        webSocketManager: WebSocketManager
     ) {
         if (!webSocketManager) return;
 
@@ -597,7 +628,7 @@ export class SyncManager {
         }
 
         // Reload remote protyles
-        this.transmitWebSocketMessage(new Payload("reload-protyles", {}).toString());
+        this.transmitWebSocketMessage(new Payload("reload-protyles", {}).toString(), this.inputWebSocketManagers[1]);
 
         SyncUtils.setSyncStatus(remotes);
     }
@@ -616,7 +647,7 @@ export class SyncManager {
             }, 5000);
 
             const payload = new Payload("get-dir-files", { path, dirName, excludedItems, requestId });
-            await this.transmitWebSocketMessage(payload.toString());
+            await this.transmitWebSocketMessage(payload.toString(), this.inputWebSocketManagers[1]);
         });
     }
 
@@ -651,7 +682,7 @@ export class SyncManager {
     ) {
         console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
 
-        const useWebSocket: boolean = !!this.remoteWebSocketManager;
+        const useWebSocket: boolean = this.plugin.settingsManager.getPref("useExperimentalWebSocket");
 
         const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
 
