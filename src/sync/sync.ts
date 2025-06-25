@@ -366,7 +366,6 @@ export class SyncManager {
         if (!this.remoteWebSocketManager)
             return;
 
-        console.log("Transmitting WebSocket message:", message);
         await this.remoteWebSocketManager.sendMessage(message);
     }
 
