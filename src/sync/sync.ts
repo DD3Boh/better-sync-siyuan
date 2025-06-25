@@ -13,6 +13,7 @@ import BetterSyncPlugin from "..";
 import { Protyle, showMessage } from "siyuan";
 import { ConflictHandler } from "@/sync";
 import { WebSocketManager } from "./websocket";
+import { Payload } from "@/libs/payload";
 
 export class SyncManager {
     // Plugin instance
@@ -312,17 +313,20 @@ export class SyncManager {
      * @param message The message received from the WebSocket.
      */
     private async webSocketCallback(data: any) {
-        console.log("WebSocket message received:", data);
+        const payload = Payload.fromString(data);
+        if (!payload) {
+            console.warn("Received invalid WebSocket message:", data);
+            return;
+        }
 
-        // Parse the message and handle it accordingly
-        switch (data) {
+        switch (payload.type) {
             case "reload-protyles":
                 console.log("Reloading all Protyles due to WebSocket message.");
                 await this.reloadProtyles();
                 break;
 
             default:
-                console.warn("Unknown WebSocket message:", data);
+                console.warn("Unknown WebSocket message:", payload);
                 break;
         }
     }
@@ -565,7 +569,7 @@ export class SyncManager {
         }
 
         // Reload remote protyles
-        this.transmitWebSocketMessage("reload-protyles");
+        this.transmitWebSocketMessage(new Payload("reload-protyles", {}).toString());
 
         SyncUtils.setSyncStatus(remotes);
     }
