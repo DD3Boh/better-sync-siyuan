@@ -486,6 +486,25 @@ export class SyncManager {
             console.warn("Remote output WebSocket manager is not initialized.");
     }
 
+    /**
+     * Send reload protyles message to the remote output WebSocket.
+     *
+     * @param paths An array of file paths to reload in the remote Protyles.
+     */
+    async sendReloadProtylesMessage(paths: string[] = []) {
+        if (!this.shouldUseWebSocket()) {
+            console.warn("WebSocket is not enabled.");
+            return;
+        }
+
+        if (this.inputWebSocketManagers[1]) {
+            const payload = new Payload("reload-protyles-if-open", { paths });
+            await this.transmitWebSocketMessage(payload.toString(), this.inputWebSocketManagers[1]);
+        } else {
+            console.warn("Remote input WebSocket manager is not initialized.");
+        }
+    }
+
     /* Sync logic */
 
     /**
@@ -699,12 +718,7 @@ export class SyncManager {
         }
 
         // Reload remote protyles
-        this.transmitWebSocketMessage(
-            new Payload("reload-protyles-if-open", {
-                paths: Array.from(this.loadedProtyles.keys())
-            }).toString(),
-            this.inputWebSocketManagers[1]
-        );
+        this.sendReloadProtylesMessage(Array.from(this.loadedProtyles.keys()));
 
         SyncUtils.setSyncStatus(remotes);
     }

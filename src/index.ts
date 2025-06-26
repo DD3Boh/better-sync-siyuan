@@ -76,8 +76,9 @@ export default class BetterSyncPlugin extends Plugin {
 
     private async handleContentChange(protyle: IProtyle) {
         if (this.settingsManager.getPref("autoSyncCurrentFile") == true) {
+            const path = `data/${protyle.notebookId}${protyle.path}`;
             const syncFilePromise = this.syncManager.syncFile(
-                `data/${protyle.notebookId}${protyle.path}`,
+                path,
                 protyle.notebookId,
                 {
                     deleteFoldersOnly: false,
@@ -90,6 +91,7 @@ export default class BetterSyncPlugin extends Plugin {
             const syncNotebookConfigPromise = this.syncManager.syncNotebookConfig(protyle.notebookId);
 
             await Promise.all([syncFilePromise, syncNotebookConfigPromise]);
+            await this.syncManager.sendReloadProtylesMessage([path]);
         }
     }
 
