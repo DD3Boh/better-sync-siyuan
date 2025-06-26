@@ -7,7 +7,8 @@ import {
     reloadFiletree,
     getUnusedAssets,
     getPathByID,
-    renameDoc
+    renameDoc,
+    moveDocs
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { Protyle, showMessage } from "siyuan";
@@ -354,6 +355,27 @@ export class SyncManager {
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
                 return createDocPromise;
+
+            case "/api/filetree/moveDocs":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                const moveDocsPayload = JSON.parse(init.body as string) as MoveDocsRequest;
+
+                console.log(`Moving files ${moveDocsPayload.fromPaths.join(", ")} to ${moveDocsPayload.toNotebook}/${moveDocsPayload.toPath} via WebSocket.`);
+
+                const moveDocsPromise = this.originalFetch(input, init);
+
+                await moveDocs(
+                    moveDocsPayload.fromPaths,
+                    moveDocsPayload.toNotebook,
+                    moveDocsPayload.toPath,
+                    this.remotes[1].url,
+                    SyncUtils.getHeaders(this.remotes[1].key)
+                );
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                return moveDocsPromise;
 
             case "/api/filetree/renameDoc":
                 if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
