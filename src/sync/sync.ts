@@ -5,7 +5,8 @@ import {
     lsNotebooks,
     readDir,
     reloadFiletree,
-    getUnusedAssets
+    getUnusedAssets,
+    getPathByID
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { Protyle, showMessage } from "siyuan";
@@ -279,6 +280,46 @@ export class SyncManager {
                     await this.syncHandler();
                 }
                 break;
+
+            case "/api/filetree/removeDoc":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                const payload = JSON.parse(init.body as string) as RemoveDocRequest;
+
+                console.log(`Removing file ${payload.notebook}/${payload.path} via WebSocket.`);
+
+                await SyncUtils.deleteFile(
+                    `data/${payload.notebook}${payload.path}`,
+                    this.remotes[1].url,
+                    this.remotes[1].key
+                );
+
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                break;
+
+            case "/api/filetree/removeDocs":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                const removeDocsPayload = JSON.parse(init.body as string) as RemoveDocsRequest;
+
+                console.log(`Removing files ${removeDocsPayload.paths.join(", ")} via WebSocket.`);
+
+                const ids = removeDocsPayload.paths.map(path => path.replace(/.*\//, "").replace(/\.sy$/, ""));
+                const storagePaths = await Promise.all(
+                    ids.map(id => getPathByID(id))
+                );
+
+                await Promise.all(storagePaths.map(path =>
+                    SyncUtils.deleteFile(`data/${path.notebook}${path.path}`, this.remotes[1].url, this.remotes[1].key)
+                ));
+
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                break;
+
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
                     break;
