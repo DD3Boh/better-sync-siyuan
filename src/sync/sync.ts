@@ -960,6 +960,13 @@ export class SyncManager {
         console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
 
         const useWebSocket: boolean = await this.shouldUseWebSocket();
+        let disconnectWebSocket = false;
+
+        if (useWebSocket && !this.outputWebSocketManagers[1].isConnected()) {
+            this.connectRemoteOutputWebSocket();
+            console.log("Connected to remote output WebSocket for directory sync.");
+            disconnectWebSocket = true;
+        }
 
         const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
 
@@ -1003,6 +1010,8 @@ export class SyncManager {
         }
 
         await Promise.all(promises);
+
+        if (disconnectWebSocket) this.disconnectRemoteOutputWebSocket();
     }
 
     /**
