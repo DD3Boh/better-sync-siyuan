@@ -81,18 +81,16 @@ export class SyncUtils {
     /**
      * Delete a file or directory with error handling and logging.
      * @param filePath The path of the file or directory to delete.
-     * @param fileRes The file metadata from the directory listing.
      * @param url The URL to use for API requests.
      * @param key The API key to use for authentication.
      */
     static async deleteFile(
         filePath: string,
-        fileRes: IResReadDir,
         url: string = "",
         key: string = ""
     ) {
         try {
-            console.log(`Deleting ${fileRes.isDir ? 'directory' : 'file'} ${fileRes.name} (${filePath})`);
+            console.log(`Deleting ${filePath}`);
             await removeFile(filePath, url, SyncUtils.getHeaders(key));
             await removeIndexes([filePath.replace("data/", "")], url, SyncUtils.getHeaders(key));
         } catch (error) {

@@ -222,13 +222,7 @@ export class SyncManager {
     private async releaseLock(remote: RemoteInfo): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         try {
-            const lockFileRes: IResReadDir = {
-                name: "lock",
-                isDir: false,
-                updated: Date.now(),
-                isSymlink: false
-            }
-            await SyncUtils.deleteFile(lockPath, lockFileRes, remote.url, remote.key);
+            await SyncUtils.deleteFile(lockPath, remote.url, remote.key);
         } catch (error) {
             this.dismissMainSyncNotification();
 
@@ -927,7 +921,7 @@ export class SyncManager {
         if ((!copyRemotes[0].file && lastSyncTime > updated[1]) || (!copyRemotes[1].file && lastSyncTime > updated[0])) {
             if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
                 const targetIndex = !copyRemotes[0].file ? 1 : 0;
-                await SyncUtils.deleteFile(filePath, fileRes, copyRemotes[targetIndex].url, copyRemotes[targetIndex].key);
+                await SyncUtils.deleteFile(filePath, copyRemotes[targetIndex].url, copyRemotes[targetIndex].key);
                 return;
             }
         }
