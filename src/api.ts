@@ -110,7 +110,7 @@ export async function createDocWithMd(notebook: NotebookId, path: string, markdo
 
 export async function renameDoc(notebook: NotebookId, path: string, title: string, urlPrefix: string = '', headers?: Record<string, string>) {
     let data = {
-        doc: notebook,
+        notebook: notebook,
         path: path,
         title: title
     };
