@@ -6,7 +6,8 @@ import {
     readDir,
     reloadFiletree,
     getUnusedAssets,
-    getPathByID
+    getPathByID,
+    renameDoc
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { Protyle, showMessage } from "siyuan";
@@ -353,6 +354,27 @@ export class SyncManager {
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
                 return createDocPromise;
+
+            case "/api/filetree/renameDoc":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                const renameDocPayload = JSON.parse(init.body as string) as RenameDocRequest;
+                const renameDocPromise = this.originalFetch(input, init);
+
+                console.log(`Renaming file ${renameDocPayload.notebook}/${renameDocPayload.path} via WebSocket.`);
+
+                await renameDoc(
+                    renameDocPayload.notebook,
+                    renameDocPayload.path,
+                    renameDocPayload.title,
+                    this.remotes[1].url,
+                    SyncUtils.getHeaders(this.remotes[1].key)
+                );
+
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                return renameDocPromise;
 
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
