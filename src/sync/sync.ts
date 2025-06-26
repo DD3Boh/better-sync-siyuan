@@ -273,6 +273,10 @@ export class SyncManager {
     async customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         const syncDebounceTime = this.plugin.settingsManager.getPref("syncDebounceTime") || 5000;
+        let fetchPromise: Promise<Response> | null = null;
+
+        if (url !== "/api/system/exit")
+            fetchPromise = this.originalFetch(input, init);
 
         switch (url) {
             case "/api/system/exit":
@@ -281,6 +285,8 @@ export class SyncManager {
                     showMessage(this.plugin.i18n.syncingBeforeClosing);
                     await this.syncHandler();
                 }
+
+                fetchPromise = this.originalFetch(input, init);
                 break;
 
             case "/api/filetree/removeDoc":
@@ -326,9 +332,6 @@ export class SyncManager {
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
-                // Execute the local createDoc request
-                const createDocPromise = this.originalFetch(input, init);
-
                 const createDocPayload = JSON.parse(init.body as string) as CreateDocRequest;
 
                 console.log(`Creating file ${createDocPayload.notebook}/${createDocPayload.path} via WebSocket.`);
@@ -337,7 +340,7 @@ export class SyncManager {
                 const fullPath = `data/${createDocPayload.notebook}${createDocPayload.path}`;
                 const parent = fullPath.replace(fileName, "");
 
-                await createDocPromise;
+                await fetchPromise;
 
                 const [fileBlob, resDir] = await Promise.all([
                     getFileBlob(fullPath),
@@ -354,7 +357,7 @@ export class SyncManager {
 
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
-                return createDocPromise;
+                break;
 
             case "/api/filetree/moveDocs":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
@@ -364,8 +367,6 @@ export class SyncManager {
 
                 console.log(`Moving files ${moveDocsPayload.fromPaths.join(", ")} to ${moveDocsPayload.toNotebook}/${moveDocsPayload.toPath} via WebSocket.`);
 
-                const moveDocsPromise = this.originalFetch(input, init);
-
                 await moveDocs(
                     moveDocsPayload.fromPaths,
                     moveDocsPayload.toNotebook,
@@ -373,16 +374,16 @@ export class SyncManager {
                     this.remotes[1].url,
                     SyncUtils.getHeaders(this.remotes[1].key)
                 );
+
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
-                return moveDocsPromise;
+                break;
 
             case "/api/filetree/renameDoc":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 const renameDocPayload = JSON.parse(init.body as string) as RenameDocRequest;
-                const renameDocPromise = this.originalFetch(input, init);
 
                 console.log(`Renaming file ${renameDocPayload.notebook}/${renameDocPayload.path} via WebSocket.`);
 
@@ -396,17 +397,13 @@ export class SyncManager {
 
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
-                return renameDocPromise;
+                break;
 
             case "/api/notebook/createNotebook":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
-                // Execute the local createNotebook request
-                const createNotebookResponse = await this.originalFetch(input, init);
-                const responseClone = createNotebookResponse.clone();
-
-                const apiResponse = await createNotebookResponse.json();
+                const apiResponse = await (await fetchPromise).clone().json();
                 const notebookId = apiResponse.data.notebook.id;
 
                 console.log(`Notebook created with ID: ${notebookId}`);
@@ -429,13 +426,11 @@ export class SyncManager {
 
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
-                return responseClone;
+                break;
 
             case "/api/notebook/removeNotebook":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
-
-                const removeNotebookPromise = this.originalFetch(input, init);
 
                 const removeNotebookPayload = JSON.parse(init.body as string) as { notebook: string };
 
@@ -450,7 +445,7 @@ export class SyncManager {
 
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
-                return removeNotebookPromise;
+                break;
 
             case "/api/notebook/openNotebook":
             case "/api/notebook/closeNotebook":
@@ -461,8 +456,7 @@ export class SyncManager {
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
-                const notebookOperationPromise = this.originalFetch(input, init);
-                await notebookOperationPromise;
+                await fetchPromise;
 
                 const notebookOperationRequest = JSON.parse(init.body as string) as { notebook: string };
 
@@ -473,8 +467,7 @@ export class SyncManager {
 
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
 
-                return notebookOperationPromise;
-
+                break;
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
@@ -512,7 +505,7 @@ export class SyncManager {
                 break;
         }
 
-        return this.originalFetch(input, init)
+        return fetchPromise || this.originalFetch(input, init);
     }
 
     /**
