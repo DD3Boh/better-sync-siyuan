@@ -87,15 +87,15 @@ export class SettingsManager {
         });
 
         this.settingUtils.addItem({
-            key: "autoSyncCurrentFile",
-            value: true,
+            key: "instantSync",
+            value: false,
             type: "checkbox",
-            title: this.plugin.i18n.autoSyncCurrentFile,
-            description: this.plugin.i18n.autoSyncCurrentFileDesc,
+            title: this.plugin.i18n.instantSync,
+            description: this.plugin.i18n.instantSyncDesc,
             action: {
                 callback: () => {
-                    let value = !this.settingUtils.get("autoSyncCurrentFile");
-                    this.settingUtils.set("autoSyncCurrentFile", value);
+                    let value = !this.settingUtils.get("instantSync");
+                    this.settingUtils.set("instantSync", value);
                 }
             }
         });

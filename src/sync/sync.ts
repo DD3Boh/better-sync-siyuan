@@ -284,7 +284,7 @@ export class SyncManager {
                 break;
 
             case "/api/filetree/removeDoc":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 const payload = JSON.parse(init.body as string) as RemoveDocRequest;
@@ -302,7 +302,7 @@ export class SyncManager {
                 break;
 
             case "/api/filetree/removeDocs":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 const removeDocsPayload = JSON.parse(init.body as string) as RemoveDocsRequest;
@@ -323,7 +323,7 @@ export class SyncManager {
                 break;
 
             case "/api/filetree/createDoc":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 // Execute the local createDoc request
@@ -357,7 +357,7 @@ export class SyncManager {
                 return createDocPromise;
 
             case "/api/filetree/moveDocs":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 const moveDocsPayload = JSON.parse(init.body as string) as MoveDocsRequest;
@@ -378,7 +378,7 @@ export class SyncManager {
                 return moveDocsPromise;
 
             case "/api/filetree/renameDoc":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 const renameDocPayload = JSON.parse(init.body as string) as RenameDocRequest;
@@ -399,7 +399,7 @@ export class SyncManager {
                 return renameDocPromise;
 
             case "/api/notebook/createNotebook":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 // Execute the local createNotebook request
@@ -432,7 +432,7 @@ export class SyncManager {
                 return responseClone;
 
             case "/api/notebook/removeNotebook":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 const removeNotebookPromise = this.originalFetch(input, init);
@@ -458,7 +458,7 @@ export class SyncManager {
             case "/api/notebook/renameNotebook":
             case "/api/notebook/changeSortNotebook":
             case "/api/notebook/setNotebookIcon":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 const notebookOperationPromise = this.originalFetch(input, init);
@@ -476,7 +476,7 @@ export class SyncManager {
                 return notebookOperationPromise;
 
             case "/api/transactions":
-                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
                 if (this.transactionsDebounceTimer)
