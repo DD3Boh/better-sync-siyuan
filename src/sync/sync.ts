@@ -398,6 +398,39 @@ export class SyncManager {
 
                 return renameDocPromise;
 
+            case "/api/notebook/createNotebook":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                // Execute the local createNotebook request
+                const createNotebookResponse = await this.originalFetch(input, init);
+                const responseClone = createNotebookResponse.clone();
+
+                const apiResponse = await createNotebookResponse.json();
+                const notebookId = apiResponse.data.notebook.id;
+
+                console.log(`Notebook created with ID: ${notebookId}`);
+
+                console.log(`Creating notebook ${notebookId} via WebSocket.`);
+
+                // Create the notebook directory on the remote
+                await this.syncDirectory(
+                    "data",
+                    notebookId,
+                    this.copyRemotes(this.remotes),
+                    [],
+                    {
+                        deleteFoldersOnly: false,
+                        onlyIfMissing: true,
+                        avoidDeletions: true,
+                        trackConflicts: false
+                    }
+                );
+
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                return responseClone;
+
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
                     break;
