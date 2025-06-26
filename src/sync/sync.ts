@@ -1,5 +1,3 @@
-import { SyncUtils } from "./sync-utils";
-
 import {
     getRepoSnapshots,
     createSnapshot,
@@ -11,8 +9,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { Protyle, showMessage } from "siyuan";
-import { ConflictHandler } from "@/sync";
-import { WebSocketManager } from "./websocket";
+import { ConflictHandler, SyncUtils, WebSocketManager } from "@/sync";
 import { Payload } from "@/libs/payload";
 
 export class SyncManager {
