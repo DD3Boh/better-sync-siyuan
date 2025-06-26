@@ -431,6 +431,27 @@ export class SyncManager {
 
                 return responseClone;
 
+            case "/api/notebook/removeNotebook":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                const removeNotebookPromise = this.originalFetch(input, init);
+
+                const removeNotebookPayload = JSON.parse(init.body as string) as { notebook: string };
+
+                console.log(`Removing notebook ${removeNotebookPayload.notebook} via WebSocket.`);
+
+                // Remove the notebook directory on the remote
+                await SyncUtils.deleteFile(
+                    `data/${removeNotebookPayload.notebook}`,
+                    this.remotes[1].url,
+                    this.remotes[1].key
+                );
+
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                return removeNotebookPromise;
+
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
                     break;
