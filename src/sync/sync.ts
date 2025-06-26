@@ -275,6 +275,7 @@ export class SyncManager {
      */
     async customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        const syncDebounceTime = this.plugin.settingsManager.getPref("syncDebounceTime") || 5000;
 
         switch (url) {
             case "/api/system/exit":
@@ -317,7 +318,7 @@ export class SyncManager {
 
                     await Promise.all([syncFilePromise, syncNotebookConfigPromise]);
                     await this.sendReloadProtylesMessage([path]);
-                }, 5000);
+                }, syncDebounceTime);
                 break;
         }
 

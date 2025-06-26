@@ -101,6 +101,14 @@ export class SettingsManager {
         });
 
         this.settingUtils.addItem({
+            key: "transactionsDebounceTime",
+            value: 5000,
+            type: "number",
+            title: this.plugin.i18n.transactionsDebounceTime,
+            description: this.plugin.i18n.transactionsDebounceTimeDesc
+        });
+
+        this.settingUtils.addItem({
             key: "trackConflicts",
             value: true,
             type: "checkbox",

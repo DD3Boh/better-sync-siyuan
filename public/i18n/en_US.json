@@ -12,6 +12,8 @@
     "syncOnCloseDesc": "Sync with the remote when closing SiYuan",
     "autoSyncCurrentFile": "Auto sync current file",
     "autoSyncCurrentFileDesc": "Automatically sync the current file with the remote after editing",
+    "transactionsDebounceTime": "Auto sync delay",
+    "transactionsDebounceTimeDesc": "The delay in milliseconds before auto-syncing after the last edit. Higher values reduce sync frequency but increase the chance of losing changes.",
     "useExperimentalWebSocket": "Use experimental WebSocket connection",
     "useExperimentalWebSocketDesc": "Use a WebSocket connection for real-time synchronization. This feature is experimental and may be unstable.",
     "trackConflicts": "Track sync conflicts",
