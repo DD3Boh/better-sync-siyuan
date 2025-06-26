@@ -8,7 +8,8 @@ import {
     getUnusedAssets,
     getPathByID,
     renameDoc,
-    moveDocs
+    moveDocs,
+    requestWithHeaders
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { Protyle, showMessage } from "siyuan";
@@ -82,6 +83,12 @@ export class SyncManager {
      * This is used to handle asynchronous directory file requests via WebSocket.
      */
     private pendingDirRequests: Map<string, (files: Map<string, IResReadDir>) => void> = new Map();
+
+    /**
+     * Set of request IDs that are initiated via WebSocket communication.
+     * This is used to exclude these requests from being processed again by customFetch.
+     */
+    private webSocketRequestIds: Set<string> = new Set();
 
     /**
      * Constructor for the SyncManager class.
@@ -275,6 +282,20 @@ export class SyncManager {
         const syncDebounceTime = this.plugin.settingsManager.getPref("syncDebounceTime") || 5000;
         let fetchPromise: Promise<Response> | null = null;
 
+        // Check if this request is initiated via WebSocket and should be excluded
+        let requestId: string | undefined;
+        if (init?.headers) {
+            if (init.headers instanceof Headers)
+                requestId = init.headers.get('websocket-request-id') || undefined;
+            else
+                requestId = (init.headers as Record<string, string>)['websocket-request-id'];
+        }
+
+        if (requestId && this.webSocketRequestIds.has(requestId)) {
+            this.webSocketRequestIds.delete(requestId);
+            return this.originalFetch(input, init);
+        }
+
         if (url !== "/api/system/exit")
             fetchPromise = this.originalFetch(input, init);
 
@@ -290,41 +311,16 @@ export class SyncManager {
                 break;
 
             case "/api/filetree/removeDoc":
-                if (this.plugin.settingsManager.getPref("instantSync") !== true)
-                    break;
-
-                const payload = JSON.parse(init.body as string) as RemoveDocRequest;
-
-                console.log(`Removing file ${payload.notebook}/${payload.path} via WebSocket.`);
-
-                await SyncUtils.deleteFile(
-                    `data/${payload.notebook}${payload.path}`,
-                    this.remotes[1].url,
-                    this.remotes[1].key
-                );
-
-                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-
-                break;
-
             case "/api/filetree/removeDocs":
+            case "/api/filetree/moveDocs":
+            case "/api/filetree/renameDoc":
+            case "/api/notebook/removeNotebook":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
-                const removeDocsPayload = JSON.parse(init.body as string) as RemoveDocsRequest;
-
-                console.log(`Removing files ${removeDocsPayload.paths.join(", ")} via WebSocket.`);
-
-                const ids = removeDocsPayload.paths.map(path => path.replace(/.*\//, "").replace(/\.sy$/, ""));
-                const storagePaths = await Promise.all(
-                    ids.map(id => getPathByID(id))
-                );
-
-                await Promise.all(storagePaths.map(path =>
-                    SyncUtils.deleteFile(`data/${path.notebook}${path.path}`, this.remotes[1].url, this.remotes[1].key)
-                ));
-
-                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+                console.log(`Sending ${url} request via WebSocket`);
+                const wsPayload = new Payload(url, init.body);
+                await this.transmitWebSocketMessage(wsPayload.toString(), this.inputWebSocketManagers[1]);
 
                 break;
 
@@ -334,12 +330,11 @@ export class SyncManager {
 
                 const createDocPayload = JSON.parse(init.body as string) as CreateDocRequest;
 
-                console.log(`Creating file ${createDocPayload.notebook}/${createDocPayload.path} via WebSocket.`);
-
                 const fileName = `${createDocPayload.path.replace(/.*\//, "")}`;
                 const fullPath = `data/${createDocPayload.notebook}${createDocPayload.path}`;
                 const parent = fullPath.replace(fileName, "");
 
+                console.log(`Creating new doc on remote server: ${fullPath}`);
                 await fetchPromise;
 
                 const [fileBlob, resDir] = await Promise.all([
@@ -354,49 +349,7 @@ export class SyncManager {
                 await SyncUtils.putFile(
                     fullPath, file, this.remotes[1].url, this.remotes[1].key, timestamp
                 );
-
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-
-                break;
-
-            case "/api/filetree/moveDocs":
-                if (this.plugin.settingsManager.getPref("instantSync") !== true)
-                    break;
-
-                const moveDocsPayload = JSON.parse(init.body as string) as MoveDocsRequest;
-
-                console.log(`Moving files ${moveDocsPayload.fromPaths.join(", ")} to ${moveDocsPayload.toNotebook}/${moveDocsPayload.toPath} via WebSocket.`);
-
-                await moveDocs(
-                    moveDocsPayload.fromPaths,
-                    moveDocsPayload.toNotebook,
-                    moveDocsPayload.toPath,
-                    this.remotes[1].url,
-                    SyncUtils.getHeaders(this.remotes[1].key)
-                );
-
-                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-
-                break;
-
-            case "/api/filetree/renameDoc":
-                if (this.plugin.settingsManager.getPref("instantSync") !== true)
-                    break;
-
-                const renameDocPayload = JSON.parse(init.body as string) as RenameDocRequest;
-
-                console.log(`Renaming file ${renameDocPayload.notebook}/${renameDocPayload.path} via WebSocket.`);
-
-                await renameDoc(
-                    renameDocPayload.notebook,
-                    renameDocPayload.path,
-                    renameDocPayload.title,
-                    this.remotes[1].url,
-                    SyncUtils.getHeaders(this.remotes[1].key)
-                );
-
-                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-
                 break;
 
             case "/api/notebook/createNotebook":
@@ -406,11 +359,8 @@ export class SyncManager {
                 const apiResponse = await (await fetchPromise).clone().json();
                 const notebookId = apiResponse.data.notebook.id;
 
-                console.log(`Notebook created with ID: ${notebookId}`);
+                console.log(`Creating new notebook on remote server: ${notebookId}`);
 
-                console.log(`Creating notebook ${notebookId} via WebSocket.`);
-
-                // Create the notebook directory on the remote
                 await this.syncDirectory(
                     "data",
                     notebookId,
@@ -423,28 +373,7 @@ export class SyncManager {
                         trackConflicts: false
                     }
                 );
-
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-
-                break;
-
-            case "/api/notebook/removeNotebook":
-                if (this.plugin.settingsManager.getPref("instantSync") !== true)
-                    break;
-
-                const removeNotebookPayload = JSON.parse(init.body as string) as { notebook: string };
-
-                console.log(`Removing notebook ${removeNotebookPayload.notebook} via WebSocket.`);
-
-                // Remove the notebook directory on the remote
-                await SyncUtils.deleteFile(
-                    `data/${removeNotebookPayload.notebook}`,
-                    this.remotes[1].url,
-                    this.remotes[1].key
-                );
-
-                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-
                 break;
 
             case "/api/notebook/openNotebook":
@@ -459,15 +388,12 @@ export class SyncManager {
                 await fetchPromise;
 
                 const notebookOperationRequest = JSON.parse(init.body as string) as { notebook: string };
+                console.log(`Performing notebook operation: ${url} for notebook ${notebookOperationRequest.notebook} on the remote`);
 
-                console.log(`Performing notebook operation ${url} on notebook ${notebookOperationRequest.notebook} via WebSocket.`);
-
-                // Sync the notebook configuration
                 await this.syncNotebookConfig(notebookOperationRequest.notebook);
-
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-
                 break;
+
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
@@ -485,7 +411,7 @@ export class SyncManager {
 
                     const notebookId = this.activeProtyle.protyle.notebookId;
                     const path = `data/${notebookId}${this.activeProtyle.protyle.path}`;
-                    console.log(`Syncing file ${path} after transactions request.`);
+                    console.log(`Sending transaction sync request via WebSocket for file ${path}`);
 
                     const syncFilePromise = this.syncFile(
                         path,
@@ -586,13 +512,13 @@ export class SyncManager {
             return;
         }
 
-        switch (payload.type) {
-            case "reload-protyles":
+        switch (true) {
+            case payload.type === "reload-protyles":
                 console.log("Reloading all Protyles due to WebSocket message.");
                 await this.reloadProtyles();
                 break;
 
-            case "reload-protyles-if-open": {
+            case payload.type === "reload-protyles-if-open": {
                 const { paths } = payload.data;
 
                 for (const path of paths) {
@@ -608,12 +534,27 @@ export class SyncManager {
                 break;
             }
 
-            case "get-dir-files": {
+            case payload.type === "get-dir-files": {
                 const { path, dirName, excludedItems, requestId } = payload.data;
                 console.log(`Received request for directory files: ${path}/${dirName}`);
                 const files = await SyncUtils.getDirFilesRecursively(path, dirName, "", "SKIP", true, excludedItems);
                 const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
                 await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
+                break;
+            }
+
+            case payload.type.startsWith("/api/"): {
+                console.log(`Processing api request via WebSocket: ${payload.type}`);
+
+                const requestId = this.generateRequestId();
+                this.webSocketRequestIds.add(requestId);
+
+                await requestWithHeaders(
+                    payload.type,
+                    JSON.parse(payload.data),
+                    { "websocket-request-id": requestId }
+                );
+
                 break;
             }
 
@@ -729,6 +670,16 @@ export class SyncManager {
         }
     }
 
+    /**
+     * Clean up old WebSocket request IDs to prevent memory leaks.
+     * This should be called periodically to remove request IDs that might not have been processed.
+     */
+    private cleanupWebSocketRequestIds(): void {
+        // For now, just clear all IDs every time cleanup is called
+        // In a more sophisticated implementation, you could track timestamps
+        this.webSocketRequestIds.clear();
+    }
+
     /* Sync logic */
 
     /**
@@ -786,6 +737,7 @@ export class SyncManager {
             this.conflictDetected = false;
             this.locallyUpdatedFiles.clear();
             this.remotelyUpdatedFiles.clear();
+            this.cleanupWebSocketRequestIds();
             this.disconnectRemoteOutputWebSocket();
         }
     }
@@ -1262,6 +1214,14 @@ export class SyncManager {
     }
 
     /* Utility functions */
+
+    /**
+     * Generate a unique request ID for WebSocket communication.
+     * @returns A unique request ID string.
+     */
+    private generateRequestId(): string {
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    }
 
     /**
      * Create a deep copy of RemoteInfo or RemoteFileInfo objects to prevent mutations
