@@ -54,6 +54,12 @@ export class SyncManager {
     private locallyUpdatedFiles: Set<string> = new Set();
 
     /**
+     * Set of file paths that have been updated remotely during the current sync session.
+     * This is used to track files that may need to be reloaded or handled differently.
+     */
+    private remotelyUpdatedFiles: Set<string> = new Set();
+
+    /**
      * Original fetch function to restore after overriding it for custom sync behavior.
      * This is used to ensure that the original fetch functionality is preserved.
      */
@@ -362,6 +368,22 @@ export class SyncManager {
                 await this.reloadProtyles();
                 break;
 
+            case "reload-protyles-if-open": {
+                const { paths } = payload.data;
+
+                for (const path of paths) {
+                    const protyle = Array.from(this.loadedProtyles.values())
+                        .find(p => `data/${p.protyle.notebookId}${p.protyle.path}` === path);
+                    if (protyle) {
+                        console.log(`Reloading Protyle for path: ${path}`);
+                        protyle.reload(this.activeProtyle === protyle);
+                    } else {
+                        console.warn(`No Protyle found for path: ${path}`);
+                    }
+                }
+                break;
+            }
+
             case "get-dir-files": {
                 const { path, dirName, excludedItems, requestId } = payload.data;
                 console.log(`Received request for directory files: ${path}/${dirName}`);
@@ -520,6 +542,7 @@ export class SyncManager {
 
             this.conflictDetected = false;
             this.locallyUpdatedFiles.clear();
+            this.remotelyUpdatedFiles.clear();
             this.disconnectRemoteOutputWebSocket();
         }
     }
@@ -676,7 +699,12 @@ export class SyncManager {
         }
 
         // Reload remote protyles
-        this.transmitWebSocketMessage(new Payload("reload-protyles", {}).toString(), this.inputWebSocketManagers[1]);
+        this.transmitWebSocketMessage(
+            new Payload("reload-protyles-if-open", {
+                paths: Array.from(this.loadedProtyles.keys())
+            }).toString(),
+            this.inputWebSocketManagers[1]
+        );
 
         SyncUtils.setSyncStatus(remotes);
     }
@@ -866,7 +894,8 @@ export class SyncManager {
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
         await SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
 
-        if (iOut === 0) this.locallyUpdatedFiles.add(filePath);
+        const updatedFiles = iIn === 0 ? this.locallyUpdatedFiles : this.remotelyUpdatedFiles;
+        updatedFiles.add(filePath);
     }
 
     /**
