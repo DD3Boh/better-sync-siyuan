@@ -320,6 +320,40 @@ export class SyncManager {
 
                 break;
 
+            case "/api/filetree/createDoc":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                // Execute the local createDoc request
+                const createDocPromise = this.originalFetch(input, init);
+
+                const createDocPayload = JSON.parse(init.body as string) as CreateDocRequest;
+
+                console.log(`Creating file ${createDocPayload.notebook}/${createDocPayload.path} via WebSocket.`);
+
+                const fileName = `${createDocPayload.path.replace(/.*\//, "")}`;
+                const fullPath = `data/${createDocPayload.notebook}${createDocPayload.path}`;
+                const parent = fullPath.replace(fileName, "");
+
+                await createDocPromise;
+
+                const [fileBlob, resDir] = await Promise.all([
+                    getFileBlob(fullPath),
+                    readDir(parent)
+                ]);
+
+                const fileRes = resDir.find(file => file.name === fileName);
+                const timestamp = fileRes ? fileRes.updated * 1000 : Date.now();
+                const file = new File([fileBlob], fileName, { lastModified: timestamp });
+
+                await SyncUtils.putFile(
+                    fullPath, file, this.remotes[1].url, this.remotes[1].key, timestamp
+                );
+
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                return createDocPromise;
+
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
                     break;
