@@ -452,6 +452,29 @@ export class SyncManager {
 
                 return removeNotebookPromise;
 
+            case "/api/notebook/openNotebook":
+            case "/api/notebook/closeNotebook":
+            case "/api/notebook/setNotebookConf":
+            case "/api/notebook/renameNotebook":
+            case "/api/notebook/changeSortNotebook":
+            case "/api/notebook/setNotebookIcon":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                const notebookOperationPromise = this.originalFetch(input, init);
+                await notebookOperationPromise;
+
+                const notebookOperationRequest = JSON.parse(init.body as string) as { notebook: string };
+
+                console.log(`Performing notebook operation ${url} on notebook ${notebookOperationRequest.notebook} via WebSocket.`);
+
+                // Sync the notebook configuration
+                await this.syncNotebookConfig(notebookOperationRequest.notebook);
+
+                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
+
+                return notebookOperationPromise;
+
             case "/api/transactions":
                 if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
                     break;
