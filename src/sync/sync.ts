@@ -69,6 +69,12 @@ export class SyncManager {
     private conflictDetected: boolean = false;
 
     /**
+     * Debounce timer for handling transitions.
+     * This is used to delay actions after an API call to avoid excessive processing.
+     */
+    private transactionsDebounceTimer: number | null = null;
+
+    /**
      * Map of pending directory requests, where the key is the request ID and the value is the resolve function.
      * This is used to handle asynchronous directory file requests via WebSocket.
      */
@@ -277,6 +283,41 @@ export class SyncManager {
                     showMessage(this.plugin.i18n.syncingBeforeClosing);
                     await this.syncHandler();
                 }
+                break;
+            case "/api/transactions":
+                if (this.plugin.settingsManager.getPref("autoSyncCurrentFile") !== true)
+                    break;
+
+                if (this.transactionsDebounceTimer)
+                    clearTimeout(this.transactionsDebounceTimer);
+
+                this.transactionsDebounceTimer = window.setTimeout(async () => {
+                    const payload = JSON.parse(init.body as string) as TransactionPayload;
+
+                    if (this.activeProtyle.protyle.id != payload.session) {
+                        console.warn(`Active Protyle ID ${this.activeProtyle.protyle.id} does not match transaction session ID ${payload.session}. Skipping sync.`);
+                        return;
+                    }
+
+                    const notebookId = this.activeProtyle.protyle.notebookId;
+                    const path = `data/${notebookId}${this.activeProtyle.protyle.path}`;
+                    console.log(`Syncing file ${path} after transactions request.`);
+
+                    const syncFilePromise = this.syncFile(
+                        path,
+                        notebookId,
+                        {
+                            deleteFoldersOnly: false,
+                            onlyIfMissing: false,
+                            avoidDeletions: true,
+                            trackConflicts: false
+                        }
+                    );
+                    const syncNotebookConfigPromise = this.syncNotebookConfig(notebookId);
+
+                    await Promise.all([syncFilePromise, syncNotebookConfigPromise]);
+                    await this.sendReloadProtylesMessage([path]);
+                }, 5000);
                 break;
         }
 
@@ -491,8 +532,8 @@ export class SyncManager {
      * @param paths An array of file paths to reload in the remote Protyles.
      */
     async sendReloadProtylesMessage(paths: string[] = []) {
-        if (!this.shouldUseWebSocket()) {
-            console.warn("WebSocket is not enabled.");
+        if (!(await this.shouldUseWebSocket())) {
+            console.warn("WebSocket is not enabled or remote is not listening.");
             return;
         }
 
