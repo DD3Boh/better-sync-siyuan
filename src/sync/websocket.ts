@@ -110,7 +110,10 @@ export class WebSocketManager {
         const channelInfo = await getChannelInfo(
             this.broadcastChannel, this.remote?.url, SyncUtils.getHeaders(this.remote?.key)
         );
-        return channelInfo?.channel?.count > 0;
+
+        // Ignore the connection from this websocket instance itself
+        const totalConnections = (channelInfo?.channel?.count || 0) - (this.connected ? 1 : 0);
+        return totalConnections > 0;
     }
 
     /**
