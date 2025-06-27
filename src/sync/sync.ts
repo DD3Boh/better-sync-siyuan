@@ -618,9 +618,9 @@ export class SyncManager {
     /**
      * Connect to the remote output WebSocket.
      */
-    connectRemoteOutputWebSocket() {
+    async connectRemoteOutputWebSocket() {
         if (this.outputWebSocketManagers[1]) {
-            this.outputWebSocketManagers[1].initWebSocket();
+            await this.outputWebSocketManagers[1].initWebSocket();
 
             this.outputWebSocketManagers[1].connectOnMessage((message) => {
                 this.webSocketOutputCallback(message);

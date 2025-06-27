@@ -20,28 +20,33 @@ export class WebSocketManager {
     /**
      * Initialize the WebSocket connection.
      */
-    initWebSocket() {
-        try {
-            this.socket = newBroadcastWebSocket(this.broadcastChannel, this.remote?.url, this.remote?.key);
+    async initWebSocket(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            try {
+                this.socket = newBroadcastWebSocket(this.broadcastChannel, this.remote?.url, this.remote?.key);
 
-            this.socket.onopen = () => {
-                console.log("WebSocket connection established.");
-                this.connected = true;
-            };
+                this.socket.onopen = () => {
+                    console.log("WebSocket connection established.");
+                    this.connected = true;
+                    resolve();
+                };
 
-            this.socket.onerror = (error) => {
-                console.error("WebSocket error:", error);
-                this.connected = false;
-            };
+                this.socket.onerror = (error) => {
+                    console.error("WebSocket error:", error);
+                    this.connected = false;
+                    reject(error);
+                };
 
-            this.socket.onclose = () => {
-                console.log("WebSocket connection closed.");
-                this.socket = null;
-                this.connected = false;
-            };
-        } catch (error) {
-            console.error("Failed to initialize WebSocket:", error);
-        }
+                this.socket.onclose = () => {
+                    console.log("WebSocket connection closed.");
+                    this.socket = null;
+                    this.connected = false;
+                };
+            } catch (error) {
+                console.error("Failed to initialize WebSocket:", error);
+                reject(error);
+            }
+        });
     }
 
     /**
