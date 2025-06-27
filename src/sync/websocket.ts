@@ -1,9 +1,6 @@
 import { broadcastPublish, getChannelInfo, newBroadcastWebSocket, postBroadcastMessage } from "@/api";
 import { SyncUtils } from "@/sync";
 
-const inputChannel = "better-sync-input";
-const outputChannel = "better-sync-output";
-
 export class WebSocketManager {
     private socket: WebSocket | null = null;
     private remote: RemoteInfo | null = null;
@@ -12,8 +9,8 @@ export class WebSocketManager {
     // WebSocket connection status
     private connected: boolean = false;
 
-    constructor(channel: "input" | "output", remote: RemoteInfo | null) {
-        this.broadcastChannel = channel === "input" ? inputChannel : outputChannel;
+    constructor(channel: string, remote: RemoteInfo | null) {
+        this.broadcastChannel = channel;
         this.remote = remote;
     }
 

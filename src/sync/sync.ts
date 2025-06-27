@@ -463,10 +463,10 @@ export class SyncManager {
 
         const remotes = this.copyRemotes(this.remotes);
 
-        this.inputWebSocketManagers[0] = new WebSocketManager("input", remotes[0]);
-        this.outputWebSocketManagers[0] = new WebSocketManager("output", remotes[0]);
-        this.inputWebSocketManagers[1] = new WebSocketManager("input", remotes[1]);
-        this.outputWebSocketManagers[1] = new WebSocketManager("output", remotes[1]);
+        this.inputWebSocketManagers[0] = new WebSocketManager("better-sync-input", remotes[0]);
+        this.outputWebSocketManagers[0] = new WebSocketManager("better-sync-output", remotes[0]);
+        this.inputWebSocketManagers[1] = new WebSocketManager("better-sync-input", remotes[1]);
+        this.outputWebSocketManagers[1] = new WebSocketManager("better-sync-output", remotes[1]);
 
         this.inputWebSocketManagers[0].initWebSocket();
         this.outputWebSocketManagers[0].initWebSocket();
