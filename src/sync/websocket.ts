@@ -23,24 +23,24 @@ export class WebSocketManager {
                 this.socket = newBroadcastWebSocket(this.broadcastChannel, this.remote?.url, this.remote?.key);
 
                 this.socket.onopen = () => {
-                    console.log("WebSocket connection established.");
+                    console.log(`WebSocket connection established for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
                     this.connected = true;
                     resolve();
                 };
 
                 this.socket.onerror = (error) => {
-                    console.error("WebSocket error:", error);
+                    console.error(`WebSocket error for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
                     this.connected = false;
                     reject(error);
                 };
 
                 this.socket.onclose = () => {
-                    console.log("WebSocket connection closed.");
+                    console.log(`WebSocket connection closed for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
                     this.socket = null;
                     this.connected = false;
                 };
             } catch (error) {
-                console.error("Failed to initialize WebSocket:", error);
+                console.error(`Failed to initialize WebSocket for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
                 reject(error);
             }
         });
