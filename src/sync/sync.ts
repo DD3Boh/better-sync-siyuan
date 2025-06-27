@@ -681,18 +681,19 @@ export class SyncManager {
         const startTime = Date.now();
         let locked = false;
         let savedError: Error | null = null;
+        let promise: Promise<void> | null = null;
         try {
             SyncUtils.checkRemotes(remotes);
 
             showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
             console.log(`Syncing with remote server ${remotes[1].name}...`);
 
-            if (this.shouldUseWebSocket()) this.connectRemoteOutputWebSocket();
+            if (this.shouldUseWebSocket()) promise = this.connectRemoteOutputWebSocket();
 
             await this.acquireAllLocks(remotes);
             locked = true;
 
-            await this.syncWithRemote(remotes);
+            await this.syncWithRemote(remotes, promise);
         } catch (error) {
             savedError = error;
         } finally {
@@ -736,7 +737,7 @@ export class SyncManager {
      * creating data snapshots if enabled, and syncing directories and files.
      * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
      */
-    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
+    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes), promise: Promise<void> | null = null) {
         SyncUtils.checkRemotes(remotes);
 
         // Create data snapshots if enabled
@@ -773,6 +774,8 @@ export class SyncManager {
         const combinedNotebooks = Array.from(allNotebooks.values());
 
         const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
+
+        if (promise) await promise;
 
         const notebookSyncPromises = combinedNotebooks.map(notebook =>
             this.syncDirectory(
