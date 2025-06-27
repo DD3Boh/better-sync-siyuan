@@ -314,7 +314,13 @@ export class SyncManager {
             case "/api/filetree/removeDocs":
             case "/api/filetree/moveDocs":
             case "/api/filetree/renameDoc":
+            case "/api/notebook/openNotebook":
+            case "/api/notebook/closeNotebook":
+            case "/api/notebook/renameNotebook":
             case "/api/notebook/removeNotebook":
+            case "/api/notebook/setNotebookConf":
+            case "/api/notebook/changeSortNotebook":
+            case "/api/notebook/setNotebookIcon":
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
@@ -373,24 +379,6 @@ export class SyncManager {
                         trackConflicts: false
                     }
                 );
-                await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
-                break;
-
-            case "/api/notebook/openNotebook":
-            case "/api/notebook/closeNotebook":
-            case "/api/notebook/setNotebookConf":
-            case "/api/notebook/renameNotebook":
-            case "/api/notebook/changeSortNotebook":
-            case "/api/notebook/setNotebookIcon":
-                if (this.plugin.settingsManager.getPref("instantSync") !== true)
-                    break;
-
-                await fetchPromise;
-
-                const notebookOperationRequest = JSON.parse(init.body as string) as { notebook: string };
-                console.log(`Performing notebook operation: ${url} for notebook ${notebookOperationRequest.notebook} on the remote`);
-
-                await this.syncNotebookConfig(notebookOperationRequest.notebook);
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
                 break;
 
