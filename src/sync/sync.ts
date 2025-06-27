@@ -1118,27 +1118,8 @@ export class SyncManager {
     async syncNotebookConfig(notebookId: string, remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
-        const files: string[] = [
-            "conf.json",
-            "sort.json",
-        ];
-
         console.log(`Syncing notebook config for notebook ${notebookId}`);
-
-        await Promise.all(files.map(file => {
-            const filePath = `/data/${notebookId}/.siyuan/${file}`;
-            return this.syncFile(
-                filePath,
-                notebookId,
-                {
-                    deleteFoldersOnly: false,
-                    onlyIfMissing: false,
-                    avoidDeletions: false,
-                    trackConflicts: false
-                },
-                remotes
-            );
-        }));
+        await this.syncDirectory(`/data/${notebookId}`, ".siyuan", remotes);
     }
 
     /**
