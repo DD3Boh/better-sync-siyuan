@@ -179,4 +179,19 @@ export class SyncUtils {
         await SyncUtils.putFile(filePath, file, remotes[0].url, remotes[0].key, timestamp);
         await SyncUtils.putFile(filePath, file, remotes[1].url, remotes[1].key, timestamp);
     }
+
+    /**
+     * Get a file's timestamp.
+     *
+     * @param parent The parent directory of the file to check.
+     * @param fileName The name of the file to check.
+     * @param remote The remote information containing URL and key.
+     * @returns The timestamp of the file, or 0 if not found.
+     */
+    static async getFileTimestamp(parent: string, fileName: string, remote: RemoteInfo): Promise<number> {
+        const dir = await readDir(parent, remote.url, SyncUtils.getHeaders(remote.key));
+        const file = dir.find(file => file.name === fileName);
+
+        return file ? file.updated * 1000 : 0;
+    }
 }
