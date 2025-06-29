@@ -84,6 +84,8 @@ export class SyncManager {
      */
     private pendingDirRequests: Map<string, (files: Map<string, IResReadDir>) => void> = new Map();
 
+    private receivedAppIds: Set<string> = new Set();
+
     /**
      * Set of request IDs that are initiated via WebSocket communication.
      * This is used to exclude these requests from being processed again by customFetch.
@@ -488,6 +490,54 @@ export class SyncManager {
     }
 
     /**
+     * Choose the remote's appId to use for WebSocket communication.
+     *
+     * This function checks if the remote appId has been received.
+     */
+    private chooseRemoteAppId(): string {
+        const firstAppId = Array.from(this.receivedAppIds).reverse().pop();
+        return firstAppId || "unknown-app-id";
+    }
+
+    /**
+     * Set remote appId
+     *
+     * @param appId The appId to set for the remote.
+     * @param remote The remote information to set the appId for, defaults to the second remote.
+     */
+    private setRemoteAppId(appId: string, remote: RemoteInfo = this.remotes[1]) {
+        remote.appId = appId;
+    }
+
+    /**
+     * Fetch and set the remote appId.
+     *
+     * @param remotes The list of remote connections.
+     */
+    public async fetchAndSetRemoteAppId(remotes: RemoteInfo[] = this.remotes) {
+        if (remotes[1].appId)
+            return console.log(`Remote app ID already set: ${remotes[1].appId}`);
+
+        await this.transmitWebSocketMessage(
+            new Payload("get-app-id", {}).toString(),
+            this.inputWebSocketManagers[1]
+        );
+
+        for (let i = 0; i < 10; i++) {
+            if (this.receivedAppIds.size > 0) {
+                this.setRemoteAppId(this.chooseRemoteAppId(), remotes[1]);
+                console.log(`Remote app ID set to: ${remotes[1].appId}`);
+                this.receivedAppIds.clear();
+                return;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        console.warn("Timeout waiting for remote app ID.");
+    }
+
+    /**
      * Handle incoming WebSocket input messages.
      * This function is called whenever a message is received from the input WebSocket.
      *
@@ -546,6 +596,13 @@ export class SyncManager {
                 break;
             }
 
+            case payload.type === "get-app-id": {
+                const appId = this.plugin.app.appId || "unknown-app-id";
+                const responsePayload = new Payload("app-id-response", { appId });
+                await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
+                break;
+            }
+
             default:
                 console.warn("Unknown WebSocket message:", payload);
                 break;
@@ -574,6 +631,13 @@ export class SyncManager {
                     this.pendingDirRequests.get(requestId)(filesMap);
                     this.pendingDirRequests.delete(requestId);
                 }
+                break;
+            }
+
+            case "app-id-response": {
+                const { appId } = payload.data;
+                this.receivedAppIds.add(appId);
+                console.log(`Received app ID from remote: ${appId}`);
                 break;
             }
 

@@ -3,6 +3,7 @@ interface RemoteInfo {
     key: string;
     name: string;
     lastSyncTime: number;
+    appId?: string;
 }
 
 interface RemoteFileInfo extends RemoteInfo {
