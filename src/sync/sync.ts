@@ -518,10 +518,13 @@ export class SyncManager {
         if (remotes[1].appId)
             return console.log(`Remote app ID already set: ${remotes[1].appId}`);
 
-        await this.transmitWebSocketMessage(
-            new Payload("get-app-id", {}).toString(),
-            this.inputWebSocketManagers[1]
-        );
+        await Promise.all([
+            this.connectRemoteOutputWebSocket(),
+            this.transmitWebSocketMessage(
+                new Payload("get-app-id", {}).toString(),
+                this.inputWebSocketManagers[1]
+            )
+        ]);
 
         for (let i = 0; i < 10; i++) {
             if (this.receivedAppIds.size > 0) {
@@ -687,14 +690,17 @@ export class SyncManager {
      * Connect to the remote output WebSocket.
      */
     async connectRemoteOutputWebSocket() {
-        if (this.outputWebSocketManagers[1]) {
+        if (this.outputWebSocketManagers[1] && !this.outputWebSocketManagers[1].isConnected()) {
             await this.outputWebSocketManagers[1].initWebSocket();
 
             this.outputWebSocketManagers[1].connectOnMessage((message) => {
                 this.webSocketOutputCallback(message);
             });
-        } else
+        } else if (this.outputWebSocketManagers[1]) {
+            console.log("Remote output WebSocket is already connected.");
+        } else {
             console.warn("Remote output WebSocket manager is not initialized.");
+        }
     }
 
     /**
