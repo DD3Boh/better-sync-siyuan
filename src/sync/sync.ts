@@ -573,8 +573,12 @@ export class SyncManager {
             }
 
             case payload.type === "get-dir-files": {
-                const { path, dirName, excludedItems, requestId } = payload.data;
-                console.log(`Received request for directory files: ${path}/${dirName}`);
+                const { path, dirName, excludedItems, requestId, appId } = payload.data;
+
+                if (appId && appId !== this.plugin.app.appId)
+                    return console.warn(`Ignoring get-dir-files request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
+
+                console.log(`Received request for directory files: ${path}/${dirName} with app ID ${appId}`);
                 const files = await SyncUtils.getDirFilesRecursively(path, dirName, "", "SKIP", true, excludedItems);
                 const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
                 await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
@@ -841,6 +845,8 @@ export class SyncManager {
 
         if (promise) await promise;
 
+        await this.fetchAndSetRemoteAppId(remotes);
+
         const notebookSyncPromises = combinedNotebooks.map(notebook =>
             this.syncDirectory(
                 "data",
@@ -954,7 +960,7 @@ export class SyncManager {
         SyncUtils.setSyncStatus(remotes);
     }
 
-    private getRemoteDirFilesViaWebSocket(path: string, dirName: string, excludedItems: string[]): Promise<Map<string, IResReadDir>> {
+    private getRemoteDirFilesViaWebSocket(path: string, dirName: string, excludedItems: string[], appId: string): Promise<Map<string, IResReadDir>> {
         return new Promise(async (resolve, reject) => {
             const requestId = Math.random().toString(36).substring(2, 15);
             this.pendingDirRequests.set(requestId, resolve);
@@ -967,7 +973,7 @@ export class SyncManager {
                 }
             }, 5000);
 
-            const payload = new Payload("get-dir-files", { path, dirName, excludedItems, requestId });
+            const payload = new Payload("get-dir-files", { path, dirName, excludedItems, requestId, appId });
             await this.transmitWebSocketMessage(payload.toString(), this.inputWebSocketManagers[1]);
         });
     }
@@ -1015,7 +1021,7 @@ export class SyncManager {
         const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
 
         const filesTwoPromise = useWebSocket
-            ? this.getRemoteDirFilesViaWebSocket(path, dirName, excludedItems)
+            ? this.getRemoteDirFilesViaWebSocket(path, dirName, excludedItems, remotes[1].appId)
             : SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems);
 
         const [filesOne, filesTwo] = await Promise.all([
