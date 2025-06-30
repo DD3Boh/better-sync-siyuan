@@ -523,9 +523,6 @@ export class SyncManager {
      * @param remotes The list of remote connections.
      */
     public async fetchAndSetRemoteAppId(remotes: RemoteInfo[] = this.remotes) {
-        if (remotes[1].appId)
-            return console.log(`Remote app ID already set: ${remotes[1].appId}`);
-
         await Promise.all([
             this.connectRemoteOutputWebSocket(),
             this.transmitWebSocketMessage(
@@ -536,6 +533,11 @@ export class SyncManager {
 
         for (let i = 0; i < 500; i++) {
             if (this.receivedAppIds.size > 0) {
+                if (this.receivedAppIds.has(remotes[1].appId)) {
+                    console.log(`Remote app ID already set: ${remotes[1].appId}`);
+                    return;
+                }
+
                 this.setRemoteAppId(this.chooseRemoteAppId(), remotes[1]);
                 console.log(`Remote app ID set to: ${remotes[1].appId}`);
                 this.receivedAppIds.clear();
