@@ -534,7 +534,7 @@ export class SyncManager {
             )
         ]);
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 500; i++) {
             if (this.receivedAppIds.size > 0) {
                 this.setRemoteAppId(this.chooseRemoteAppId(), remotes[1]);
                 console.log(`Remote app ID set to: ${remotes[1].appId}`);
@@ -542,7 +542,7 @@ export class SyncManager {
                 return;
             }
 
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 5));
         }
 
         console.warn("Timeout waiting for remote app ID.");
