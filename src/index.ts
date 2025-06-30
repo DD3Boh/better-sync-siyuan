@@ -24,6 +24,7 @@ export default class BetterSyncPlugin extends Plugin {
 
         this.eventBus.on("switch-protyle", async ({ detail }) => {
             this.syncManager.setActiveProtyle(detail.protyle.getInstance());
+            this.syncManager.setupContentObserver(detail.protyle);
         });
 
         this.eventBus.on("loaded-protyle-dynamic", async ({ detail }) => {

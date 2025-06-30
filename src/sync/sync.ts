@@ -9,7 +9,7 @@ import {
     requestWithHeaders
 } from "@/api";
 import BetterSyncPlugin from "..";
-import { Protyle, showMessage } from "siyuan";
+import { IProtyle, Protyle, showMessage } from "siyuan";
 import { ConflictHandler, SyncUtils, WebSocketManager } from "@/sync";
 import { Payload } from "@/libs/payload";
 
@@ -70,10 +70,9 @@ export class SyncManager {
     private conflictDetected: boolean = false;
 
     /**
-     * Debounce timer for handling transitions.
-     * This is used to delay actions after an API call to avoid excessive processing.
+     * Content observer for monitoring changes in the Protyle content.
      */
-    private transactionsDebounceTimer: number | null = null;
+    private contentObserver: MutationObserver | null = null;
 
     /**
      * Map of pending directory requests, where the key is the request ID and the value is the resolve function.
@@ -278,7 +277,6 @@ export class SyncManager {
      */
     async customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        const syncDebounceTime = this.plugin.settingsManager.getPref("syncDebounceTime") || 5000;
         let fetchPromise: Promise<Response> | null = null;
 
         // Check if this request is initiated via WebSocket and should be excluded
@@ -397,45 +395,77 @@ export class SyncManager {
                 );
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
                 break;
-
-            case "/api/transactions":
-                if (this.plugin.settingsManager.getPref("instantSync") !== true)
-                    break;
-
-                if (this.transactionsDebounceTimer)
-                    clearTimeout(this.transactionsDebounceTimer);
-
-                this.transactionsDebounceTimer = window.setTimeout(async () => {
-                    const payload = JSON.parse(init.body as string) as TransactionPayload;
-
-                    if (this.activeProtyle.protyle.id != payload.session) {
-                        console.warn(`Active Protyle ID ${this.activeProtyle.protyle.id} does not match transaction session ID ${payload.session}. Skipping sync.`);
-                        return;
-                    }
-
-                    const notebookId = this.activeProtyle.protyle.notebookId;
-                    const path = `data/${notebookId}${this.activeProtyle.protyle.path}`;
-                    console.log(`Sending transaction sync request via WebSocket for file ${path}`);
-
-                    const syncFilePromise = this.syncFile(
-                        path,
-                        notebookId,
-                        {
-                            deleteFoldersOnly: false,
-                            onlyIfMissing: false,
-                            avoidDeletions: true,
-                            trackConflicts: false
-                        }
-                    );
-                    const syncNotebookConfigPromise = this.syncNotebookConfig(notebookId);
-
-                    await Promise.all([syncFilePromise, syncNotebookConfigPromise]);
-                    await this.sendReloadProtylesMessage([path]);
-                }, syncDebounceTime);
-                break;
         }
 
         return fetchPromise || this.originalFetch(input, init);
+    }
+
+    /**
+     * Setup a MutationObserver to monitor changes in the Protyle content.
+     *
+     * @param protyle The Protyle instance to observe.
+     */
+    setupContentObserver(protyle: IProtyle) {
+        if (this.plugin.settingsManager.getPref("instantSync") !== true) return;
+
+        if (this.contentObserver) this.contentObserver.disconnect();
+
+        // Add a direct mutation observer to track DOM changes in the content
+        if (protyle.contentElement) {
+            let debounceTimer: number | null = null;
+            const debounceTime = this.plugin.settingsManager.getPref("transactionsDebounceTime") || 5000;
+
+            this.contentObserver = new MutationObserver((mutations) => {
+                /*
+                 * When mutations are below 4, ignore them
+                 * This is to prevent the observer from firing on file open
+                 * or other minor changes.
+                 */
+                if (mutations.length < 4) return;
+
+                if (debounceTimer !== null)
+                    clearTimeout(debounceTimer);
+
+                debounceTimer = window.setTimeout(() => {
+                    this.handleContentChange(protyle);
+                    debounceTimer = null;
+                }, debounceTime);
+            });
+
+            this.contentObserver.observe(protyle.contentElement, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+        }
+    }
+
+    /**
+     * Handle content changes in the Protyle.
+     * This function is called when the content of a Protyle changes.
+     * It tracks locally updated files and sets the active Protyle if necessary.
+     *
+     * @param protyle The Protyle instance that has changed.
+     */
+    private async handleContentChange(protyle: IProtyle) {
+        if (!protyle) return;
+
+        const path = `data/${protyle.notebookId}${protyle.path}`;
+
+        await this.syncFile(
+            path,
+            protyle.notebookId,
+            {
+                deleteFoldersOnly: false,
+                onlyIfMissing: false,
+                avoidDeletions: true,
+                trackConflicts: false
+            }
+        );
+
+        await this.syncNotebookConfig(protyle.notebookId);
+
+        await this.sendReloadProtylesMessage([path]);
     }
 
     /**
