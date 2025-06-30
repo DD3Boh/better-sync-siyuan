@@ -915,7 +915,10 @@ export class SyncManager {
                 remotes,
                 [".siyuan"],
                 getDataFiles(`data/${notebook.id}`),
-                { trackConflicts: trackConflicts }
+                {
+                    trackConflicts: trackConflicts,
+                    trackUpdatedFiles: true
+                }
             )
         );
 
@@ -1078,7 +1081,8 @@ export class SyncManager {
             deleteFoldersOnly?: boolean,
             onlyIfMissing?: boolean,
             avoidDeletions?: boolean,
-            trackConflicts?: boolean
+            trackConflicts?: boolean,
+            trackUpdatedFiles?: boolean
         }
     ) {
         console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
@@ -1164,7 +1168,8 @@ export class SyncManager {
             deleteFoldersOnly?: boolean,
             onlyIfMissing?: boolean,
             avoidDeletions?: boolean,
-            trackConflicts?: boolean
+            trackConflicts?: boolean,
+            trackUpdatedFiles?: boolean
         },
         remotes: [RemoteFileInfo, RemoteFileInfo] = this.remotes,
     ) {
@@ -1236,8 +1241,10 @@ export class SyncManager {
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
         await SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
 
-        const updatedFiles = iIn === 0 ? this.locallyUpdatedFiles : this.remotelyUpdatedFiles;
-        updatedFiles.add(filePath);
+        if (options.trackUpdatedFiles) {
+            const updatedFiles = iIn === 0 ? this.locallyUpdatedFiles : this.remotelyUpdatedFiles;
+            updatedFiles.add(filePath);
+        }
     }
 
     /**
