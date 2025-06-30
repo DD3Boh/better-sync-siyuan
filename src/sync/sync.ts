@@ -6,9 +6,6 @@ import {
     readDir,
     reloadFiletree,
     getUnusedAssets,
-    getPathByID,
-    renameDoc,
-    moveDocs,
     requestWithHeaders
 } from "@/api";
 import BetterSyncPlugin from "..";
