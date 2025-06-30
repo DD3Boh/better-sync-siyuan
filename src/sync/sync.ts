@@ -463,8 +463,6 @@ export class SyncManager {
             }
         );
 
-        await this.syncNotebookConfig(protyle.notebookId);
-
         await this.sendReloadProtylesMessage([path]);
     }
 
