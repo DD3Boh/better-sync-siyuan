@@ -326,8 +326,15 @@ export class SyncManager {
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
-                console.log(`Sending ${url} request via WebSocket`);
-                const wsPayload = new Payload(url, init.body);
+                await this.fetchAndSetRemoteAppId(this.remotes);
+
+                const appId = this.remotes[1].appId;
+                console.log(`Sending ${url} request via WebSocket with app ID: ${appId}`);
+
+                const wsPayload = new Payload(url, {
+                    requestData: init.body,
+                    appId: appId
+                });
                 await this.transmitWebSocketMessage(wsPayload.toString(), this.inputWebSocketManagers[1]);
 
                 break;
@@ -594,9 +601,16 @@ export class SyncManager {
                 const requestId = this.generateRequestId();
                 this.webSocketRequestIds.add(requestId);
 
+                const { appId, requestData } = payload.data;
+
+                if (appId && appId !== this.plugin.app.appId) {
+                    console.warn(`Ignoring request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
+                    return;
+                }
+
                 await requestWithHeaders(
                     payload.type,
-                    JSON.parse(payload.data),
+                    JSON.parse(requestData),
                     { "websocket-request-id": requestId }
                 );
 
