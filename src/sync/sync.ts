@@ -323,16 +323,25 @@ export class SyncManager {
                 if (this.plugin.settingsManager.getPref("instantSync") !== true)
                     break;
 
-                await this.fetchAndSetRemoteAppId(this.remotes);
+                const useWebSocket = await this.fetchAndSetRemoteAppId(this.remotes) && await this.shouldUseWebSocket();
 
-                const appId = this.remotes[1].appId;
-                console.log(`Sending ${url} request via WebSocket with app ID: ${appId}`);
+                if (useWebSocket) {
+                    const appId = this.remotes[1].appId;
+                    console.log(`Sending ${url} request via WebSocket with app ID: ${appId}`);
 
-                const wsPayload = new Payload(url, {
-                    requestData: init.body,
-                    appId: appId
-                });
-                await this.transmitWebSocketMessage(wsPayload.toString(), this.inputWebSocketManagers[1]);
+                    const wsPayload = new Payload(url, {
+                        requestData: init.body,
+                        appId: appId
+                    });
+                    await this.transmitWebSocketMessage(wsPayload.toString(), this.inputWebSocketManagers[1]);
+                } else {
+                    console.log(`Sending ${url} request via regular fetch.`);
+                    await requestWithHeaders(
+                        `${this.remotes[1].url}${url}`,
+                        JSON.parse(init.body as string),
+                        SyncUtils.getHeaders(this.remotes[1].key)
+                    );
+                }
 
                 break;
 
@@ -518,8 +527,9 @@ export class SyncManager {
      * Fetch and set the remote appId.
      *
      * @param remotes The list of remote connections.
+     * @returns A Promise that resolves to a boolean indicating whether the appId was found successfully.
      */
-    public async fetchAndSetRemoteAppId(remotes: RemoteInfo[] = this.remotes) {
+    public async fetchAndSetRemoteAppId(remotes: RemoteInfo[] = this.remotes): Promise<boolean> {
         await Promise.all([
             this.connectRemoteOutputWebSocket(),
             this.transmitWebSocketMessage(
@@ -532,19 +542,20 @@ export class SyncManager {
             if (this.receivedAppIds.size > 0) {
                 if (this.receivedAppIds.has(remotes[1].appId)) {
                     console.log(`Remote app ID already set: ${remotes[1].appId}`);
-                    return;
+                    return true;
                 }
 
                 this.setRemoteAppId(this.chooseRemoteAppId(), remotes[1]);
                 console.log(`Remote app ID set to: ${remotes[1].appId}`);
                 this.receivedAppIds.clear();
-                return;
+                return true;
             }
 
             await new Promise(resolve => setTimeout(resolve, 5));
         }
 
         console.warn("Timeout waiting for remote app ID.");
+        return false;
     }
 
     /**
