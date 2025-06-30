@@ -381,6 +381,7 @@ export class SyncManager {
                     notebookId,
                     this.copyRemotes(this.remotes),
                     [],
+                    null,
                     {
                         deleteFoldersOnly: false,
                         onlyIfMissing: true,
@@ -867,12 +868,22 @@ export class SyncManager {
 
         await this.fetchAndSetRemoteAppId(remotes);
 
+        const dataFiles: [Map<string, IResReadDir>, Map<string, IResReadDir>] = await this.scanDataDirectory(remotes);
+
+        function getDataFiles(pattern: string): [Map<string, IResReadDir>, Map<string, IResReadDir>] {
+            return [
+                new Map([...dataFiles[0]].filter(([path]) => path.startsWith(pattern))),
+                new Map([...dataFiles[1]].filter(([path]) => path.startsWith(pattern)))
+            ];
+        }
+
         const notebookSyncPromises = combinedNotebooks.map(notebook =>
             this.syncDirectory(
                 "data",
                 notebook.id,
                 remotes,
                 [".siyuan"],
+                getDataFiles(`data/${notebook.id}`),
                 {
                     deleteFoldersOnly: false,
                     onlyIfMissing: false,
@@ -893,12 +904,14 @@ export class SyncManager {
 
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(([path, dir]) =>
-            this.syncDirectory(path, dir, remotes, [], {
-                deleteFoldersOnly: true,
-                onlyIfMissing: false,
-                avoidDeletions: false,
-                trackConflicts: false
-            })
+            this.syncDirectory(path, dir, remotes, [], getDataFiles(`${path}/${dir}`),
+                {
+                    deleteFoldersOnly: true,
+                    onlyIfMissing: false,
+                    avoidDeletions: false,
+                    trackConflicts: false
+                }
+            )
         );
 
         // Sync without deletions
@@ -908,7 +921,7 @@ export class SyncManager {
         ];
 
         const syncWithoutDeletionsPromises = syncWithoutDeletions.map(([path, dir, excludedItems]) =>
-            this.syncDirectory(path, dir, remotes, excludedItems, {
+            this.syncDirectory(path, dir, remotes, excludedItems, null, {
                 deleteFoldersOnly: false,
                 onlyIfMissing: false,
                 avoidDeletions: true,
@@ -923,7 +936,7 @@ export class SyncManager {
         ];
 
         const syncIfMissingPromises = syncIfMissing.map(([path, dir]) =>
-            this.syncDirectory(path, dir, remotes, [], {
+            this.syncDirectory(path, dir, remotes, [], getDataFiles(`${path}/${dir}`), {
                 deleteFoldersOnly: false,
                 onlyIfMissing: true,
                 avoidDeletions: true,
@@ -955,6 +968,7 @@ export class SyncManager {
             "assets",
             remotes,
             await this.getUnusedAssetsNames(remotes),
+            getDataFiles("data/assets"),
             {
                 deleteFoldersOnly: false,
                 onlyIfMissing: false,
@@ -998,6 +1012,41 @@ export class SyncManager {
         });
     }
 
+    private async scanDataDirectory(
+        remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes),
+        excludedItems: string[] = []
+    ): Promise<[Map<string, IResReadDir>, Map<string, IResReadDir>]> {
+        const useWebSocket: boolean = await this.shouldUseWebSocket();
+        let disconnectWebSocket = false;
+
+        if (useWebSocket && !this.outputWebSocketManagers[1].isConnected()) {
+            this.connectRemoteOutputWebSocket();
+            console.log("Connected to remote output WebSocket for directory sync.");
+            disconnectWebSocket = true;
+        }
+
+        const path = "";
+        const dirName = "data";
+
+        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
+
+        const filesTwoPromise = useWebSocket
+            ? this.getRemoteDirFilesViaWebSocket(path, dirName, excludedItems, remotes[1].appId)
+            : SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems);
+
+        const [filesOne, filesTwo] = await Promise.all([
+            filesOnePromise,
+            filesTwoPromise
+        ]);
+
+        if (disconnectWebSocket) {
+            this.disconnectRemoteOutputWebSocket();
+            console.log("Disconnected from remote output WebSocket after data directory retrieval.");
+        }
+
+        return [filesOne, filesTwo];
+    }
+
     /**
      * Synchronize a directory between local and remote devices, in both directions.
      * @param path The path to the directory to synchronize.
@@ -1015,6 +1064,7 @@ export class SyncManager {
         dirName: string,
         remotes: [RemoteInfo, RemoteInfo],
         excludedItems: string[] = [],
+        providedFiles: [Map<string, IResReadDir>, Map<string, IResReadDir>] = null,
         options: {
             deleteFoldersOnly: boolean,
             onlyIfMissing: boolean,
@@ -1038,16 +1088,24 @@ export class SyncManager {
             disconnectWebSocket = true;
         }
 
-        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
+        let filesOne: Map<string, IResReadDir>;
+        let filesTwo: Map<string, IResReadDir>;
 
-        const filesTwoPromise = useWebSocket
-            ? this.getRemoteDirFilesViaWebSocket(path, dirName, excludedItems, remotes[1].appId)
-            : SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems);
+        if (providedFiles) {
+            filesOne = providedFiles[0];
+            filesTwo = providedFiles[1];
+        } else if (!providedFiles || providedFiles.length !== 2) {
+            const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
 
-        const [filesOne, filesTwo] = await Promise.all([
-            filesOnePromise,
-            filesTwoPromise
-        ]);
+            const filesTwoPromise = useWebSocket
+                ? this.getRemoteDirFilesViaWebSocket(path, dirName, excludedItems, remotes[1].appId)
+                : SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems);
+
+            [filesOne, filesTwo] = await Promise.all([
+                filesOnePromise,
+                filesTwoPromise
+            ]);
+        }
 
         // Create a combined map of all files
         const allFiles = new Map<string, IResReadDir>();

@@ -21,7 +21,7 @@ export class SyncUtils {
     ): Promise<Map<string, IResReadDir>> {
         const filesMap = new Map<string, IResReadDir>();
 
-        const fullPath = `${path}/${dirName}`;
+        const fullPath = path === "" ? dirName : `${path}/${dirName}`;
 
         // Read the path itself and add it to the map
         const mainDirResponse = await readDir(path, url, SyncUtils.getHeaders(key));
