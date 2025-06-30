@@ -387,10 +387,8 @@ export class SyncManager {
                     [],
                     null,
                     {
-                        deleteFoldersOnly: false,
                         onlyIfMissing: true,
-                        avoidDeletions: true,
-                        trackConflicts: false
+                        avoidDeletions: true
                     }
                 );
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
@@ -455,12 +453,7 @@ export class SyncManager {
         await this.syncFile(
             path,
             protyle.notebookId,
-            {
-                deleteFoldersOnly: false,
-                onlyIfMissing: false,
-                avoidDeletions: true,
-                trackConflicts: false
-            }
+            { avoidDeletions: true }
         );
 
         await this.sendReloadProtylesMessage([path]);
@@ -922,12 +915,7 @@ export class SyncManager {
                 remotes,
                 [".siyuan"],
                 getDataFiles(`data/${notebook.id}`),
-                {
-                    deleteFoldersOnly: false,
-                    onlyIfMissing: false,
-                    avoidDeletions: false,
-                    trackConflicts: trackConflicts
-                }
+                { trackConflicts: trackConflicts }
             )
         );
 
@@ -943,12 +931,7 @@ export class SyncManager {
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(([path, dir]) =>
             this.syncDirectory(path, dir, remotes, [], getDataFiles(`${path}/${dir}`),
-                {
-                    deleteFoldersOnly: true,
-                    onlyIfMissing: false,
-                    avoidDeletions: false,
-                    trackConflicts: false
-                }
+                { deleteFoldersOnly: true }
             )
         );
 
@@ -959,12 +942,7 @@ export class SyncManager {
         ];
 
         const syncWithoutDeletionsPromises = syncWithoutDeletions.map(([path, dir, excludedItems]) =>
-            this.syncDirectory(path, dir, remotes, excludedItems, null, {
-                deleteFoldersOnly: false,
-                onlyIfMissing: false,
-                avoidDeletions: true,
-                trackConflicts: false
-            })
+            this.syncDirectory(path, dir, remotes, excludedItems, null, { avoidDeletions: true })
         );
 
         // Sync some files only if missing
@@ -975,10 +953,8 @@ export class SyncManager {
 
         const syncIfMissingPromises = syncIfMissing.map(([path, dir]) =>
             this.syncDirectory(path, dir, remotes, [], getDataFiles(`${path}/${dir}`), {
-                deleteFoldersOnly: false,
                 onlyIfMissing: true,
-                avoidDeletions: true,
-                trackConflicts: false
+                avoidDeletions: true
             })
         );
 
@@ -1007,12 +983,7 @@ export class SyncManager {
             remotes,
             await this.getUnusedAssetsNames(remotes),
             getDataFiles("data/assets"),
-            {
-                deleteFoldersOnly: false,
-                onlyIfMissing: false,
-                avoidDeletions: true,
-                trackConflicts: false
-            }
+            { avoidDeletions: true }
         );
 
         reloadFiletree(remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
@@ -1103,16 +1074,11 @@ export class SyncManager {
         remotes: [RemoteInfo, RemoteInfo],
         excludedItems: string[] = [],
         providedFiles: [Map<string, IResReadDir>, Map<string, IResReadDir>] = null,
-        options: {
-            deleteFoldersOnly: boolean,
-            onlyIfMissing: boolean,
-            avoidDeletions: boolean,
-            trackConflicts: boolean
-        } = {
-            deleteFoldersOnly: false,
-            onlyIfMissing: false,
-            avoidDeletions: false,
-            trackConflicts: false
+        options?: {
+            deleteFoldersOnly?: boolean,
+            onlyIfMissing?: boolean,
+            avoidDeletions?: boolean,
+            trackConflicts?: boolean
         }
     ) {
         console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
@@ -1194,11 +1160,11 @@ export class SyncManager {
     async syncFile(
         filePath: string,
         dirName: string,
-        options: {
-            deleteFoldersOnly: boolean,
-            onlyIfMissing: boolean,
-            avoidDeletions: boolean,
-            trackConflicts: boolean
+        options?: {
+            deleteFoldersOnly?: boolean,
+            onlyIfMissing?: boolean,
+            avoidDeletions?: boolean,
+            trackConflicts?: boolean
         },
         remotes: [RemoteFileInfo, RemoteFileInfo] = this.remotes,
     ) {
@@ -1226,7 +1192,7 @@ export class SyncManager {
         ];
 
         // Conflict detection
-        if (!options.onlyIfMissing && !fileRes.isDir && options.trackConflicts) {
+        if (!options?.onlyIfMissing && !fileRes.isDir && options?.trackConflicts) {
             const conflictDetected = await ConflictHandler.handleConflictDetection(
                 filePath,
                 dirName,
@@ -1242,11 +1208,11 @@ export class SyncManager {
 
         const lastSyncTime = Math.min(copyRemotes[0].lastSyncTime, copyRemotes[1].lastSyncTime);
 
-        if (copyRemotes[0].file && copyRemotes[1].file && (updated[0] === updated[1] || options.onlyIfMissing)) return;
+        if (copyRemotes[0].file && copyRemotes[1].file && (updated[0] === updated[1] || options?.onlyIfMissing)) return;
 
         // Remove deleted files
         if ((!copyRemotes[0].file && lastSyncTime > updated[1]) || (!copyRemotes[1].file && lastSyncTime > updated[0])) {
-            if ((fileRes.isDir || !options.deleteFoldersOnly) && !options.avoidDeletions) {
+            if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
                 const targetIndex = !copyRemotes[0].file ? 1 : 0;
                 await SyncUtils.deleteFile(filePath, copyRemotes[targetIndex].url, copyRemotes[targetIndex].key);
                 return;
