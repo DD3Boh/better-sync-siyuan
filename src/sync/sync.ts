@@ -504,12 +504,17 @@ export class SyncManager {
         this.inputWebSocketManagers[1] = new WebSocketManager("better-sync-input", remotes[1]);
         this.outputWebSocketManagers[1] = new WebSocketManager("better-sync-output", remotes[1]);
 
-        this.inputWebSocketManagers[0].initWebSocket();
-        this.outputWebSocketManagers[0].initWebSocket();
+        this.connectWebSocket(
+            this.inputWebSocketManagers[0],
+            this.webSocketInputCallback.bind(this),
+            this.webSocketCloseRetryCallback.bind(this),
+        )
 
-        this.inputWebSocketManagers[0].connectOnMessage((message) => {
-            this.webSocketInputCallback(message);
-        });
+        this.connectWebSocket(
+            this.outputWebSocketManagers[0],
+            null,
+            this.webSocketCloseRetryCallback.bind(this)
+        );
     }
 
     /**
@@ -662,6 +667,33 @@ export class SyncManager {
     }
 
     /**
+     * WebSocket close callback to retry connection.
+     *
+     * @param websocketManager The WebSocket manager that was closed.
+     */
+    private async webSocketCloseRetryCallback(websocketManager: WebSocketManager) {
+        console.warn(`WebSocket connection closed, attempting to reconnect...`);
+
+        const retry = async () => {
+            try {
+                await this.connectWebSocket(
+                    websocketManager,
+                    undefined,
+                    this.webSocketCloseRetryCallback.bind(this)
+                );
+
+                if (!websocketManager.isConnected())
+                    setTimeout(retry, 5000);
+            } catch (error) {
+                console.error(`Failed to reconnect WebSocket, retrying in 5 seconds...`, error);
+                setTimeout(retry, 5000);
+            }
+        };
+
+        retry();
+    }
+
+    /**
      * Handle incoming WebSocket output messages.
      * This function is called whenever a message is received from the output WebSocket.
      * This is used to handle responses from the remote server.
@@ -729,6 +761,42 @@ export class SyncManager {
         if (!webSocketManager) return;
 
         await webSocketManager.broadcastContent(data);
+    }
+
+    /**
+     * Connect to the specified WebSocket.
+     *
+     * @param webSocketManager The WebSocket manager to connect.
+     * @param onmessageCallback The callback function to handle incoming messages.
+     * @param oncloseCallback The callback function to handle WebSocket closure.
+     * @param onerrorCallback The callback function to handle WebSocket errors.
+     */
+    async connectWebSocket(
+        webSocketManager: WebSocketManager,
+        onmessageCallback?: (message: any) => void,
+        oncloseCallback?: (wsManager: WebSocketManager) => void,
+        onerrorCallback?: (error: any) => void
+    ) {
+        if (!webSocketManager) {
+            console.warn("WebSocket manager is not initialized.");
+            return;
+        }
+
+        if (webSocketManager.isConnected()) {
+            console.log("WebSocket is already connected.");
+            return;
+        }
+
+        await webSocketManager.initWebSocket();
+
+        if (oncloseCallback)
+            webSocketManager.connectOnClose(oncloseCallback);
+
+        if (onmessageCallback)
+            webSocketManager.connectOnMessage(onmessageCallback);
+
+        if (onerrorCallback)
+            webSocketManager.connectOnError(onerrorCallback);
     }
 
     /**

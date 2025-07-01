@@ -82,6 +82,15 @@ export class WebSocketManager {
     }
 
     /**
+     * Connect to the onclose event of the WebSocket.
+     * @param callback The callback function to handle connection closure.
+     */
+    connectOnClose(callback: (wsManager: WebSocketManager) => void): void {
+        if (this.socket)
+            this.socket.onclose = () => callback(this);
+    }
+
+    /**
      * Publish a message to the broadcast channel.
      * This can include strings and binary files.
      *
