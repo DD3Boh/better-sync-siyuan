@@ -2,6 +2,8 @@
 
 Better Sync is a plugin for [SiYuan](https://github.com/siyuan-note/siyuan) that implements a new synchronization system, which allows for a faster sync and a peer to peer style sync between different SiYuan instances.
 
+For a full list of changes, see the [changelog](CHANGELOG.md).
+
 ## Features
 
 - **Peer-to-peer sync**: Sync between two SiYuan instances without needing a third server

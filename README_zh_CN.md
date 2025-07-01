@@ -2,6 +2,8 @@
 
 Better Sync 是一个为 [SiYuan](https://github.com/siyuan-note/siyuan) 设计的插件，它实现了一种新的同步系统，允许更快的同步速度，并在不同 SiYuan 实例之间实现点对点风格的同步。
 
+有关完整的更改列表，请参阅[更新日志](CHANGELOG_zh_CN.md)。
+
 ## 功能特点
 
 - **点对点同步**：无需第三方服务器即可在两个 SiYuan 实例之间进行同步
