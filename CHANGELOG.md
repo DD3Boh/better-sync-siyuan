@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0
+
+- Implement experimental websockets support for near-instant, real-time synchronization
+- Use websockets to retrieve the remote's file list more easily and faster
+- Sync filetree operations like creation, renaming, and deletion across devices instantly
+- Automatically refresh open notes when they are updated by a sync
+- Re-brand "Auto Sync Current File" to "Instant Sync" for clarity
+- Make the debounce time for instant note contents syncing configurable
+- Improve handling of notebook configuration synchronization
+- Improve the locking mechanism reliability and speed
+- Automatically ignore lock files older than 5 minutes, in case a lock file hasn't been deleted by mistake
+- Scan assets for updates as well. Fixes issues with some plugins that use assets and modify them (like Excalidraw)
+- Allow moving the sync status button to the top breadcrumb bar for better visibility (especially on mobile)
+- Numerous bug fixes and performance improvements
+
 ## 1.2.0
 
 - Implement sync locking to prevent multiple syncs to happen at the same time

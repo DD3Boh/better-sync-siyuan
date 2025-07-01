@@ -11,6 +11,9 @@ Better Sync is a plugin for [SiYuan](https://github.com/siyuan-note/siyuan) that
 - **Faster sync**: Syncs faster when compared to WebDav, especially on the same network
 - **Set up as client-server sync**: This plugin can also behave as a regular server, if you host your SiYuan instance on a public website with the docker image, which would be accessible also outside of your home network.
 - **Sync conflicts tracking**: The plugin creates Conflict files in case of errors during the sync, when a file has been modified on both machines.
+- **Experimental real-time sync**: Utilizes websockets for near-instant synchronization of changes across devices.
+- **Automatic data snapshots before sync to avoid data loss**: Creates a snapshot of the data before syncing to prevent data loss.
+- **Plugins, themes and assets syncronization**: Syncs not only the notes, but also plugins, themes and assets.
 
 ## Basic Setup
 
