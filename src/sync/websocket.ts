@@ -6,9 +6,6 @@ export class WebSocketManager {
     private remote: RemoteInfo | null = null;
     private broadcastChannel: string;
 
-    // WebSocket connection status
-    private connected: boolean = false;
-
     constructor(channel: string, remote: RemoteInfo | null) {
         this.broadcastChannel = channel;
         this.remote = remote;
@@ -24,20 +21,17 @@ export class WebSocketManager {
 
                 this.socket.onopen = () => {
                     console.log(`WebSocket connection established for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
-                    this.connected = true;
                     resolve();
                 };
 
                 this.socket.onerror = (error) => {
                     console.error(`WebSocket error for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
-                    this.connected = false;
                     reject(error);
                 };
 
                 this.socket.onclose = () => {
                     console.log(`WebSocket connection closed for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
                     this.socket = null;
-                    this.connected = false;
                 };
             } catch (error) {
                 console.error(`Failed to initialize WebSocket for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
@@ -114,7 +108,7 @@ export class WebSocketManager {
         );
 
         // Ignore the connection from this websocket instance itself
-        const totalConnections = (channelInfo?.channel?.count || 0) - (this.connected ? 1 : 0);
+        const totalConnections = (channelInfo?.channel?.count || 0) - (this.isConnected() ? 1 : 0);
         return totalConnections > 0;
     }
 
@@ -124,6 +118,6 @@ export class WebSocketManager {
      * @returns The current status, as a boolean indicating if the WebSocket is connected.
      */
     isConnected(): boolean {
-        return this.connected;
+        return this?.socket?.readyState === WebSocket.OPEN;
     }
 }
