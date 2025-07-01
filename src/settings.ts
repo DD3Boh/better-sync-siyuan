@@ -145,6 +145,20 @@ export class SettingsManager {
         });
 
         this.settingUtils.addItem({
+            key: "syncIconInBreadcrumb",
+            value: false,
+            type: "checkbox",
+            title: this.plugin.i18n.syncIconInBreadcrumb,
+            description: this.plugin.i18n.syncIconInBreadcrumbDesc,
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("syncIconInBreadcrumb");
+                    this.settingUtils.set("syncIconInBreadcrumb", value);
+                }
+            }
+        });
+
+        this.settingUtils.addItem({
             key: "useExperimentalWebSocket",
             value: false,
             type: "checkbox",

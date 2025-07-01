@@ -29,5 +29,7 @@
     "initializeDataRepo": "{{remoteName}} 数据仓库未初始化，无法创建 {{remoteName}} 数据快照。",
     "minHoursBetweenSnapshots": "快照之间的最短小时数",
     "minHoursBetweenSnapshotsDesc": "自动数据快照之间的最短小时数。",
-    "syncLockAlreadyExists": "{{remoteName}} 上已有同步正在进行中。如果这是一个错误，请删除锁文件 `/data/.siyuan/sync/lock`。"
+    "syncLockAlreadyExists": "{{remoteName}} 上已有同步正在进行中。如果这是一个错误，请删除锁文件 `/data/.siyuan/sync/lock`。",
+    "showSyncIconInBreadcrumb": "在面包屑中显示同步图标",
+    "showSyncIconInBreadcrumbDesc": "在文档面包屑中显示同步图标，而不是在顶部栏中。"
 }
