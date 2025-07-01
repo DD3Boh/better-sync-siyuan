@@ -9,8 +9,6 @@ export default class BetterSyncPlugin extends Plugin {
     contentObserver: MutationObserver;
 
     async onload() {
-        console.log("onload");
-
         this.settingsManager = new SettingsManager(this);
         await this.settingsManager.setupSettings();
         this.syncManager = new SyncManager(this);
@@ -80,11 +78,7 @@ export default class BetterSyncPlugin extends Plugin {
         if (syncOnOpen) this.syncManager.syncHandler();
     }
 
-    async onunload() {
-        console.log("onunload");
-    }
+    async onunload() {}
 
-    uninstall() {
-        console.log("uninstall");
-    }
+    uninstall() {}
 }
