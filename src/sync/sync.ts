@@ -279,6 +279,13 @@ export class SyncManager {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         let fetchPromise: Promise<Response> | null = null;
 
+        const blockingUrls = [
+            "/api/system/exit",
+        ];
+
+        if (!blockingUrls.includes(url))
+            fetchPromise = this.originalFetch(input, init);
+
         // Check if this request is initiated via WebSocket and should be excluded
         let requestId: string | undefined;
         if (init?.headers) {
@@ -290,11 +297,8 @@ export class SyncManager {
 
         if (requestId && this.webSocketRequestIds.has(requestId)) {
             this.webSocketRequestIds.delete(requestId);
-            return this.originalFetch(input, init);
+            return fetchPromise;
         }
-
-        if (url !== "/api/system/exit")
-            fetchPromise = this.originalFetch(input, init);
 
         switch (url) {
             case "/api/system/exit":
