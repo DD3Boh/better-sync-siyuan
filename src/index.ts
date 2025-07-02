@@ -93,34 +93,22 @@ export default class BetterSyncPlugin extends Plugin {
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = cloudSyncSuccIcon;
                     e.setAttribute("aria-label", this.i18n.syncDone + lastSyncTimeString);
-                    setTimeout(() => {
-                        svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
-                        e.setAttribute("aria-label", this.i18n.cloudIconDesc);
-                    }, 5000);
                     break;
                 case SyncStatus.DoneWithConflict:
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = cloudSyncSuccIcon;
                     e.setAttribute("aria-label", this.i18n.syncDoneWithConflict + lastSyncTimeString);
-                    setTimeout(() => {
-                        svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
-                        e.setAttribute("aria-label", this.i18n.cloudIconDesc);
-                    }, 5000);
                     break;
                 case SyncStatus.Failed:
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = `<use xlink:href="#iconCloudError"></use>`;
                     e.setAttribute("aria-label", this.i18n.syncFailed + lastSyncTimeString);
-                    setTimeout(() => {
-                        svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
-                        e.setAttribute("aria-label", this.i18n.cloudIconDesc);
-                    }, 5000);
                     break;
                 case SyncStatus.None:
                 default:
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = `<svg><use xlink:href="#iconCloudSucc"></use></svg>`;
-                    e.setAttribute("aria-label", this.i18n.cloudIconDesc);
+                    e.setAttribute("aria-label", this.i18n.cloudIconDesc + lastSyncTimeString);
                     break;
             }
         });
