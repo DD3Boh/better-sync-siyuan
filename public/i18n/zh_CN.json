@@ -35,5 +35,6 @@
     "syncInProgress": "同步中...",
     "syncDone": "同步成功。",
     "syncDoneWithConflict": "同步完成但有冲突。",
-    "syncFailed": "同步失败。"
+    "syncFailed": "同步失败。",
+    "lastSyncTime": "上次同步时间：{{lastSyncTime}}"
 }

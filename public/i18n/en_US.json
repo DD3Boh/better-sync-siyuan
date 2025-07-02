@@ -35,5 +35,6 @@
     "syncInProgress": "Sync in progress...",
     "syncDone": "Sync successful.",
     "syncDoneWithConflict": "Sync completed with conflicts.",
-    "syncFailed": "Sync failed."
+    "syncFailed": "Sync failed.",
+    "lastSyncTime": "Last sync time: {{lastSyncTime}}"
 }

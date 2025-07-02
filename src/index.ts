@@ -73,9 +73,15 @@ export default class BetterSyncPlugin extends Plugin {
         const elements = document.querySelectorAll(".better-sync-button");
         if (elements.length === 0) return;
 
-        elements.forEach(e => {
+        elements.forEach(async e => {
             const svg = e.querySelector("svg");
             if (!svg) return;
+
+            const lastSyncTime = await this.syncManager.getLastLocalSyncTime() * 1000;
+            const lastSyncTimeString = "\n" + this.i18n.lastSyncTime.replace(
+                "{{lastSyncTime}}",
+                new Date(lastSyncTime).toLocaleString()
+            );
 
             switch (status) {
                 case SyncStatus.InProgress:
@@ -86,7 +92,7 @@ export default class BetterSyncPlugin extends Plugin {
                 case SyncStatus.Done:
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = cloudSyncSuccIcon;
-                    e.setAttribute("aria-label", this.i18n.syncDone);
+                    e.setAttribute("aria-label", this.i18n.syncDone + lastSyncTimeString);
                     setTimeout(() => {
                         svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
                         e.setAttribute("aria-label", this.i18n.cloudIconDesc);
@@ -95,7 +101,7 @@ export default class BetterSyncPlugin extends Plugin {
                 case SyncStatus.DoneWithConflict:
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = cloudSyncSuccIcon;
-                    e.setAttribute("aria-label", this.i18n.syncDoneWithConflict);
+                    e.setAttribute("aria-label", this.i18n.syncDoneWithConflict + lastSyncTimeString);
                     setTimeout(() => {
                         svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
                         e.setAttribute("aria-label", this.i18n.cloudIconDesc);
@@ -104,7 +110,7 @@ export default class BetterSyncPlugin extends Plugin {
                 case SyncStatus.Failed:
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = `<use xlink:href="#iconCloudError"></use>`;
-                    e.setAttribute("aria-label", this.i18n.syncFailed);
+                    e.setAttribute("aria-label", this.i18n.syncFailed + lastSyncTimeString);
                     setTimeout(() => {
                         svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
                         e.setAttribute("aria-label", this.i18n.cloudIconDesc);
