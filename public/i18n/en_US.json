@@ -31,5 +31,9 @@
     "minHoursBetweenSnapshotsDesc": "The minimum number of hours between automatic data snapshots.",
     "syncLockAlreadyExists": "Another sync is already in progress on {{remoteName}}. If this is an error, please remove the lock file `/data/.siyuan/sync/lock`.",
     "syncIconInBreadcrumb": "Show sync icon in breadcrumb",
-    "syncIconInBreadcrumbDesc": "Show the sync icon in document breadcrumb. You can toggle the top bar icon in the SiYuan settings."
+    "syncIconInBreadcrumbDesc": "Show the sync icon in document breadcrumb. You can toggle the top bar icon in the SiYuan settings.",
+    "syncInProgress": "Sync in progress...",
+    "syncDone": "Sync successful.",
+    "syncDoneWithConflict": "Sync completed with conflicts.",
+    "syncFailed": "Sync failed."
 }

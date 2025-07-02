@@ -31,5 +31,9 @@
     "minHoursBetweenSnapshotsDesc": "自动数据快照之间的最短小时数。",
     "syncLockAlreadyExists": "{{remoteName}} 上已有同步正在进行中。如果这是一个错误，请删除锁文件 `/data/.siyuan/sync/lock`。",
     "syncIconInBreadcrumb": "在面包屑中显示同步图标",
-    "syncIconInBreadcrumbDesc": "在文档面包屑中显示同步图标。您可以在 SiYuan 设置中切换顶部栏图标。"
+    "syncIconInBreadcrumbDesc": "在文档面包屑中显示同步图标。您可以在 SiYuan 设置中切换顶部栏图标。",
+    "syncInProgress": "同步中...",
+    "syncDone": "同步成功。",
+    "syncDoneWithConflict": "同步完成但有冲突。",
+    "syncFailed": "同步失败。"
 }
