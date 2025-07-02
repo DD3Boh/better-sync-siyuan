@@ -56,7 +56,20 @@ export default class BetterSyncPlugin extends Plugin {
             button.className = "block__icon fn__flex-center b3-tooltips b3-tooltips__w better-sync-button";
             button.setAttribute("aria-label", this.i18n.cloudIconDesc);
             button.innerHTML = `<svg><use xlink:href="#iconCloud"></use></svg>`;
-            button.onclick = async () => { this.syncManager.syncHandler(); };
+            button.onclick = async () => {
+                const svg = button.querySelector("svg");
+                if (svg) {
+                    svg.classList.add("fn__rotate");
+                    svg.innerHTML = `<use xlink:href="#iconRefresh"></use>`;
+                }
+
+                await this.syncManager.syncHandler();
+
+                if (svg) {
+                    svg.innerHTML = `<use xlink:href="#iconCloud"></use>`;
+                    svg.classList.remove("fn__rotate");
+                }
+            };
 
             referenceElement.after(button);
         });
