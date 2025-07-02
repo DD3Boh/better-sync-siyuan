@@ -2,6 +2,7 @@ import { Plugin } from "siyuan";
 import "@/index.scss";
 import { SettingsManager } from "./settings";
 import { SyncManager } from "@/sync";
+import { cloudSyncSuccIcon } from "@/assets";
 
 export default class BetterSyncPlugin extends Plugin {
     settingsManager: SettingsManager;
@@ -66,7 +67,7 @@ export default class BetterSyncPlugin extends Plugin {
                 await this.syncManager.syncHandler(false);
 
                 if (svg) {
-                    svg.innerHTML = `<use xlink:href="#iconCloud"></use>`;
+                    svg.innerHTML = cloudSyncSuccIcon;
                     svg.classList.remove("fn__rotate");
                 }
             };
