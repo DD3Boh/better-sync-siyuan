@@ -67,6 +67,8 @@ export default class BetterSyncPlugin extends Plugin {
 
             referenceElement.after(button);
         });
+
+        this.updateButtonIcon(this.syncManager.getSyncStatus());
     }
 
     private updateButtonIcon(status: SyncStatus) {

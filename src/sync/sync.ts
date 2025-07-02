@@ -89,6 +89,7 @@ export class SyncManager {
      */
     private webSocketRequestIds: Set<string> = new Set();
 
+    private syncStatus: SyncStatus = SyncStatus.None;
     private statusCallbacks: SyncStatusCallback[] = [];
 
     /**
@@ -117,7 +118,17 @@ export class SyncManager {
      * @param status The new sync status.
      */
     private setSyncStatus(status: SyncStatus) {
+        this.syncStatus = status;
         this.statusCallbacks.forEach(callback => callback(status));
+    }
+
+    /**
+     * Get the current sync status.
+     *
+     * @return The current sync status.
+     */
+    getSyncStatus(): SyncStatus {
+        return this.syncStatus;
     }
 
     /**
