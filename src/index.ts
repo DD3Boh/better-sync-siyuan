@@ -8,7 +8,6 @@ import { SyncStatus } from "@/types/sync-status";
 export default class BetterSyncPlugin extends Plugin {
     settingsManager: SettingsManager;
     syncManager: SyncManager;
-    contentObserver: MutationObserver;
 
     async onload() {
         this.settingsManager = new SettingsManager(this);
