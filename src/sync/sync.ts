@@ -966,7 +966,7 @@ export class SyncManager {
                 if (persistentMessage)
                     showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
                 console.warn(`Sync completed with conflicts in ${duration} seconds.`);
-                this.setSyncStatus(SyncStatus.Done);
+                this.setSyncStatus(SyncStatus.DoneWithConflict);
             } else {
                 if (persistentMessage)
                     showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);

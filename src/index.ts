@@ -83,6 +83,7 @@ export default class BetterSyncPlugin extends Plugin {
                     svg.innerHTML = `<use xlink:href="#iconRefresh"></use>`;
                     break;
                 case SyncStatus.Done:
+                case SyncStatus.DoneWithConflict:
                     svg.classList.remove("fn__rotate");
                     svg.innerHTML = cloudSyncSuccIcon;
                     setTimeout(() => {

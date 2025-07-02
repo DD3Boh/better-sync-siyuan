@@ -2,6 +2,7 @@ export enum SyncStatus {
     None,
     InProgress,
     Failed,
+    DoneWithConflict,
     Done
 }
 
