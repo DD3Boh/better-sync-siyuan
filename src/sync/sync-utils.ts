@@ -169,9 +169,10 @@ export class SyncUtils {
     /**
      * Set the sync status file with the provided remotes or URL-to-key mapping.
      */
-    static async setSyncStatus(remotes: [RemoteInfo, RemoteInfo]): Promise<void> {
-        const timestamp = Date.now();
-
+    static async setSyncStatus(
+        remotes: [RemoteInfo, RemoteInfo],
+        timestamp: number = Date.now()
+    ): Promise<void> {
         let filePath = `/data/.siyuan/sync/status`;
         let file = new File([], "status", { lastModified: timestamp });
 

@@ -187,6 +187,18 @@ export class SyncManager {
         this.setupWebSockets();
     }
 
+    /**
+     * Get the last local sync time.
+     *
+     * @return The last local sync time in milliseconds, or undefined if not set.
+     */
+    async getLastLocalSyncTime(): Promise<number | undefined> {
+        if (!this.remotes[0].lastSyncTime)
+            this.remotes[0].lastSyncTime = await SyncUtils.getLastSyncTime();
+
+        return this.remotes[0].lastSyncTime;
+    }
+
     /* Protyle management */
 
     /**
@@ -999,9 +1011,11 @@ export class SyncManager {
         // Update last sync times for both remotes
         await Promise.all([
             SyncUtils.getLastSyncTime(remotes[0].url, remotes[0].key).then(lastSyncTime => {
+                this.remotes[0].lastSyncTime = lastSyncTime;
                 remotes[0].lastSyncTime = lastSyncTime;
             }),
             SyncUtils.getLastSyncTime(remotes[1].url, remotes[1].key).then(lastSyncTime => {
+                this.remotes[1].lastSyncTime = lastSyncTime;
                 remotes[1].lastSyncTime = lastSyncTime;
             })
         ]);
@@ -1123,7 +1137,10 @@ export class SyncManager {
         // Reload remote protyles
         this.sendReloadProtylesMessage(Array.from(this.loadedProtyles.keys()));
 
-        SyncUtils.setSyncStatus(remotes);
+        const timestamp = Date.now();
+        SyncUtils.setSyncStatus(remotes, timestamp);
+        this.remotes[0].lastSyncTime = timestamp / 1000;
+        this.remotes[1].lastSyncTime = timestamp / 1000;
     }
 
     private getRemoteDirFilesViaWebSocket(path: string, dirName: string, excludedItems: string[], appId: string): Promise<Map<string, IResReadDir>> {
