@@ -76,6 +76,12 @@ export class SyncManager {
     private contentObserver: MutationObserver | null = null;
 
     /**
+     * Debounce timer for handling content changes in Protyles.
+     * This is used to prevent excessive sync operations during rapid content changes.
+     */
+    private contentChangeDebounceTimer: number | null = null;
+
+    /**
      * Map of pending directory requests, where the key is the request ID and the value is the resolve function.
      * This is used to handle asynchronous directory file requests via WebSocket.
      */
@@ -91,6 +97,11 @@ export class SyncManager {
 
     private syncStatus: SyncStatus = SyncStatus.None;
     private statusCallbacks: SyncStatusCallback[] = [];
+
+    /**
+     * Pending file modifications that are waiting to be synced.
+     */
+    private pendingFileModifications: Set<string> = new Set();
 
     /**
      * Constructor for the SyncManager class.
@@ -438,7 +449,6 @@ export class SyncManager {
 
         // Add a direct mutation observer to track DOM changes in the content
         if (protyle.contentElement) {
-            let debounceTimer: number | null = null;
             const debounceTime = this.plugin.settingsManager.getPref("transactionsDebounceTime") || 5000;
 
             this.contentObserver = new MutationObserver((mutations) => {
@@ -449,12 +459,14 @@ export class SyncManager {
                  */
                 if (mutations.length < 4) return;
 
-                if (debounceTimer !== null)
-                    clearTimeout(debounceTimer);
+                this.pendingFileModifications.add(`data/${protyle.notebookId}${protyle.path}`);
 
-                debounceTimer = window.setTimeout(() => {
+                if (this.contentChangeDebounceTimer !== null)
+                    clearTimeout(this.contentChangeDebounceTimer);
+
+                this.contentChangeDebounceTimer = window.setTimeout(() => {
                     this.handleContentChange(protyle);
-                    debounceTimer = null;
+                    this.contentChangeDebounceTimer = null;
                 }, debounceTime);
             });
 
@@ -484,6 +496,7 @@ export class SyncManager {
             { avoidDeletions: true }
         );
 
+        this.pendingFileModifications.delete(path);
         await this.sendReloadProtylesMessage([path]);
     }
 
@@ -917,6 +930,11 @@ export class SyncManager {
             await this.acquireAllLocks(remotes);
             locked = true;
 
+            if (this.contentChangeDebounceTimer !== null) {
+                clearTimeout(this.contentChangeDebounceTimer);
+                this.contentChangeDebounceTimer = null;
+            }
+
             await this.syncWithRemote(remotes, promise);
         } catch (error) {
             savedError = error;
@@ -1255,7 +1273,14 @@ export class SyncManager {
         ];
 
         // Conflict detection
-        if (!options?.onlyIfMissing && !fileRes.isDir && options?.trackConflicts) {
+        let trackConflicts = options?.trackConflicts ?? false;
+        if (this.pendingFileModifications.has(filePath) && trackConflicts) {
+            console.log(`Conflicts tracking skipped for ${filePath} as it has pending modifications.`);
+            trackConflicts = false;
+            this.pendingFileModifications.delete(filePath);
+        }
+
+        if (!options?.onlyIfMissing && !fileRes.isDir && trackConflicts) {
             const conflictDetected = await ConflictHandler.handleConflictDetection(
                 filePath,
                 dirName,
