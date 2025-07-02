@@ -1324,7 +1324,7 @@ export class SyncManager {
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
         await SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
 
-        if (options.trackUpdatedFiles) {
+        if (options?.trackUpdatedFiles) {
             const updatedFiles = iIn === 0 ? this.locallyUpdatedFiles : this.remotelyUpdatedFiles;
             updatedFiles.add(filePath);
         }
