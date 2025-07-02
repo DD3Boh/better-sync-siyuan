@@ -926,16 +926,21 @@ export class SyncManager {
                 console.error("Error during sync:", savedError);
 
                 showMessage(
-                    this.plugin.i18n.syncWithRemoteFailed.replace("{{remoteName}}", remotes[1].name).replace("{{error}}", savedError.message).replace("{{duration}}", duration),
+                    this.plugin.i18n.syncWithRemoteFailed
+                        .replace("{{remoteName}}", remotes[1].name)
+                        .replace("{{error}}", savedError.message)
+                        .replace("{{duration}}", duration),
                     6000,
                     "error"
                 );
             } else if (this.conflictDetected) {
-                showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
+                if (persistentMessage)
+                    showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
                 console.warn(`Sync completed with conflicts in ${duration} seconds.`);
                 this.setSyncStatus(SyncStatus.Done);
             } else {
-                showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);
+                if (persistentMessage)
+                    showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);
                 console.log(`Sync completed successfully in ${duration} seconds!`);
                 this.setSyncStatus(SyncStatus.Done);
             }
