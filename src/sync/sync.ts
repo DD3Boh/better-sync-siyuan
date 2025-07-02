@@ -12,6 +12,7 @@ import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
 import { ConflictHandler, SyncUtils, WebSocketManager } from "@/sync";
 import { Payload } from "@/libs/payload";
+import { SyncStatus, SyncStatusCallback } from "@/types/sync-status";
 
 export class SyncManager {
     // Plugin instance
@@ -88,6 +89,8 @@ export class SyncManager {
      */
     private webSocketRequestIds: Set<string> = new Set();
 
+    private statusCallbacks: SyncStatusCallback[] = [];
+
     /**
      * Constructor for the SyncManager class.
      * Initializes the plugin instance and overrides the fetch function to handle sync operations.
@@ -99,6 +102,22 @@ export class SyncManager {
 
         this.originalFetch = window.fetch.bind(window);
         window.fetch = this.customFetch.bind(this);
+    }
+
+    /**
+     * Register a callback for sync status changes.
+     * @param callback The callback to register.
+     */
+    onSyncStatusChange(callback: SyncStatusCallback) {
+        this.statusCallbacks.push(callback);
+    }
+
+    /**
+     * Set the sync status and notify listeners.
+     * @param status The new sync status.
+     */
+    private setSyncStatus(status: SyncStatus) {
+        this.statusCallbacks.forEach(callback => callback(status));
     }
 
     /**
@@ -869,6 +888,7 @@ export class SyncManager {
         persistentMessage: boolean = true,
         remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)
     ) {
+        this.setSyncStatus(SyncStatus.InProgress);
         const startTime = Date.now();
         let locked = false;
         let savedError: Error | null = null;
@@ -889,6 +909,7 @@ export class SyncManager {
             await this.syncWithRemote(remotes, promise);
         } catch (error) {
             savedError = error;
+            this.setSyncStatus(SyncStatus.Failed);
         } finally {
             if (locked) {
                 await this.releaseAllLocks(remotes);
@@ -912,9 +933,11 @@ export class SyncManager {
             } else if (this.conflictDetected) {
                 showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
                 console.warn(`Sync completed with conflicts in ${duration} seconds.`);
+                this.setSyncStatus(SyncStatus.Done);
             } else {
                 showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);
                 console.log(`Sync completed successfully in ${duration} seconds!`);
+                this.setSyncStatus(SyncStatus.Done);
             }
 
             this.conflictDetected = false;

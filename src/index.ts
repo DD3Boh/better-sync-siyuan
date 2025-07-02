@@ -3,6 +3,7 @@ import "@/index.scss";
 import { SettingsManager } from "./settings";
 import { SyncManager } from "@/sync";
 import { cloudSyncSuccIcon } from "@/assets";
+import { SyncStatus } from "@/types/sync-status";
 
 export default class BetterSyncPlugin extends Plugin {
     settingsManager: SettingsManager;
@@ -16,7 +17,7 @@ export default class BetterSyncPlugin extends Plugin {
 
         if (!this.settingsManager.getPref("syncIconInBreadcrumb")) {
             this.addTopBar({
-                icon: "iconCloud",
+                icon: "iconCloudSucc",
                 title: this.i18n.cloudIconDesc,
                 position: "right",
                 callback: async () => { this.syncManager.syncHandler(); },
@@ -41,6 +42,10 @@ export default class BetterSyncPlugin extends Plugin {
         this.eventBus.on("destroy-protyle", async ({ detail }) => {
             this.syncManager.removeProtyle(detail.protyle.getInstance());
         });
+
+        this.syncManager.onSyncStatusChange((status: SyncStatus) => {
+            this.updateButtonIcon(status);
+        });
     }
 
     private addButtonBreadcrumb() {
@@ -56,23 +61,48 @@ export default class BetterSyncPlugin extends Plugin {
             const button = document.createElement("button");
             button.className = "block__icon fn__flex-center b3-tooltips b3-tooltips__w better-sync-button";
             button.setAttribute("aria-label", this.i18n.cloudIconDesc);
-            button.innerHTML = `<svg><use xlink:href="#iconCloud"></use></svg>`;
+            button.innerHTML = `<svg><use xlink:href="#iconCloudSucc"></use></svg>`;
             button.onclick = async () => {
-                const svg = button.querySelector("svg");
-                if (svg) {
-                    svg.classList.add("fn__rotate");
-                    svg.innerHTML = `<use xlink:href="#iconRefresh"></use>`;
-                }
-
                 await this.syncManager.syncHandler(false);
-
-                if (svg) {
-                    svg.innerHTML = cloudSyncSuccIcon;
-                    svg.classList.remove("fn__rotate");
-                }
             };
 
             referenceElement.after(button);
+        });
+    }
+
+    private updateButtonIcon(status: SyncStatus) {
+        const elements = document.querySelectorAll(".better-sync-button");
+        if (elements.length === 0) return;
+
+        elements.forEach(e => {
+            const svg = e.querySelector("svg");
+            if (!svg) return;
+
+            switch (status) {
+                case SyncStatus.InProgress:
+                    svg.classList.add("fn__rotate");
+                    svg.innerHTML = `<use xlink:href="#iconRefresh"></use>`;
+                    break;
+                case SyncStatus.Done:
+                    svg.classList.remove("fn__rotate");
+                    svg.innerHTML = cloudSyncSuccIcon;
+                    setTimeout(() => {
+                        svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
+                    }, 5000);
+                    break;
+                case SyncStatus.Failed:
+                    svg.classList.remove("fn__rotate");
+                    svg.innerHTML = `<use xlink:href="#iconCloudError"></use>`;
+                    setTimeout(() => {
+                        svg.innerHTML = `<use xlink:href="#iconCloudSucc"></use>`;
+                    }, 5000);
+                    break;
+                case SyncStatus.None:
+                default:
+                    svg.classList.remove("fn__rotate");
+                    svg.innerHTML = `<svg><use xlink:href="#iconCloudSucc"></use></svg>`;
+                    break;
+            }
         });
     }
 
