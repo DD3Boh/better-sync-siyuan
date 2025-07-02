@@ -117,9 +117,10 @@ export default class BetterSyncPlugin extends Plugin {
     }
 
     onLayoutReady() {
-        let syncOnOpen = this.settingsManager.getPref("syncOnOpen") as Boolean;
+        const syncOnOpen = this.settingsManager.getPref("syncOnOpen") as boolean;
+        const syncIconInBreadcrumb = this.settingsManager.getPref("syncIconInBreadcrumb") as boolean;
 
-        if (syncOnOpen) this.syncManager.syncHandler();
+        if (syncOnOpen) this.syncManager.syncHandler(!syncIconInBreadcrumb);
     }
 
     async onunload() {}
