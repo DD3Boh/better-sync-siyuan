@@ -52,7 +52,7 @@ export default class BetterSyncPlugin extends Plugin {
         elements.forEach(e => {
             if (e.querySelector(".better-sync-button")) return;
 
-            const referenceElement = e.querySelector('.protyle-breadcrumb__icon[data-type="exit-focus"]');
+            const referenceElement = e.querySelector('[data-type="readonly"]');
             if (!referenceElement) return;
 
             const button = document.createElement("button");
@@ -63,7 +63,7 @@ export default class BetterSyncPlugin extends Plugin {
                 await this.syncManager.syncHandler(false);
             };
 
-            referenceElement.after(button);
+            referenceElement.before(button);
         });
 
         this.updateButtonIcon(this.syncManager.getSyncStatus());
