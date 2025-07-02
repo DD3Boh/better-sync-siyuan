@@ -56,7 +56,7 @@ export default class BetterSyncPlugin extends Plugin {
             if (!referenceElement) return;
 
             const button = document.createElement("button");
-            button.className = "block__icon fn__flex-center b3-tooltips b3-tooltips__w better-sync-button";
+            button.className = "block__icon fn__flex-center ariaLabel better-sync-button";
             button.setAttribute("aria-label", this.i18n.cloudIconDesc);
             button.innerHTML = `<svg><use xlink:href="#iconCloudSucc"></use></svg>`;
             button.onclick = async () => {
