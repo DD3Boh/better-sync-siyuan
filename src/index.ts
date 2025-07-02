@@ -14,14 +14,12 @@ export default class BetterSyncPlugin extends Plugin {
         await this.settingsManager.setupSettings();
         this.syncManager = new SyncManager(this);
 
-        if (!this.settingsManager.getPref("syncIconInBreadcrumb")) {
-            this.addTopBar({
-                icon: "iconCloudSucc",
-                title: this.i18n.cloudIconDesc,
-                position: "right",
-                callback: async () => { this.syncManager.syncHandler(); },
-            });
-        }
+        this.addTopBar({
+            icon: "iconCloudSucc",
+            title: this.i18n.cloudIconDesc,
+            position: "right",
+            callback: async () => { this.syncManager.syncHandler(); },
+        });
 
         this.eventBus.on("switch-protyle", async ({ detail }) => {
             this.syncManager.setActiveProtyle(detail.protyle.getInstance());
