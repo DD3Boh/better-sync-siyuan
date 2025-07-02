@@ -861,9 +861,14 @@ export class SyncManager {
      * This is called to initiate the sync process with the specified remotes.
      * It acquires locks and calls the syncWithRemote function to handle synchronization,
      * and handles any exceptions that may occur during the process.
+     *
+     * @param persistentMessage Whether to show a persistent message during sync, defaults to true.
      * @param remotes The remotes to sync with, defaults to the current remotes.
      */
-    async syncHandler(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
+    async syncHandler(
+        persistentMessage: boolean = true,
+        remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)
+    ) {
         const startTime = Date.now();
         let locked = false;
         let savedError: Error | null = null;
@@ -871,7 +876,9 @@ export class SyncManager {
         try {
             SyncUtils.checkRemotes(remotes);
 
-            showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
+            if (persistentMessage)
+                showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
+
             console.log(`Syncing with remote server ${remotes[1].name}...`);
 
             if (this.shouldUseWebSocket()) promise = this.connectRemoteOutputWebSocket();
@@ -891,7 +898,8 @@ export class SyncManager {
             const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
 
             // Remove the main sync message
-            this.dismissMainSyncNotification();
+            if (persistentMessage)
+                this.dismissMainSyncNotification();
 
             if (savedError !== null) {
                 console.error("Error during sync:", savedError);

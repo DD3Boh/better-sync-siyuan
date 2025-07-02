@@ -63,7 +63,7 @@ export default class BetterSyncPlugin extends Plugin {
                     svg.innerHTML = `<use xlink:href="#iconRefresh"></use>`;
                 }
 
-                await this.syncManager.syncHandler();
+                await this.syncManager.syncHandler(false);
 
                 if (svg) {
                     svg.innerHTML = `<use xlink:href="#iconCloud"></use>`;
