@@ -312,7 +312,7 @@ export class SyncManager {
     private async releaseAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
-        await Promise.all(remotes.map(remote => this.releaseLock(remote)));
+        await Promise.allSettled(remotes.map(remote => this.releaseLock(remote)));
     }
 
     /**
@@ -926,7 +926,6 @@ export class SyncManager {
     ) {
         this.setSyncStatus(SyncStatus.InProgress);
         const startTime = Date.now();
-        let locked = false;
         let savedError: Error | null = null;
         let promise: Promise<void> | null = null;
         try {
@@ -940,7 +939,6 @@ export class SyncManager {
             if (this.shouldUseWebSocket()) promise = this.connectRemoteOutputWebSocket();
 
             await this.acquireAllLocks(remotes);
-            locked = true;
 
             if (this.contentChangeDebounceTimer !== null) {
                 clearTimeout(this.contentChangeDebounceTimer);
@@ -952,10 +950,8 @@ export class SyncManager {
             savedError = error;
             this.setSyncStatus(SyncStatus.Failed);
         } finally {
-            if (locked) {
-                await this.releaseAllLocks(remotes);
-                console.log("Released all sync locks.");
-            }
+            await this.releaseAllLocks(remotes);
+            console.log("Released all sync locks.");
 
             const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
 
