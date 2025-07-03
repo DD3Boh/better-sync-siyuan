@@ -1311,6 +1311,12 @@ export class SyncManager {
 
         if (copyRemotes[0].file && copyRemotes[1].file && (updated[0] === updated[1] || options?.onlyIfMissing)) return;
 
+        const iIn = updated[0] > updated[1] ? 0 : 1;
+        const iOut = updated[0] > updated[1] ? 1 : 0;
+
+        if (!fileRes.isDir)
+            console.log(`Syncing file from ${copyRemotes[iIn].name} to ${copyRemotes[iOut].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
+
         // Remove deleted files
         if ((!copyRemotes[0].file && lastSyncTime > updated[1]) || (!copyRemotes[1].file && lastSyncTime > updated[0])) {
             if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
@@ -1322,11 +1328,6 @@ export class SyncManager {
 
         // Avoid writing directories
         if (fileRes.isDir) return;
-
-        const iIn = updated[0] > updated[1] ? 0 : 1;
-        const iOut = updated[0] > updated[1] ? 1 : 0;
-
-        console.log(`Syncing file from ${copyRemotes[iIn].name} to ${copyRemotes[iOut].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
         const syFile = await getFileBlob(filePath, copyRemotes[iIn].url, SyncUtils.getHeaders(copyRemotes[iIn].key));
         if (!syFile) {
