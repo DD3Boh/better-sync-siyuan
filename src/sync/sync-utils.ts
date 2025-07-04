@@ -96,7 +96,7 @@ export class SyncUtils {
         } catch (error) {
             console.error(`Error deleting file ${filePath}:`, error);
         }
-}
+    }
 
     static async putFile(
         filePath: string,
