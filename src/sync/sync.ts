@@ -884,19 +884,25 @@ export class SyncManager {
      * Send reload protyles message to the remote output WebSocket.
      *
      * @param paths An array of file paths to reload in the remote Protyles.
+     *              If undefined, reload all Protyles.
      */
-    async sendReloadProtylesMessage(paths: string[] = []) {
+    async sendReloadProtylesMessage(paths: string[] | undefined = undefined) {
         if (!(await this.shouldUseWebSocket())) {
             console.warn("WebSocket is not enabled or remote is not listening.");
             return;
         }
 
-        if (this.inputWebSocketManagers[1]) {
-            const payload = new Payload("reload-protyles-if-open", { paths });
+        let payload: Payload;
+
+        if (paths === undefined)
+            payload = new Payload("reload-protyles", {});
+        else
+            payload = new Payload("reload-protyles-if-open", { paths });
+
+        if (this.inputWebSocketManagers[1])
             await this.transmitWebSocketMessage(payload.toString(), this.inputWebSocketManagers[1]);
-        } else {
+        else
             console.warn("Remote input WebSocket manager is not initialized.");
-        }
     }
 
     /**
@@ -1133,17 +1139,17 @@ export class SyncManager {
         reloadFiletree(remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
         reloadFiletree(remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
-        const avFiles = Array.from(this.locallyUpdatedFiles).filter(
+        const localAvFiles = Array.from(this.locallyUpdatedFiles).filter(
             path => path.startsWith("data/storage/av/") && path.endsWith(".json")
         );
 
-        if (avFiles.length > 0) {
-            console.log(`Locally updated AV files detected: ${avFiles.join(", ")}`);
+        if (localAvFiles.length > 0) {
+            console.log(`Locally updated AV files detected: ${localAvFiles.join(", ")}`);
             await this.reloadProtyles();
         }
 
         for (const [path, protyle] of this.loadedProtyles) {
-            if (avFiles.length > 0) break;
+            if (localAvFiles.length > 0) break;
 
             if (this.locallyUpdatedFiles.has(path)) {
                 console.log(`Locally updated file ${path} is currently loaded in protyle ${protyle.protyle.id}`);
@@ -1152,8 +1158,16 @@ export class SyncManager {
             }
         }
 
-        // Reload remote protyles
-        this.sendReloadProtylesMessage(Array.from(this.remotelyUpdatedFiles));
+        const remoteAvFiles = Array.from(this.remotelyUpdatedFiles).filter(
+            path => path.startsWith("data/storage/av/") && path.endsWith(".json")
+        );
+
+        if (remoteAvFiles.length > 0) {
+            console.log(`Remotely updated AV files detected: ${remoteAvFiles.join(", ")}`);
+            await this.sendReloadProtylesMessage();
+        } else {
+            this.sendReloadProtylesMessage(Array.from(this.remotelyUpdatedFiles));
+        }
 
         const timestamp = Date.now();
         SyncUtils.setSyncStatus(remotes, timestamp);
