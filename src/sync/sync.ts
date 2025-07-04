@@ -1375,7 +1375,7 @@ export class SyncManager {
         await SyncUtils.putFile(filePath, file, copyRemotes[iOut].url, copyRemotes[iOut].key, timestamp);
 
         if (options?.trackUpdatedFiles) {
-            const updatedFiles = iIn === 0 ? this.locallyUpdatedFiles : this.remotelyUpdatedFiles;
+            const updatedFiles = iIn === 0 ? this.remotelyUpdatedFiles : this.locallyUpdatedFiles;
             updatedFiles.add(filePath);
         }
     }
