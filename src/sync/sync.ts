@@ -1153,7 +1153,7 @@ export class SyncManager {
         }
 
         // Reload remote protyles
-        this.sendReloadProtylesMessage(Array.from(this.loadedProtyles.keys()));
+        this.sendReloadProtylesMessage(Array.from(this.remotelyUpdatedFiles));
 
         const timestamp = Date.now();
         SyncUtils.setSyncStatus(remotes, timestamp);
