@@ -1054,18 +1054,28 @@ export class SyncManager {
         );
 
         // Sync other directories
-        let directoriesToSync: [string, string][] = [
+        const directoriesToSync: [string, string][] = [
             ["data", "plugins"],
             ["data", "templates"],
             ["data", "widgets"],
             ["data", "emojis"],
-            ["data/storage", "av"],
         ];
 
         // Sync directories concurrently
         const syncDirPromises = directoriesToSync.map(([path, dir]) =>
             this.syncDirectory(path, dir, remotes, [],
                 { deleteFoldersOnly: true }
+            )
+        );
+
+        // Sync storage/av
+        const directoriesStorageAv: [string, string][] = [
+            ["data/storage", "av"],
+        ];
+
+        const syncStorageAvPromises = directoriesStorageAv.map(([path, dir]) =>
+            this.syncDirectory(path, dir, remotes, [],
+                { trackUpdatedFiles: true }
             )
         );
 
@@ -1099,6 +1109,7 @@ export class SyncManager {
         const promises = [
             ...notebookSyncPromises,
             ...syncDirPromises,
+            ...syncStorageAvPromises,
             ...syncIfMissingPromises,
             ...syncNotebookConfigPromises,
             ...syncWithoutDeletionsPromises,
@@ -1122,7 +1133,18 @@ export class SyncManager {
         reloadFiletree(remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
         reloadFiletree(remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
+        const avFiles = Array.from(this.locallyUpdatedFiles).filter(
+            path => path.startsWith("data/storage/av/") && path.endsWith(".json")
+        );
+
+        if (avFiles.length > 0) {
+            console.log(`Locally updated AV files detected: ${avFiles.join(", ")}`);
+            await this.reloadProtyles();
+        }
+
         for (const [path, protyle] of this.loadedProtyles) {
+            if (avFiles.length > 0) break;
+
             if (this.locallyUpdatedFiles.has(path)) {
                 console.log(`Locally updated file ${path} is currently loaded in protyle ${protyle.protyle.id}`);
 
