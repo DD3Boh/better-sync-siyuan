@@ -71,17 +71,6 @@ export class SyncManager {
     private conflictDetected: boolean = false;
 
     /**
-     * Content observer for monitoring changes in the Protyle content.
-     */
-    private contentObserver: MutationObserver | null = null;
-
-    /**
-     * Debounce timer for handling content changes in Protyles.
-     * This is used to prevent excessive sync operations during rapid content changes.
-     */
-    private contentChangeDebounceTimer: number | null = null;
-
-    /**
      * Map of pending directory requests, where the key is the request ID and the value is the resolve function.
      * This is used to handle asynchronous directory file requests via WebSocket.
      */
@@ -99,9 +88,9 @@ export class SyncManager {
     private statusCallbacks: SyncStatusCallback[] = [];
 
     /**
-     * Pending file modifications that are waiting to be synced.
+     * Pending file changes that are waiting to be synced.
      */
-    private pendingFileModifications: Set<string> = new Set();
+    private pendingFileChanges: Map<string, number> = new Map();
 
     /**
      * Constructor for the SyncManager class.
@@ -444,50 +433,37 @@ export class SyncManager {
                 );
                 await reloadFiletree(this.remotes[1].url, SyncUtils.getHeaders(this.remotes[1].key));
                 break;
+
+            case "/api/transactions":
+                const protyle = this.activeProtyle;
+                await this.handleTransactionsCall(protyle.protyle);
         }
 
         return fetchPromise || this.originalFetch(input, init);
     }
 
     /**
-     * Setup a MutationObserver to monitor changes in the Protyle content.
+     * Handle transactions calls to sync files.
      *
-     * @param protyle The Protyle instance to observe.
+     * @param protyle The Protyle instance that has been updated.
      */
-    setupContentObserver(protyle: IProtyle) {
+    async handleTransactionsCall(
+        protyle: IProtyle
+    ) {
         if (this.plugin.settingsManager.getPref("instantSync") !== true) return;
 
-        if (this.contentObserver) this.contentObserver.disconnect();
+        const debounceTime = this.plugin.settingsManager.getPref("transactionsDebounceTime") || 5000;
 
-        // Add a direct mutation observer to track DOM changes in the content
-        if (protyle.contentElement) {
-            const debounceTime = this.plugin.settingsManager.getPref("transactionsDebounceTime") || 5000;
+        const key = `data/${protyle.notebookId}${protyle.path}`;
 
-            this.contentObserver = new MutationObserver((mutations) => {
-                /*
-                 * When mutations are below 4, ignore them
-                 * This is to prevent the observer from firing on file open
-                 * or other minor changes.
-                 */
-                if (mutations.length < 4) return;
+        const timeout = this.pendingFileChanges.get(key);
+        if (timeout)
+            clearTimeout(timeout);
 
-                this.pendingFileModifications.add(`data/${protyle.notebookId}${protyle.path}`);
-
-                if (this.contentChangeDebounceTimer !== null)
-                    clearTimeout(this.contentChangeDebounceTimer);
-
-                this.contentChangeDebounceTimer = window.setTimeout(() => {
-                    this.handleContentChange(protyle);
-                    this.contentChangeDebounceTimer = null;
-                }, debounceTime);
-            });
-
-            this.contentObserver.observe(protyle.contentElement, {
-                childList: true,
-                subtree: true,
-                characterData: true
-            });
-        }
+        this.pendingFileChanges.set(key, window.setTimeout(() => {
+            this.handleContentChange(protyle);
+            this.pendingFileChanges.delete(key);
+        }, debounceTime));
     }
 
     /**
@@ -508,7 +484,7 @@ export class SyncManager {
             { avoidDeletions: true }
         );
 
-        this.pendingFileModifications.delete(path);
+        this.pendingFileChanges.delete(path);
         await this.sendReloadProtylesMessage([path]);
     }
 
@@ -946,10 +922,10 @@ export class SyncManager {
 
             await this.acquireAllLocks(remotes);
 
-            if (this.contentChangeDebounceTimer !== null) {
-                clearTimeout(this.contentChangeDebounceTimer);
-                this.contentChangeDebounceTimer = null;
-            }
+            this.pendingFileChanges.forEach((timeoutId, filePath) => {
+                clearTimeout(timeoutId);
+                this.pendingFileChanges.set(filePath, 0);
+            });
 
             await this.syncWithRemote(remotes, promise);
         } catch (error) {
@@ -1323,10 +1299,10 @@ export class SyncManager {
 
         // Conflict detection
         let trackConflicts = options?.trackConflicts ?? false;
-        if (this.pendingFileModifications.has(filePath) && trackConflicts) {
-            console.log(`Conflicts tracking skipped for ${filePath} as it has pending modifications.`);
+        if (this.pendingFileChanges.has(filePath) && trackConflicts) {
+            console.log(`Conflicts tracking skipped for ${filePath} as it has pending changes.`);
             trackConflicts = false;
-            this.pendingFileModifications.delete(filePath);
+            this.pendingFileChanges.delete(filePath);
         }
 
         if (!options?.onlyIfMissing && !fileRes.isDir && trackConflicts) {
