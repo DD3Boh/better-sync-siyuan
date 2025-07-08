@@ -89,6 +89,22 @@ export class ConflictHandler {
     }
 
     /**
+     * Compares two Blob objects as text.
+     * @param blob1 The first Blob object.
+     * @param blob2 The second Blob object.
+     * @returns True if the blobs are equal as text, false otherwise.
+     */
+    static async compareBlobsAsText(blob1: Blob, blob2: Blob): Promise<boolean> {
+        if (!blob1 || !blob2) return false;
+        if (blob1.size !== blob2.size) return false;
+
+        const text1 = await blob1.text();
+        const text2 = await blob2.text();
+
+        return text1 === text2;
+    }
+
+    /**
      * Handles conflict detection between two files.
      *
      * @param path - The path of the file being synced.
@@ -123,6 +139,17 @@ export class ConflictHandler {
             // print timestamps and last sync times
             console.log(`File One Timestamp: ${remotes[0].file.updated}, Last Sync Time One: ${remotes[0].lastSyncTime}`);
             console.log(`File Two Timestamp: ${remotes[1].file.updated}, Last Sync Time Two: ${remotes[1].lastSyncTime}`);
+
+            // Check if the two files are actually different
+            const [fileOne, fileTwo] = await Promise.all([
+                getFileBlob(path, remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
+                getFileBlob(path, remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
+            ]);
+
+            if (await this.compareBlobsAsText(fileOne, fileTwo)) {
+                console.log(`Files are identical, no conflict created.`);
+                return false;
+            }
 
             const notebookId = dirName;
 
