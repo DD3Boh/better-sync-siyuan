@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.1
+
+- Make the breadcrumb sync icon more interactive, showing the status of the sync process
+- Fix document refresh when databases are modified
+- Fix unmotivated conflicts
+- Fix locks not being released correctly in some contexts
+- Fix remote protyles not reloading correctly
+- Track current document changes more reliably for instant sync
+- Other bug fixes and performance improvements
+
 ## 1.3.0
 
 - Implement experimental websockets support for near-instant, real-time synchronization
