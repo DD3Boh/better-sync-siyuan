@@ -435,6 +435,7 @@ export class SyncManager {
                 break;
 
             case "/api/transactions":
+            case "/api/attr/setBlockAttrs":
                 const protyle = this.activeProtyle;
                 await this.handleTransactionsCall(protyle.protyle);
         }
