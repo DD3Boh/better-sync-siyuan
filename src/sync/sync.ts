@@ -1170,10 +1170,22 @@ export class SyncManager {
             allFiles.set(pair[0], pair[1]);
         });
 
-        const promises: Promise<void>[] = [];
+        // Split files into directories and regular files
+        const directories = new Map<string, IResReadDir>();
+        const files = new Map<string, IResReadDir>();
 
-        // Synchronize files
-        for (const [filePath] of allFiles.entries()) {
+        for (const [filePath, fileInfo] of allFiles.entries()) {
+            if (fileInfo?.isDir) {
+                directories.set(filePath, fileInfo);
+            } else {
+                files.set(filePath, fileInfo);
+            }
+        }
+
+        const directoryPromises: Promise<void>[] = [];
+        const filePromises: Promise<void>[] = [];
+
+        for (const [filePath] of directories.entries()) {
             const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
                 {
                     ...remotes[0],
@@ -1185,7 +1197,7 @@ export class SyncManager {
                 }
             ];
 
-            promises.push(this.syncFile(
+            directoryPromises.push(this.syncFile(
                 filePath,
                 dirName,
                 options,
@@ -1193,7 +1205,29 @@ export class SyncManager {
             ));
         }
 
-        await Promise.all(promises);
+        await Promise.all(directoryPromises);
+
+        for (const [filePath] of files.entries()) {
+            const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
+                {
+                    ...remotes[0],
+                    file: filesOne.get(filePath)
+                },
+                {
+                    ...remotes[1],
+                    file: filesTwo.get(filePath)
+                }
+            ];
+
+            filePromises.push(this.syncFile(
+                filePath,
+                dirName,
+                options,
+                remoteFileInfos
+            ));
+        }
+
+        await Promise.all(filePromises);
 
         if (disconnectWebSocket) this.disconnectRemoteOutputWebSocket();
     }
