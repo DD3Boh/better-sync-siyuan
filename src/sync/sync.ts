@@ -580,6 +580,16 @@ export class SyncManager {
     }
 
     /**
+     * Checks if the remote appId is set.
+     *
+     * @param remote The remote information to check, defaults to the second remote.
+     * @returns True if the remote appId is set and not "unknown-app-id", false otherwise.
+     */
+    private isRemoteAppIdSet(remote: RemoteInfo = this.remotes[1]): boolean {
+        return !!remote.appId && remote.appId !== "unknown-app-id";
+    }
+
+    /**
      * Fetch and set the remote appId.
      *
      * @param remotes The list of remote connections.
@@ -1197,7 +1207,8 @@ export class SyncManager {
     ) {
         console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
 
-        const useWebSocket: boolean = await this.shouldUseWebSocket();
+        const isRemoteAppIdSet = this.isRemoteAppIdSet(remotes[1]);
+        const useWebSocket: boolean = await this.shouldUseWebSocket() && isRemoteAppIdSet;
         let disconnectWebSocket = false;
 
         if (useWebSocket && !this.outputWebSocketManagers[1].isConnected()) {
