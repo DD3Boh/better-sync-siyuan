@@ -1096,7 +1096,7 @@ export class SyncManager {
         );
 
         const syncNotebookConfigPromises = combinedNotebooks.map(notebook =>
-            this.syncNotebookConfig(notebook.id, remotes)
+            this.syncDirectory(`/data/${notebook.id}`, ".siyuan", remotes)
         );
 
         const promises = [
@@ -1390,19 +1390,6 @@ export class SyncManager {
                 break;
             }
         }
-    }
-
-    /**
-     * Synchronize the notebook configuration files for a specific notebook.
-     * This function syncs the configuration files like `conf.json` and `sort.json` for the specified notebook ID.
-     * @param notebookId The ID of the notebook to sync configuration for.
-     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
-     */
-    async syncNotebookConfig(notebookId: string, remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
-        SyncUtils.checkRemotes(remotes);
-
-        console.log(`Syncing notebook config for notebook ${notebookId}`);
-        await this.syncDirectory(`/data/${notebookId}`, ".siyuan", remotes);
     }
 
     /**
