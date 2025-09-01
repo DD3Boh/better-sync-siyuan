@@ -675,7 +675,7 @@ export class SyncManager {
             case payload.type.startsWith("/api/"): {
                 console.log(`Processing api request via WebSocket: ${payload.type}`);
 
-                const requestId = this.generateRequestId();
+                const requestId = crypto.randomUUID();
                 this.webSocketRequestIds.add(requestId);
 
                 const { appId, requestData } = payload.data;
@@ -1466,14 +1466,6 @@ export class SyncManager {
     }
 
     /* Utility functions */
-
-    /**
-     * Generate a unique request ID for WebSocket communication.
-     * @returns A unique request ID string.
-     */
-    private generateRequestId(): string {
-        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    }
 
     /**
      * Create a deep copy of RemoteInfo or RemoteFileInfo objects to prevent mutations
