@@ -10,7 +10,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
-import { ConflictHandler, SyncUtils, WebSocketManager } from "@/sync";
+import { ConflictHandler, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback } from "@/types/sync-status";
 
@@ -1027,73 +1027,8 @@ export class SyncManager {
 
         await this.fetchAndSetRemoteAppId(remotes);
 
-        // Define all sync targets in a single array
-        interface SyncTarget {
-            path: string;
-            dirName: string;
-            excludedItems?: string[];
-            options?: {
-                deleteFoldersOnly?: boolean;
-                onlyIfMissing?: boolean;
-                avoidDeletions?: boolean;
-                trackConflicts?: boolean;
-                trackUpdatedFiles?: boolean;
-            };
-        }
-
-        const syncTargets: SyncTarget[] = [
-            // Notebook directories
-            ...notebooks.map(notebook => ({
-                path: "data",
-                dirName: notebook.id,
-                excludedItems: [".siyuan"],
-                options: {
-                    trackConflicts: trackConflicts,
-                    trackUpdatedFiles: true
-                }
-            })),
-
-            // Notebook configs
-            ...notebooks.map(notebook => ({
-                path: `data/${notebook.id}`,
-                dirName: ".siyuan"
-            })),
-
-            // Regular directories with folder-only deletions
-            { path: "data", dirName: "plugins", options: { deleteFoldersOnly: true } },
-            { path: "data", dirName: "templates", options: { deleteFoldersOnly: true } },
-            { path: "data", dirName: "widgets", options: { deleteFoldersOnly: true } },
-            { path: "data", dirName: "emojis", options: { deleteFoldersOnly: true } },
-
-            // Storage/av directory with file tracking
-            { path: "data/storage", dirName: "av", options: { trackUpdatedFiles: true } },
-
-            // Directories without deletions
-            {
-                path: "conf/appearance",
-                dirName: "themes",
-                excludedItems: ["daylight", "midnight"],
-                options: { avoidDeletions: true }
-            },
-            {
-                path: "conf/appearance",
-                dirName: "icons",
-                excludedItems: ["ant", "material", "index.html"],
-                options: { avoidDeletions: true }
-            },
-
-            // Directories only if missing
-            {
-                path: "data/storage",
-                dirName: "petal",
-                options: { onlyIfMissing: true, avoidDeletions: true }
-            },
-            {
-                path: "data",
-                dirName: "snippets",
-                options: { onlyIfMissing: true, avoidDeletions: true }
-            },
-        ];
+        // Get sync targets using the external function
+        const syncTargets = getSyncTargets({ notebooks, trackConflicts });
 
         // Execute all sync operations
         const promises = syncTargets.map(target => {
