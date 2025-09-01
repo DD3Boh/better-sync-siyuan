@@ -675,15 +675,15 @@ export class SyncManager {
             case payload.type.startsWith("/api/"): {
                 console.log(`Processing api request via WebSocket: ${payload.type}`);
 
-                const requestId = crypto.randomUUID();
-                this.webSocketRequestIds.add(requestId);
-
                 const { appId, requestData } = payload.data;
 
                 if (appId && appId !== this.plugin.app.appId) {
                     console.warn(`Ignoring request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
                     return;
                 }
+
+                const requestId = crypto.randomUUID();
+                this.webSocketRequestIds.add(requestId);
 
                 await requestWithHeaders(
                     payload.type,
