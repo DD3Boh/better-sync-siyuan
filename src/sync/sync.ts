@@ -1016,16 +1016,10 @@ export class SyncManager {
             this.getNotebooks(remotes[1].url, remotes[1].key)
         ]);
 
-        // Combine notebooks for easier processing (using a Map to automatically handle duplicates)
-        const allNotebooks = new Map<string, Notebook>();
-
-        // Add all local and remote notebooks to the map (using ID as the key to avoid duplicates)
-        [...notebooksOne, ...notebooksTwo].forEach(notebook => {
-            allNotebooks.set(notebook.id, notebook);
-        });
-
-        // Convert back to array for processing if needed
-        const combinedNotebooks = Array.from(allNotebooks.values());
+        // Combine notebooks from both remotes, automatically deduplicating by ID
+        const notebooks = Array.from(
+            new Map([...notebooksOne, ...notebooksTwo].map(notebook => [notebook.id, notebook])).values()
+        );
 
         const trackConflicts = this.plugin.settingsManager.getPref("trackConflicts");
 
@@ -1033,84 +1027,90 @@ export class SyncManager {
 
         await this.fetchAndSetRemoteAppId(remotes);
 
-        const notebookSyncPromises = combinedNotebooks.map(notebook =>
-            this.syncDirectory(
-                "data",
-                notebook.id,
-                remotes,
-                [".siyuan"],
-                {
+        // Define all sync targets in a single array
+        interface SyncTarget {
+            path: string;
+            dirName: string;
+            excludedItems?: string[];
+            options?: {
+                deleteFoldersOnly?: boolean;
+                onlyIfMissing?: boolean;
+                avoidDeletions?: boolean;
+                trackConflicts?: boolean;
+                trackUpdatedFiles?: boolean;
+            };
+        }
+
+        const syncTargets: SyncTarget[] = [
+            // Notebook directories
+            ...notebooks.map(notebook => ({
+                path: "data",
+                dirName: notebook.id,
+                excludedItems: [".siyuan"],
+                options: {
                     trackConflicts: trackConflicts,
                     trackUpdatedFiles: true
                 }
-            )
-        );
+            })),
 
-        // Sync other directories
-        const directoriesToSync: [string, string][] = [
-            ["data", "plugins"],
-            ["data", "templates"],
-            ["data", "widgets"],
-            ["data", "emojis"],
+            // Notebook configs
+            ...notebooks.map(notebook => ({
+                path: `data/${notebook.id}`,
+                dirName: ".siyuan"
+            })),
+
+            // Regular directories with folder-only deletions
+            { path: "data", dirName: "plugins", options: { deleteFoldersOnly: true } },
+            { path: "data", dirName: "templates", options: { deleteFoldersOnly: true } },
+            { path: "data", dirName: "widgets", options: { deleteFoldersOnly: true } },
+            { path: "data", dirName: "emojis", options: { deleteFoldersOnly: true } },
+
+            // Storage/av directory with file tracking
+            { path: "data/storage", dirName: "av", options: { trackUpdatedFiles: true } },
+
+            // Directories without deletions
+            {
+                path: "conf/appearance",
+                dirName: "themes",
+                excludedItems: ["daylight", "midnight"],
+                options: { avoidDeletions: true }
+            },
+            {
+                path: "conf/appearance",
+                dirName: "icons",
+                excludedItems: ["ant", "material", "index.html"],
+                options: { avoidDeletions: true }
+            },
+
+            // Directories only if missing
+            {
+                path: "data/storage",
+                dirName: "petal",
+                options: { onlyIfMissing: true, avoidDeletions: true }
+            },
+            {
+                path: "data",
+                dirName: "snippets",
+                options: { onlyIfMissing: true, avoidDeletions: true }
+            },
         ];
 
-        // Sync directories concurrently
-        const syncDirPromises = directoriesToSync.map(([path, dir]) =>
-            this.syncDirectory(path, dir, remotes, [],
-                { deleteFoldersOnly: true }
-            )
-        );
+        // Execute all sync operations
+        const promises = syncTargets.map(target => {
+            return this.syncDirectory(
+                target.path,
+                target.dirName,
+                remotes,
+                target.excludedItems || [],
+                target.options
+            );
+        });
 
-        // Sync storage/av
-        const directoriesStorageAv: [string, string][] = [
-            ["data/storage", "av"],
-        ];
-
-        const syncStorageAvPromises = directoriesStorageAv.map(([path, dir]) =>
-            this.syncDirectory(path, dir, remotes, [],
-                { trackUpdatedFiles: true }
-            )
-        );
-
-        // Sync without deletions
-        const syncWithoutDeletions: [string, string, string[]][] = [
-            ["conf/appearance", "themes", ["daylight", "midnight"]],
-            ["conf/appearance", "icons", ["ant", "material", "index.html"]],
-        ];
-
-        const syncWithoutDeletionsPromises = syncWithoutDeletions.map(([path, dir, excludedItems]) =>
-            this.syncDirectory(path, dir, remotes, excludedItems, { avoidDeletions: true })
-        );
-
-        // Sync some files only if missing
-        const syncIfMissing: [string, string][] = [
-            ["data/storage", "petal"],
-            ["data", "snippets"],
-        ];
-
-        const syncIfMissingPromises = syncIfMissing.map(([path, dir]) =>
-            this.syncDirectory(path, dir, remotes, [], {
-                onlyIfMissing: true,
-                avoidDeletions: true
-            })
-        );
-
-        const syncNotebookConfigPromises = combinedNotebooks.map(notebook =>
-            this.syncDirectory(`/data/${notebook.id}`, ".siyuan", remotes)
-        );
-
-        const promises = [
-            ...notebookSyncPromises,
-            ...syncDirPromises,
-            ...syncStorageAvPromises,
-            ...syncIfMissingPromises,
-            ...syncNotebookConfigPromises,
-            ...syncWithoutDeletionsPromises,
-            this.syncPetalsListIfEmpty(remotes),
-        ];
+        // Add the petals list sync
+        promises.push(this.syncPetalsListIfEmpty(remotes));
 
         // Execute all sync operations concurrently
-        console.log(`Starting sync operations for ${combinedNotebooks.length} notebooks and ${directoriesToSync.length} directories...`);
+        console.log(`Starting sync operations for ${notebooks.length} notebooks and ${syncTargets.length - notebooks.length * 2} other directories...`);
 
         await Promise.all(promises);
 
