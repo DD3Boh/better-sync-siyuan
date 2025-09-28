@@ -15,35 +15,28 @@ export async function request(url: string, data: any) {
     return res;
 }
 
-export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>, timeoutMs: number = 5000) {
-    const init: RequestInit = {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify(data)
-    };
+export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>, timeoutMs: number = 5000): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            reject(new Error(`Request timeout`));
+        }, timeoutMs);
 
-    if (data && data instanceof FormData)
-        init.body = data;
-
-    try {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error(`Request timeout`)), timeoutMs);
-        });
-
-        const fetchPromise = fetch(url, init);
-        const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-        if (!response.ok) {
-            console.error(`Request failed for ${url}:`, response.statusText);
-            return null;
+        try {
+            fetchPost(url, data, (response: IWebSocketData) => {
+                clearTimeout(timeoutId);
+                if (response.code === 0) {
+                    resolve(response.data);
+                } else {
+                    console.error(`Request failed for ${url}:`, response.msg || 'Unknown error');
+                    resolve(null);
+                }
+            }, headers);
+        } catch (error) {
+            clearTimeout(timeoutId);
+            console.error(`Request failed for ${url}:`, error);
+            reject(error);
         }
-
-        const jsonResponse = await response.json() as IWebSocketData;
-        return jsonResponse.code === 0 ? jsonResponse.data : null;
-    } catch (error) {
-        console.error(`Request failed for ${url}:`, error);
-        throw error;
-    }
+    });
 };
 
 // **************************************** Noteboook ****************************************
