@@ -596,6 +596,8 @@ export class SyncManager {
      * @returns A Promise that resolves to a boolean indicating whether the appId was found successfully.
      */
     public async fetchAndSetRemoteAppId(remotes: RemoteInfo[] = this.remotes): Promise<boolean> {
+        if (!(await this.shouldUseWebSocket())) return false;
+
         await Promise.all([
             this.connectRemoteOutputWebSocket(),
             this.transmitWebSocketMessage(
