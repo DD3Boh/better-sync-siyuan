@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.2
+
+- Fix deletions of directories
+- Use SiYuan's fetch post for API calls
+- Avoid attempting the appId retrieval if websocket is disabled
+- Misc improvements and refactorings
+
 ## 1.3.1
 
 - Make the breadcrumb sync icon more interactive, showing the status of the sync process
