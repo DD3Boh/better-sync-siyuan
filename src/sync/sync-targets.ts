@@ -1,6 +1,5 @@
 export interface SyncTarget {
     path: string;
-    dirName: string;
     excludedItems?: string[];
     options?: {
         deleteFoldersOnly?: boolean;
@@ -22,8 +21,7 @@ export function getSyncTargets(config: SyncTargetsConfig): SyncTarget[] {
     return [
         // Notebook directories
         ...notebooks.map(notebook => ({
-            path: "data",
-            dirName: notebook.id,
+            path: `data/${notebook.id}`,
             excludedItems: [".siyuan"],
             options: {
                 trackConflicts: trackConflicts,
@@ -33,42 +31,37 @@ export function getSyncTargets(config: SyncTargetsConfig): SyncTarget[] {
 
         // Notebook configs
         ...notebooks.map(notebook => ({
-            path: `data/${notebook.id}`,
-            dirName: ".siyuan"
+            path: `data/${notebook.id}/.siyuan`,
         })),
 
         // Regular directories with folder-only deletions
-        { path: "data", dirName: "plugins", options: { deleteFoldersOnly: true } },
-        { path: "data", dirName: "templates", options: { deleteFoldersOnly: true } },
-        { path: "data", dirName: "widgets", options: { deleteFoldersOnly: true } },
-        { path: "data", dirName: "emojis", options: { deleteFoldersOnly: true } },
+        { path: "data/plugins", options: { deleteFoldersOnly: true } },
+        { path: "data/templates", options: { deleteFoldersOnly: true } },
+        { path: "data/widgets", options: { deleteFoldersOnly: true } },
+        { path: "data/emojis", options: { deleteFoldersOnly: true } },
 
         // Storage/av directory with file tracking
-        { path: "data/storage", dirName: "av", options: { trackUpdatedFiles: true } },
+        { path: "data/storage/av", options: { trackUpdatedFiles: true } },
 
         // Directories without deletions
         {
-            path: "conf/appearance",
-            dirName: "themes",
+            path: "conf/appearance/themes",
             excludedItems: ["daylight", "midnight"],
             options: { avoidDeletions: true }
         },
         {
-            path: "conf/appearance",
-            dirName: "icons",
+            path: "conf/appearance/icons",
             excludedItems: ["ant", "material", "index.html"],
             options: { avoidDeletions: true }
         },
 
         // Directories only if missing
         {
-            path: "data/storage",
-            dirName: "petal",
+            path: "data/storage/petal",
             options: { onlyIfMissing: true, avoidDeletions: true }
         },
         {
-            path: "data",
-            dirName: "snippets",
+            path: "data/snippets",
             options: { onlyIfMissing: true, avoidDeletions: true }
         },
     ];

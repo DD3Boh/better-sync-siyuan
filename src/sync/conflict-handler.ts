@@ -108,14 +108,12 @@ export class ConflictHandler {
      * Handles conflict detection between two files.
      *
      * @param path - The path of the file being synced.
-     * @param dirName - The name of the directory where the files are located.
      * @param remotes - An array of exactly two RemoteFileInfo objects containing remote server information.
      * @param i18n - The internationalization object for localized messages.
      * @returns A Promise that resolves to a boolean indicating whether a conflict was detected.
      */
     static async handleConflictDetection(
         path: string,
-        dirName: string,
         remotes: [RemoteFileInfo, RemoteFileInfo],
         i18n: any
     ): Promise<boolean> {
@@ -151,7 +149,9 @@ export class ConflictHandler {
                 return false;
             }
 
-            const notebookId = dirName;
+            // Extract notebook ID from path like "data/notebookId/..." or "/data/notebookId/..."
+            const pathParts = path.split('/').filter(part => part !== '');
+            const notebookId = pathParts[1];
 
             const olderFileIndex = remotes[0].file.updated > remotes[1].file.updated ? 1 : 0;
             const olderFileTimestamp = remotes[olderFileIndex].file.updated;

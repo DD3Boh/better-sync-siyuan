@@ -422,8 +422,7 @@ export class SyncManager {
                 console.log(`Creating new notebook on remote server: ${notebookId}`);
 
                 await this.syncDirectory(
-                    "data",
-                    notebookId,
+                    `data/${notebookId}`,
                     this.copyRemotes(this.remotes),
                     [],
                     {
@@ -481,7 +480,6 @@ export class SyncManager {
 
         await this.syncFile(
             path,
-            protyle.notebookId,
             { avoidDeletions: true }
         );
 
@@ -662,13 +660,13 @@ export class SyncManager {
             }
 
             case payload.type === "get-dir-files": {
-                const { path, dirName, excludedItems, requestId, appId } = payload.data;
+                const { path, excludedItems, requestId, appId } = payload.data;
 
                 if (appId && appId !== this.plugin.app.appId)
                     return console.warn(`Ignoring get-dir-files request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
 
-                console.log(`Received request for directory files: ${path}/${dirName} with app ID ${appId}`);
-                const files = await SyncUtils.getDirFilesRecursively(path, dirName, "", "SKIP", true, excludedItems);
+                console.log(`Received request for directory files: ${path} with app ID ${appId}`);
+                const files = await SyncUtils.getDirFilesRecursively(path, "", "SKIP", true, excludedItems);
                 const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
                 await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
                 break;
@@ -1036,7 +1034,6 @@ export class SyncManager {
         const promises = syncTargets.map(target => {
             return this.syncDirectory(
                 target.path,
-                target.dirName,
                 remotes,
                 target.excludedItems || [],
                 target.options
@@ -1053,8 +1050,7 @@ export class SyncManager {
 
         // Handle missing assets
         await this.syncDirectory(
-            "data",
-            "assets",
+            "data/assets",
             remotes,
             await this.getUnusedAssetsNames(remotes),
             { avoidDeletions: true }
@@ -1099,7 +1095,7 @@ export class SyncManager {
         this.remotes[1].lastSyncTime = timestamp / 1000;
     }
 
-    private getRemoteDirFilesViaWebSocket(path: string, dirName: string, excludedItems: string[], appId: string): Promise<Map<string, IResReadDir>> {
+    private getRemoteDirFilesViaWebSocket(path: string, excludedItems: string[], appId: string): Promise<Map<string, IResReadDir>> {
         return new Promise(async (resolve, reject) => {
             const requestId = Math.random().toString(36).substring(2, 15);
             this.pendingDirRequests.set(requestId, resolve);
@@ -1108,19 +1104,18 @@ export class SyncManager {
             setTimeout(() => {
                 if (this.pendingDirRequests.has(requestId)) {
                     this.pendingDirRequests.delete(requestId);
-                    reject(new Error(`Request for directory files timed out: ${path}/${dirName}`));
+                    reject(new Error(`Request for directory files timed out: ${path}`));
                 }
             }, 5000);
 
-            const payload = new Payload("get-dir-files", { path, dirName, excludedItems, requestId, appId });
+            const payload = new Payload("get-dir-files", { path, excludedItems, requestId, appId });
             await this.transmitWebSocketMessage(payload.toString(), this.inputWebSocketManagers[1]);
         });
     }
 
     /**
      * Synchronize a directory between local and remote devices, in both directions.
-     * @param path The path to the directory to synchronize.
-     * @param dirName The name of the directory to synchronize.
+     * @param path The path of the directory to synchronize.
      * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
      * @param excludedItems An array of item names to exclude from synchronization.
      * @param options Synchronization options including:
@@ -1131,7 +1126,6 @@ export class SyncManager {
      */
     private async syncDirectory(
         path: string,
-        dirName: string,
         remotes: [RemoteInfo, RemoteInfo],
         excludedItems: string[] = [],
         options?: {
@@ -1142,7 +1136,7 @@ export class SyncManager {
             trackUpdatedFiles?: boolean
         }
     ) {
-        console.log(`Syncing directory ${path}/${dirName}. Excluding items: ${excludedItems.join(", ")}`);
+        console.log(`Syncing directory ${path}. Excluding items: ${excludedItems.join(", ")}`);
 
         const isRemoteAppIdSet = this.isRemoteAppIdSet(remotes[1]);
         const useWebSocket: boolean = await this.shouldUseWebSocket() && isRemoteAppIdSet;
@@ -1154,11 +1148,11 @@ export class SyncManager {
             disconnectWebSocket = true;
         }
 
-        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, dirName, remotes[0].url, remotes[0].key, true, excludedItems);
+        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, remotes[0].url, remotes[0].key, true, excludedItems);
 
         const filesTwoPromise = useWebSocket
-            ? this.getRemoteDirFilesViaWebSocket(path, dirName, excludedItems, remotes[1].appId)
-            : SyncUtils.getDirFilesRecursively(path, dirName, remotes[1].url, remotes[1].key, true, excludedItems);
+            ? this.getRemoteDirFilesViaWebSocket(path, excludedItems, remotes[1].appId)
+            : SyncUtils.getDirFilesRecursively(path, remotes[1].url, remotes[1].key, true, excludedItems);
 
         const [filesOne, filesTwo] = await Promise.all([
             filesOnePromise,
@@ -1201,7 +1195,6 @@ export class SyncManager {
 
             directoryPromises.push(this.syncFile(
                 filePath,
-                dirName,
                 options,
                 remoteFileInfos
             ));
@@ -1223,7 +1216,6 @@ export class SyncManager {
 
             filePromises.push(this.syncFile(
                 filePath,
-                dirName,
                 options,
                 remoteFileInfos
             ));
@@ -1237,7 +1229,6 @@ export class SyncManager {
     /**
      * Synchronize a file between local and remote devices.
      * @param filePath The path to the file to synchronize.
-     * @param dirName The name of the directory containing the file.
      * @param options Synchronization options including:
      * - deleteFoldersOnly: If true, only delete folders and not single files.
      * - onlyIfMissing: If true, only synchronize files that are missing in one of the remotes.
@@ -1247,7 +1238,6 @@ export class SyncManager {
      */
     async syncFile(
         filePath: string,
-        dirName: string,
         options?: {
             deleteFoldersOnly?: boolean,
             onlyIfMissing?: boolean,
@@ -1291,7 +1281,6 @@ export class SyncManager {
         if (!options?.onlyIfMissing && !fileRes.isDir && trackConflicts) {
             const conflictDetected = await ConflictHandler.handleConflictDetection(
                 filePath,
-                dirName,
                 copyRemotes,
                 this.plugin.i18n
             );
