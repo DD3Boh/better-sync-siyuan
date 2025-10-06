@@ -4,7 +4,6 @@ export class SyncUtils {
     /**
      * Recursively retrieves all files in a directory.
      * @param path The base path to start searching from.
-     * @param dirName The name of the directory to search within.
      * @param url The URL to use for API requests.
      * @param key The API key to use for authentication.
      * @param skipSymlinks Whether to skip symbolic links.
@@ -13,7 +12,6 @@ export class SyncUtils {
      */
     static async getDirFilesRecursively(
         path: string,
-        dirName: string,
         url: string = "",
         key: string = "",
         skipSymlinks: boolean = true,
@@ -21,28 +19,10 @@ export class SyncUtils {
     ): Promise<Map<string, IResReadDir>> {
         const filesMap = new Map<string, IResReadDir>();
 
-        const fullPath = path === "" ? dirName : `${path}/${dirName}`;
+        const dirResponse = await readDir(path, url, SyncUtils.getHeaders(key));
 
-        // Read the path itself and add it to the map
-        const mainDirResponse = await readDir(path, url, SyncUtils.getHeaders(key));
-
-        // Retrieve the main directory only
-        if (!mainDirResponse || !Array.isArray(mainDirResponse)) {
-            console.log(`No files found or invalid response for path ${path}:`, mainDirResponse);
-            return filesMap;
-        }
-
-        const mainDir = mainDirResponse.find(file => file.name === dirName);
-        if (!mainDir) {
-            console.log(`Directory ${dirName} not found in path ${path}`);
-            return filesMap;
-        }
-        filesMap.set(`${path}/${mainDir.name}`, mainDir);
-
-        const dirResponse = await readDir(fullPath, url, SyncUtils.getHeaders(key));
-
-        if (!dirResponse || !Array.isArray(dirResponse)) {
-            console.log(`No files found or invalid response for path ${fullPath}:`, dirResponse);
+        if (!dirResponse) {
+            console.log("No files found or invalid response for path:", path);
             return filesMap;
         }
 
@@ -51,19 +31,19 @@ export class SyncUtils {
             .filter(file => !excludedItems.includes(file.name));
 
         if (!dir || dir.length === 0) {
-            console.log("No files found or invalid response:", dir);
+            console.log("No files found or invalid response for path:", path);
             return filesMap;
         }
 
         // Add current level files to the map
         dir.forEach(file => {
-            filesMap.set(`${fullPath}/${file.name}`, file);
+            filesMap.set(`${path}/${file.name}`, file);
         });
 
         // Collect all promises for subdirectories
         const promises = dir
             .filter(file => file.isDir)
-            .map(file => SyncUtils.getDirFilesRecursively(fullPath, file.name, url, key, skipSymlinks, excludedItems));
+            .map(file => SyncUtils.getDirFilesRecursively(`${path}/${file.name}`, url, key, skipSymlinks, excludedItems));
 
         // Wait for all promises to resolve
         const results = await Promise.all(promises);
