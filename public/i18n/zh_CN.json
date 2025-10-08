@@ -32,6 +32,8 @@
     "syncLockAlreadyExists": "{{remoteName}} 上已有同步正在进行中。如果这是一个错误，请删除锁文件 `/data/.siyuan/sync/lock`。",
     "syncIconInBreadcrumb": "在面包屑中显示同步图标",
     "syncIconInBreadcrumbDesc": "在文档面包屑中显示同步图标。您可以在 SiYuan 设置中切换顶部栏图标。",
+    "replaceSyncButton": "替换默认同步按钮",
+    "replaceSyncButtonDesc": "用 Better Sync 按钮替换默认的 SiYuan 同步按钮。",
     "syncInProgress": "同步中...",
     "syncDone": "同步成功。",
     "syncDoneWithConflict": "同步完成但有冲突。",

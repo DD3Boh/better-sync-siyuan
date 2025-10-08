@@ -159,6 +159,20 @@ export class SettingsManager {
         });
 
         this.settingUtils.addItem({
+            key: "replaceSyncButton",
+            value: false,
+            type: "checkbox",
+            title: this.plugin.i18n.replaceSyncButton,
+            description: this.plugin.i18n.replaceSyncButtonDesc,
+            action: {
+                callback: () => {
+                    let value = !this.settingUtils.get("replaceSyncButton");
+                    this.settingUtils.set("replaceSyncButton", value);
+                }
+            }
+        });
+
+        this.settingUtils.addItem({
             key: "useExperimentalWebSocket",
             value: false,
             type: "checkbox",
