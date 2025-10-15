@@ -10,7 +10,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
-import { ConflictHandler, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
+import { ConflictHandler, SyncUtils, WebSocketManager, defaultRemoteInfo, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback } from "@/types/sync-status";
 
@@ -267,7 +267,7 @@ export class SyncManager {
     private async releaseLock(remote: RemoteInfo): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         try {
-            await SyncUtils.deleteFile(lockPath, remote.url, remote.key);
+            await SyncUtils.deleteFile(lockPath, remote);
         } catch (error) {
             this.dismissMainSyncNotification();
 
@@ -666,7 +666,7 @@ export class SyncManager {
                     return console.warn(`Ignoring get-dir-files request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
 
                 console.log(`Received request for directory files: ${path} with app ID ${appId}`);
-                const files = await SyncUtils.getDirFilesRecursively(path, "", "SKIP", true, excludedItems);
+                const files = await SyncUtils.getDirFilesRecursively(path, defaultRemoteInfo, true, excludedItems);
                 const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
                 await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
                 break;
@@ -999,11 +999,11 @@ export class SyncManager {
 
         // Update last sync times for both remotes
         await Promise.all([
-            SyncUtils.getLastSyncTime(remotes[0].url, remotes[0].key).then(lastSyncTime => {
+            SyncUtils.getLastSyncTime(remotes[0]).then(lastSyncTime => {
                 this.remotes[0].lastSyncTime = lastSyncTime;
                 remotes[0].lastSyncTime = lastSyncTime;
             }),
-            SyncUtils.getLastSyncTime(remotes[1].url, remotes[1].key).then(lastSyncTime => {
+            SyncUtils.getLastSyncTime(remotes[1]).then(lastSyncTime => {
                 this.remotes[1].lastSyncTime = lastSyncTime;
                 remotes[1].lastSyncTime = lastSyncTime;
             })
@@ -1148,11 +1148,11 @@ export class SyncManager {
             disconnectWebSocket = true;
         }
 
-        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, remotes[0].url, remotes[0].key, true, excludedItems);
+        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, remotes[0], true, excludedItems);
 
         const filesTwoPromise = useWebSocket
             ? this.getRemoteDirFilesViaWebSocket(path, excludedItems, remotes[1].appId)
-            : SyncUtils.getDirFilesRecursively(path, remotes[1].url, remotes[1].key, true, excludedItems);
+            : SyncUtils.getDirFilesRecursively(path, remotes[1], true, excludedItems);
 
         const [filesOne, filesTwo] = await Promise.all([
             filesOnePromise,
@@ -1305,7 +1305,7 @@ export class SyncManager {
         if ((!copyRemotes[0].file && lastSyncTime > updated[1]) || (!copyRemotes[1].file && lastSyncTime > updated[0])) {
             if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
                 const targetIndex = !copyRemotes[0].file ? 1 : 0;
-                await SyncUtils.deleteFile(filePath, copyRemotes[targetIndex].url, copyRemotes[targetIndex].key);
+                await SyncUtils.deleteFile(filePath, copyRemotes[targetIndex]);
                 return;
             }
         }

@@ -1,25 +1,31 @@
 import { putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
 
+export const defaultRemoteInfo: RemoteInfo = {
+    url: "",
+    key: undefined,
+    name: "Local",
+    lastSyncTime: 0,
+    appId: undefined,
+};
+
 export class SyncUtils {
     /**
      * Recursively retrieves all files in a directory.
      * @param path The base path to start searching from.
-     * @param url The URL to use for API requests.
-     * @param key The API key to use for authentication.
+     * @param remote The remote information containing URL and key.
      * @param skipSymlinks Whether to skip symbolic links.
      * @param excludedItems Array of file/directory names to exclude from sync.
      * @returns A map of file paths to their metadata.
      */
     static async getDirFilesRecursively(
         path: string,
-        url: string = "",
-        key: string = "",
+        remote: RemoteInfo,
         skipSymlinks: boolean = true,
         excludedItems: string[] = []
     ): Promise<Map<string, IResReadDir>> {
         const filesMap = new Map<string, IResReadDir>();
 
-        const dirResponse = await readDir(path, url, SyncUtils.getHeaders(key));
+        const dirResponse = await readDir(path, remote.url, SyncUtils.getHeaders(remote.key));
 
         if (!dirResponse) {
             console.log("No files found or invalid response for path:", path);
@@ -43,7 +49,7 @@ export class SyncUtils {
         // Collect all promises for subdirectories
         const promises = dir
             .filter(file => file.isDir)
-            .map(file => SyncUtils.getDirFilesRecursively(`${path}/${file.name}`, url, key, skipSymlinks, excludedItems));
+            .map(file => SyncUtils.getDirFilesRecursively(`${path}/${file.name}`, remote, skipSymlinks, excludedItems));
 
         // Wait for all promises to resolve
         const results = await Promise.all(promises);
@@ -61,18 +67,16 @@ export class SyncUtils {
     /**
      * Delete a file or directory with error handling and logging.
      * @param filePath The path of the file or directory to delete.
-     * @param url The URL to use for API requests.
-     * @param key The API key to use for authentication.
+     * @param remote The remote information containing URL and key.
      */
     static async deleteFile(
         filePath: string,
-        url: string = "",
-        key: string = ""
+        remote: RemoteInfo
     ) {
         try {
-            console.log(`Deleting ${filePath}`);
-            await removeFile(filePath, url, SyncUtils.getHeaders(key));
-            await removeIndexes([filePath.replace("data/", "")], url, SyncUtils.getHeaders(key));
+            console.log(`Deleting ${filePath} from remote ${remote.name}`);
+            await removeFile(filePath, remote.url, SyncUtils.getHeaders(remote.key));
+            await removeIndexes([filePath.replace("data/", "")], remote.url, SyncUtils.getHeaders(remote.key));
         } catch (error) {
             console.error(`Error deleting file ${filePath}:`, error);
         }
@@ -125,12 +129,11 @@ export class SyncUtils {
 
     /**
      * Get the last sync time from the status file.
-     * @param url The URL to use for API requests.
-     * @param key The API key to use for authentication.
+     * @param remote The remote information containing URL and key.
      * @returns The last sync time as a timestamp, or 0 if not found.
      */
-    static async getLastSyncTime(url: string = "", key: string = null): Promise<number> {
-        let dir = await readDir(`/data/.siyuan/sync/`, url, SyncUtils.getHeaders(key));
+    static async getLastSyncTime(remote: RemoteInfo = defaultRemoteInfo): Promise<number> {
+        let dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
 
         if (!dir || dir.length === 0) {
             console.log("No sync directory found.");

@@ -123,7 +123,7 @@ export class ConflictHandler {
 
         const fetchLastSyncTime = async (remote: RemoteFileInfo) => {
             if (!remote.lastSyncTime)
-               remote.lastSyncTime = await SyncUtils.getLastSyncTime(remote.url, remote.key) || 0;
+               remote.lastSyncTime = await SyncUtils.getLastSyncTime(remote) || 0;
         };
 
         await Promise.all(remotes.map(fetchLastSyncTime));
