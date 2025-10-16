@@ -171,6 +171,9 @@ export class SyncManager {
             }
         ];
 
+        // Update instance IDs for remotes
+        this.checkAndSetInstanceId(this.remotes[0]);
+
         // Update WebSocket managers with the new remotes
         this.cleanupWebSockets();
         this.setupWebSockets();
@@ -186,6 +189,21 @@ export class SyncManager {
             this.remotes[0].lastSyncTime = await SyncUtils.getLastSyncTime();
 
         return this.remotes[0].lastSyncTime;
+    }
+
+    /* Instance ID management */
+    private async checkAndSetInstanceId(
+        remote: RemoteInfo = this.remotes[0]
+    ) {
+        const instanceId = await SyncUtils.getInstanceId(remote);
+        if (instanceId) {
+            remote.instanceId = instanceId;
+        } else {
+            console.warn("No instance ID found, generating a new one.");
+            const newInstanceId = SyncUtils.generateInstanceId();
+            await SyncUtils.setInstanceId(newInstanceId, remote);
+            remote.instanceId = newInstanceId;
+        }
     }
 
     /* Protyle management */
@@ -1007,6 +1025,11 @@ export class SyncManager {
                 this.remotes[1].lastSyncTime = lastSyncTime;
                 remotes[1].lastSyncTime = lastSyncTime;
             })
+        ]);
+
+        await Promise.all([
+            this.checkAndSetInstanceId(remotes[0]),
+            this.checkAndSetInstanceId(remotes[1])
         ]);
 
         console.log(`Last sync times: ${remotes[0].lastSyncTime} (${remotes[0].name}), ${remotes[1].lastSyncTime} (${remotes[1].name})`);

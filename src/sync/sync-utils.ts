@@ -1,4 +1,4 @@
-import { putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
+import { getFileBlob, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
 
 export const defaultRemoteInfo: RemoteInfo = {
     url: "",
@@ -162,6 +162,43 @@ export class SyncUtils {
         SyncUtils.checkRemotes(remotes);
         await SyncUtils.putFile(filePath, file, remotes[0].url, remotes[0].key, timestamp);
         await SyncUtils.putFile(filePath, file, remotes[1].url, remotes[1].key, timestamp);
+    }
+
+    /**
+     * Get the instance ID from the instance-id file.
+     *
+     * @param remote The remote information containing URL and key.
+     * @returns The instance ID as a string, or an empty string if not found.
+     */
+    static async getInstanceId(
+        remote: RemoteInfo
+    ): Promise<string> {
+        const blob = await getFileBlob("/data/.siyuan/sync/instance-id", remote.url, SyncUtils.getHeaders(remote.key));
+        return blob ? await blob.text() : "";
+    }
+
+    /**
+     * Set the instance ID in the instance-id file.
+     *
+     * @param remote The remote information containing URL and key.
+     * @param instanceId The instance ID to set.
+     */
+    static async setInstanceId(
+        instanceId: string,
+        remote: RemoteInfo
+    ): Promise<void> {
+        const filePath = "/data/.siyuan/sync/instance-id";
+        const file = new File([instanceId], "instance-id", { lastModified: Date.now() });
+        await SyncUtils.putFile(filePath, file, remote.url, remote.key);
+    }
+
+    /**
+     * Generate a new instance ID.
+     *
+     * @returns A new instance ID string.
+     */
+    static generateInstanceId(): string {
+        return crypto.randomUUID();
     }
 
     /**

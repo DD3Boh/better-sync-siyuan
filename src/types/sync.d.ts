@@ -4,6 +4,7 @@ interface RemoteInfo {
     name: string;
     lastSyncTime: number;
     appId?: string;
+    instanceId?: string;
 }
 
 interface RemoteFileInfo extends RemoteInfo {
