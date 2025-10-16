@@ -1,6 +1,6 @@
-export { ConflictHandler } from "./sync/conflict-handler";
-export { SyncManager } from "./sync/sync";
-export { SyncUtils, defaultRemoteInfo } from "./sync/sync-utils";
-export { WebSocketManager } from "./sync/websocket";
-export { getSyncTargets, type SyncTarget } from "./sync/sync-targets";
-export { SyncHistory } from "./sync/history";
+export * from "./sync/conflict-handler";
+export * from "./sync/sync";
+export * from "./sync/sync-utils";
+export * from "./sync/websocket";
+export * from "./sync/sync-targets";
+export * from "./sync/history";
