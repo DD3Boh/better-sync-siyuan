@@ -1133,15 +1133,14 @@ export class SyncManager {
             this.sendReloadProtylesMessage(Array.from(this.remotelyUpdatedFiles));
         }
 
-        const timestamp = Date.now();
-        SyncUtils.setSyncStatus(remotes, timestamp);
-        this.remotes[0].lastSyncTime = timestamp / 1000;
-        this.remotes[1].lastSyncTime = timestamp / 1000;
+        const timestamp = Math.floor(Date.now() / 1000);
+        this.remotes[0].lastSyncTime = timestamp;
+        this.remotes[1].lastSyncTime = timestamp;
 
-        this.remotes[0].syncHistory.set(remotes[0].instanceId, timestamp / 1000);
-        this.remotes[0].syncHistory.set(remotes[1].instanceId, timestamp / 1000);
-        this.remotes[1].syncHistory.set(remotes[1].instanceId, timestamp / 1000);
-        this.remotes[1].syncHistory.set(remotes[0].instanceId, timestamp / 1000);
+        this.remotes[0].syncHistory.set(remotes[0].instanceId, timestamp);
+        this.remotes[0].syncHistory.set(remotes[1].instanceId, timestamp);
+        this.remotes[1].syncHistory.set(remotes[1].instanceId, timestamp);
+        this.remotes[1].syncHistory.set(remotes[0].instanceId, timestamp);
 
         await SyncHistory.updateSyncHistories(this.remotes);
 
