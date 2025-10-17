@@ -5,6 +5,8 @@ interface RemoteInfo {
     lastSyncTime: number;
     appId?: string;
     instanceId?: string;
+    // Maps instance ids to last sync times
+    syncHistory?: Map<string, number>;
 }
 
 interface RemoteFileInfo extends RemoteInfo {

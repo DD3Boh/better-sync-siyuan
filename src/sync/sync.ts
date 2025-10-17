@@ -10,7 +10,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
-import { ConflictHandler, SyncUtils, WebSocketManager, defaultRemoteInfo, getSyncTargets } from "@/sync";
+import { ConflictHandler, SyncHistory, SyncUtils, WebSocketManager, defaultRemoteInfo, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback } from "@/types/sync-status";
 
@@ -30,8 +30,8 @@ export class SyncManager {
      * The first element is always the local server, the second is the remote server.
      */
     private remotes: [RemoteInfo, RemoteInfo] = [
-        { url: "", key: "SKIP", name: "local", lastSyncTime: undefined },
-        { url: "", key: "", name: "remote", lastSyncTime: undefined }
+        { url: "", key: "SKIP", name: "local", lastSyncTime: undefined, syncHistory: new Map() },
+        { url: "", key: "", name: "remote", lastSyncTime: undefined, syncHistory: new Map() }
     ];
 
     /**
@@ -155,19 +155,22 @@ export class SyncManager {
         let key = this.getKey()
 
         const lastSyncTimes = this.remotes.map(remote => remote.lastSyncTime);
+        const syncHistories = this.remotes.map(remote => remote.syncHistory || new Map());
 
         this.remotes = [
             {
                 url: "",
                 key: "SKIP",
                 name: "local",
-                lastSyncTime: lastSyncTimes[0] || undefined
+                lastSyncTime: lastSyncTimes[0] || undefined,
+                syncHistory: syncHistories[0]
             },
             {
                 url: url || "",
                 key: key || "",
                 name: this.getNickname() || "remote",
-                lastSyncTime: lastSyncTimes[1] || undefined
+                lastSyncTime: lastSyncTimes[1] || undefined,
+                syncHistory: syncHistories[1]
             }
         ];
 
@@ -1032,7 +1035,19 @@ export class SyncManager {
             this.checkAndSetInstanceId(remotes[1])
         ]);
 
+        // Load sync history for both remotes
+        await Promise.all([
+            SyncHistory.loadSyncHistory(remotes[0]).then(syncHistory => {
+                remotes[0].syncHistory = syncHistory;
+            }),
+            SyncHistory.loadSyncHistory(remotes[1]).then(syncHistory => {
+                remotes[1].syncHistory = syncHistory;
+            })
+        ]);
+
         console.log(`Last sync times: ${remotes[0].lastSyncTime} (${remotes[0].name}), ${remotes[1].lastSyncTime} (${remotes[1].name})`);
+        console.log(`Sync history loaded for ${remotes[0].name}:`, Array.from(remotes[0].syncHistory?.entries() || []));
+        console.log(`Sync history loaded for ${remotes[1].name}:`, Array.from(remotes[1].syncHistory?.entries() || []));
 
         const [notebooksOne, notebooksTwo] = await Promise.all([
             this.getNotebooks(remotes[0].url, remotes[0].key),
@@ -1116,6 +1131,15 @@ export class SyncManager {
         SyncUtils.setSyncStatus(remotes, timestamp);
         this.remotes[0].lastSyncTime = timestamp / 1000;
         this.remotes[1].lastSyncTime = timestamp / 1000;
+
+        this.remotes[0].syncHistory.set(remotes[0].instanceId, timestamp / 1000);
+        this.remotes[0].syncHistory.set(remotes[1].instanceId, timestamp / 1000);
+        this.remotes[1].syncHistory.set(remotes[1].instanceId, timestamp / 1000);
+        this.remotes[1].syncHistory.set(remotes[0].instanceId, timestamp / 1000);
+
+        await SyncHistory.updateSyncHistories(this.remotes);
+
+        console.log(`Sync completed. Updated sync history for both remotes.`);
     }
 
     private getRemoteDirFilesViaWebSocket(path: string, excludedItems: string[], appId: string): Promise<Map<string, IResReadDir>> {

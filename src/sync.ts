@@ -3,3 +3,4 @@ export { SyncManager } from "./sync/sync";
 export { SyncUtils, defaultRemoteInfo } from "./sync/sync-utils";
 export { WebSocketManager } from "./sync/websocket";
 export { getSyncTargets, type SyncTarget } from "./sync/sync-targets";
+export { SyncHistory } from "./sync/history";

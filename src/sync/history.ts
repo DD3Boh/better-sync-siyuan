@@ -1,0 +1,101 @@
+import { getFileBlob, readDir } from "@/api";
+import { SyncUtils } from "@/sync";
+
+export class SyncHistory {
+    /**
+     * Load sync history from disk for a specific remote.
+     * The sync history stores when this remote last synced with other remotes.
+     *
+     * @param remote The remote information containing URL and key.
+     * @returns A Map of remote URLs to their last sync timestamps.
+     */
+    static async loadSyncHistory(remote: RemoteInfo): Promise<Map<string, number>> {
+        try {
+            const dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
+
+            if (!dir || dir.length === 0) {
+                console.log(`No sync directory found for ${remote.name}`);
+                return new Map();
+            }
+
+            const historyFile = dir.find(file => file.name === "sync-history.json");
+            if (!historyFile) {
+                console.log(`No sync history file found for ${remote.name}`);
+                return new Map();
+            }
+
+            // Fetch the file content
+            const filePath = "/data/.siyuan/sync/sync-history.json";
+            const blob = await getFileBlob(filePath, remote.url, SyncUtils.getHeaders(remote.key));
+
+            if (!blob) {
+                console.warn(`Failed to fetch sync history for ${remote.name}`);
+                return new Map();
+            }
+
+            const text = await blob.text();
+            const historyData = JSON.parse(text);
+
+            // Convert plain object to Map
+            return new Map(Object.entries(historyData));
+        } catch (error) {
+            console.error(`Error loading sync history for ${remote.name}:`, error);
+            return new Map();
+        }
+    }
+
+    /**
+     * Save sync history to disk for a specific remote.
+     *
+     * @param remote The remote information containing URL and key.
+     * @param syncHistory A Map of remote instance ids to their last sync timestamps.
+     */
+    static async saveSyncHistory(remote: RemoteInfo, syncHistory: Map<string, number>): Promise<void> {
+        try {
+            const filePath = "/data/.siyuan/sync/sync-history.json";
+
+            // Convert Map to plain object for JSON serialization
+            const historyObj: Record<string, number> = {};
+            syncHistory.forEach((timestamp, instanceId) => {
+                historyObj[instanceId] = timestamp;
+            });
+
+            const jsonContent = JSON.stringify(historyObj, null, 2);
+            const file = new File([jsonContent], "sync-history.json", { lastModified: Date.now() });
+
+            await SyncUtils.putFile(filePath, file, remote.url, remote.key);
+            console.log(`Saved sync history for ${remote.name}`);
+        } catch (error) {
+            console.error(`Error saving sync history for ${remote.name}:`, error);
+        }
+    }
+
+    /**
+     * Update sync history to record that we synced with a specific remote.
+     *
+     * @param remotes The pair of remotes involved in the sync.
+     * @param timestamp The timestamp of the sync.
+     */
+    static async updateSyncHistories(
+        remotes: [RemoteInfo, RemoteInfo]
+    ): Promise<void> {
+        await Promise.allSettled([
+            SyncHistory.saveSyncHistory(remotes[0], remotes[0].syncHistory),
+            SyncHistory.saveSyncHistory(remotes[1], remotes[1].syncHistory)
+        ]);
+    }
+
+    /**
+     * Get the last time a remote synced with another specific remote.
+     *
+     * @param remote The remote whose history we're checking.
+     * @param instanceId The instance ID of the other remote.
+     * @returns The last sync timestamp, or 0 if never synced.
+     */
+    static getLastSyncWithRemote(remote: RemoteInfo, instanceId: string): number {
+        if (!remote.syncHistory)
+            return 0;
+
+        return remote.syncHistory.get(instanceId) || 0;
+    }
+}

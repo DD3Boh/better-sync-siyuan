@@ -6,6 +6,7 @@ export const defaultRemoteInfo: RemoteInfo = {
     name: "Local",
     lastSyncTime: 0,
     appId: undefined,
+    syncHistory: new Map(),
 };
 
 export class SyncUtils {
