@@ -99,7 +99,7 @@ export class SyncManager {
      */
     constructor(plugin: BetterSyncPlugin) {
         this.plugin = plugin;
-        this.updateUrlKey();
+        this.init();
 
         this.originalFetch = window.fetch.bind(window);
         window.fetch = this.customFetch.bind(this);
@@ -147,10 +147,13 @@ export class SyncManager {
     }
 
     /**
-     * Update the remotes array with the current Siyuan URL and API key.
-     * This is called whenever the settings change to ensure the remotes are up-to-date.
+     * Initialize the SyncManager by setting up remotes and WebSocket connections.
+     * This method retrieves the URL, key, and nickname from the plugin settings
+     * and configures the remotes accordingly.
+     * It also retrieves and sets the instance IDs for the remotes and setup the
+     * WebSocket connections for real-time sync operations.
      */
-    async updateUrlKey() {
+    async init() {
         let url = this.getUrl()
         let key = this.getKey()
 

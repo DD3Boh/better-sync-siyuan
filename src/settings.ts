@@ -26,7 +26,7 @@ export class SettingsManager {
             action: {
                 callback: () => {
                     this.settingUtils.takeAndSave("siyuanUrl");
-                    this.plugin.syncManager.updateUrlKey();
+                    this.plugin.syncManager.init();
                 }
             }
         });
@@ -40,7 +40,7 @@ export class SettingsManager {
             action: {
                 callback: () => {
                     this.settingUtils.takeAndSave("siyuanAPIKey");
-                    this.plugin.syncManager.updateUrlKey();
+                    this.plugin.syncManager.init();
                 }
             }
         });
