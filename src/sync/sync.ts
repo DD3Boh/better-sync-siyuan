@@ -150,7 +150,7 @@ export class SyncManager {
      * Update the remotes array with the current Siyuan URL and API key.
      * This is called whenever the settings change to ensure the remotes are up-to-date.
      */
-    updateUrlKey() {
+    async updateUrlKey() {
         let url = this.getUrl()
         let key = this.getKey()
 
@@ -175,11 +175,11 @@ export class SyncManager {
         ];
 
         // Update instance IDs for remotes
-        this.checkAndSetInstanceId(this.remotes[0]);
+        await this.checkAndSetInstanceId(this.remotes[0]);
 
         // Update WebSocket managers with the new remotes
         this.cleanupWebSockets();
-        this.setupWebSockets();
+        await this.setupWebSockets();
     }
 
     /**
@@ -543,7 +543,7 @@ export class SyncManager {
      * We set up callbacks for handling input messages on the local input WebSocket and
      * output messages on the remote output WebSocket.
      */
-    setupWebSockets() {
+    async setupWebSockets() {
         if (!this.plugin.settingsManager.getPref("useExperimentalWebSocket"))
             return;
 
@@ -554,17 +554,18 @@ export class SyncManager {
         this.inputWebSocketManagers[1] = new WebSocketManager("better-sync-input", remotes[1]);
         this.outputWebSocketManagers[1] = new WebSocketManager("better-sync-output", remotes[1]);
 
-        this.connectWebSocket(
-            this.inputWebSocketManagers[0],
-            this.webSocketInputCallback.bind(this),
-            this.webSocketCloseRetryCallback.bind(this),
-        )
-
-        this.connectWebSocket(
-            this.outputWebSocketManagers[0],
-            null,
-            this.webSocketCloseRetryCallback.bind(this)
-        );
+        await Promise.allSettled([
+            this.connectWebSocket(
+                this.inputWebSocketManagers[0],
+                this.webSocketInputCallback.bind(this),
+                this.webSocketCloseRetryCallback.bind(this),
+            ),
+            this.connectWebSocket(
+                this.outputWebSocketManagers[0],
+                null,
+                this.webSocketCloseRetryCallback.bind(this)
+            )
+        ]);
     }
 
     /**
