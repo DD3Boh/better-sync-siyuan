@@ -201,6 +201,8 @@ export class SyncManager {
     private async checkAndSetInstanceId(
         remote: RemoteInfo = this.remotes[0]
     ) {
+        if (remote.instanceId) return;
+
         const instanceId = await SyncUtils.getInstanceId(remote);
         if (instanceId) {
             remote.instanceId = instanceId;
