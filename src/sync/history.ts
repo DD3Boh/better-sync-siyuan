@@ -98,4 +98,17 @@ export class SyncHistory {
 
         return remote.syncHistory.get(instanceId) || 0;
     }
+
+    /**
+     * Get the most recent sync time across all remotes in the history.
+     *
+     * @param remote The remote whose history we're checking.
+     * @returns The most recent sync timestamp, or 0 if no syncs recorded.
+     */
+    static getMostRecentSyncTime(remote: RemoteInfo): number {
+        if (!remote.syncHistory || remote.syncHistory.size === 0)
+            return 0;
+
+        return Math.max(...Array.from(remote.syncHistory.values()));
+    }
 }
