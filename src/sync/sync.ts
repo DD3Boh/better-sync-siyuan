@@ -1354,12 +1354,41 @@ export class SyncManager {
         if (!fileRes.isDir)
             console.log(`Syncing file from ${copyRemotes[iIn].name} to ${copyRemotes[iOut].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
-        // Remove deleted files
-        if ((!copyRemotes[0].file && lastSyncTime > updated[1]) || (!copyRemotes[1].file && lastSyncTime > updated[0])) {
-            if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
-                const targetIndex = !copyRemotes[0].file ? 1 : 0;
-                await SyncUtils.deleteFile(filePath, copyRemotes[targetIndex]);
-                return;
+        // Handle deletions
+        if (!copyRemotes[0].file || !copyRemotes[1].file) {
+            const missingIndex = !copyRemotes[0].file ? 0 : 1;
+            const existingIndex = missingIndex === 0 ? 1 : 0;
+
+            const commonSync = SyncHistory.getLastSyncWithRemote(
+                copyRemotes[existingIndex],
+                copyRemotes[missingIndex].instanceId
+            );
+
+            const existingLastSync = SyncHistory.getMostRecentSyncTime(
+                copyRemotes[existingIndex]
+            );
+
+            /**
+             * Determine if the file should be deleted based on sync history.
+             * The file should be deleted if all the following conditions are met:
+             * - The last sync time with the other remote is greater than 0 (they have synced before).
+             * - The last sync time with the other remote is greater than the file's last updated timestamp.
+             * - The last sync time with the other remote is greater than the existing remote's last sync time.
+             * This ensures that we only delete files that were present during the last sync and have not been updated since.
+             */
+            const shouldDelete: boolean = (commonSync > 0) &&
+                (commonSync > updated[existingIndex]) &&
+                (commonSync >= existingLastSync);
+
+            console.log(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}. Should delete: ${shouldDelete}`);
+
+            if (shouldDelete) {
+                if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
+                    await SyncUtils.deleteFile(filePath, copyRemotes[existingIndex]);
+                    return;
+                }
+            } else {
+                console.log(`File ${filePath} is missing on ${copyRemotes[missingIndex].name} but will be synced (timestamp check passed)`);
             }
         }
 
