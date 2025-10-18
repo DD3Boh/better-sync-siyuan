@@ -141,21 +141,6 @@ export class SyncUtils {
     }
 
     /**
-     * Set the sync status file with the provided remotes or URL-to-key mapping.
-     */
-    static async setSyncStatus(
-        remotes: [Remote, Remote],
-        timestamp: number = Date.now()
-    ): Promise<void> {
-        let filePath = `/data/.siyuan/sync/status`;
-        let file = new File([], "status", { lastModified: timestamp });
-
-        SyncUtils.checkRemotes(remotes);
-        await SyncUtils.putFile(filePath, file, remotes[0].url, remotes[0].key, timestamp);
-        await SyncUtils.putFile(filePath, file, remotes[1].url, remotes[1].key, timestamp);
-    }
-
-    /**
      * Get the instance ID from the instance-id file.
      *
      * @param remote The remote information containing URL and key.
