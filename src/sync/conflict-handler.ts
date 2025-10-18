@@ -121,13 +121,6 @@ export class ConflictHandler {
 
         const fileRes = remotes[0].file || remotes[1].file;
 
-        const fetchLastSyncTime = async (remote: Remote) => {
-            if (!remote.lastSyncTime)
-               remote.lastSyncTime = await SyncUtils.getLastSyncTime(remote) || 0;
-        };
-
-        await Promise.all(remotes.map(fetchLastSyncTime));
-
         if (remotes[0].lastSyncTime > 0 && remotes[1].lastSyncTime > 0 &&
             remotes[0].file.updated > remotes[0].lastSyncTime && remotes[1].file.updated > remotes[1].lastSyncTime &&
             remotes[0].file.updated !== remotes[1].file.updated) {

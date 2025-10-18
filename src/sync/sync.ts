@@ -172,9 +172,6 @@ export class SyncManager {
      * @return The last local sync time in milliseconds, or undefined if not set.
      */
     async getLastLocalSyncTime(): Promise<number | undefined> {
-        if (!this.remotes[0].lastSyncTime)
-            this.remotes[0].lastSyncTime = await SyncUtils.getLastSyncTime();
-
         return this.remotes[0].lastSyncTime;
     }
 
@@ -1005,18 +1002,6 @@ export class SyncManager {
             await this.createDataSnapshots(remotes);
         }
 
-        // Update last sync times for both remotes
-        await Promise.all([
-            SyncUtils.getLastSyncTime(remotes[0]).then(lastSyncTime => {
-                this.remotes[0].lastSyncTime = lastSyncTime;
-                remotes[0].lastSyncTime = lastSyncTime;
-            }),
-            SyncUtils.getLastSyncTime(remotes[1]).then(lastSyncTime => {
-                this.remotes[1].lastSyncTime = lastSyncTime;
-                remotes[1].lastSyncTime = lastSyncTime;
-            })
-        ]);
-
         await Promise.all([
             this.checkAndSetInstanceId(remotes[0]),
             this.checkAndSetInstanceId(remotes[1])
@@ -1115,8 +1100,6 @@ export class SyncManager {
         }
 
         const timestamp = Math.floor(Date.now() / 1000);
-        this.remotes[0].lastSyncTime = timestamp;
-        this.remotes[1].lastSyncTime = timestamp;
 
         this.remotes[0].syncHistory.set(remotes[0].instanceId, timestamp);
         this.remotes[0].syncHistory.set(remotes[1].instanceId, timestamp);

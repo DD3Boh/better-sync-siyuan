@@ -1,3 +1,5 @@
+import { SyncHistory } from "./history";
+
 /**
  * Represents a remote server connection for synchronization.
  * This class encapsulates all information needed to connect to and sync with a remote SiYuan instance.
@@ -6,17 +8,19 @@ export class Remote {
     url: string;
     key: string;
     name: string;
-    lastSyncTime: number;
     appId?: string;
     instanceId?: string;
     syncHistory: Map<string, number>;
     file?: IResReadDir;
 
+    public get lastSyncTime(): number {
+        return SyncHistory.getLastSyncWithRemote(this, this.instanceId || "");
+    }
+
     constructor(
         url: string,
         key: string,
         name: string,
-        lastSyncTime: number = 0,
         appId?: string,
         instanceId?: string,
         syncHistory: Map<string, number> = new Map(),
@@ -25,7 +29,6 @@ export class Remote {
         this.url = url;
         this.key = key;
         this.name = name;
-        this.lastSyncTime = lastSyncTime;
         this.appId = appId;
         this.instanceId = instanceId;
         this.syncHistory = syncHistory;
@@ -41,7 +44,6 @@ export class Remote {
             this.url,
             this.key,
             this.name,
-            this.lastSyncTime,
             this.appId,
             this.instanceId,
             new Map(this.syncHistory),
@@ -54,7 +56,6 @@ export class Remote {
             "",
             "SKIP",
             "Local",
-            0,
         );
     }
 
@@ -63,7 +64,6 @@ export class Remote {
             "",
             "",
             "remote",
-            0,
         );
     }
 
@@ -106,20 +106,11 @@ export class Remote {
             this.url,
             this.key,
             this.name,
-            this.lastSyncTime,
             this.appId,
             this.instanceId,
             new Map(this.syncHistory),
             file
         );
-    }
-
-    /**
-     * Update the last sync time.
-     * @param timestamp The new sync time in seconds.
-     */
-    updateSyncTime(timestamp: number): void {
-        this.lastSyncTime = timestamp;
     }
 
     /**
