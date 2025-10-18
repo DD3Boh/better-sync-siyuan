@@ -10,7 +10,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
-import { ConflictHandler, Remote, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
+import { ConflictHandler, Remote, StorageItem, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback } from "@/types/sync-status";
 
@@ -74,7 +74,7 @@ export class SyncManager {
      * Map of pending directory requests, where the key is the request ID and the value is the resolve function.
      * This is used to handle asynchronous directory file requests via WebSocket.
      */
-    private pendingDirRequests: Map<string, (files: Map<string, IResReadDir>) => void> = new Map();
+    private pendingDirRequests: Map<string, (files: StorageItem | null) => void> = new Map();
 
     private receivedAppIds: Set<string> = new Set();
 
@@ -671,8 +671,8 @@ export class SyncManager {
                     return console.warn(`Ignoring get-dir-files request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
 
                 console.log(`Received request for directory files: ${path} with app ID ${appId}`);
-                const files = await SyncUtils.getDirFilesRecursively(path, Remote.default(), true, excludedItems);
-                const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
+                const storageItem = await SyncUtils.getDirFilesRecursively(path, Remote.default(), true, excludedItems);
+                const responsePayload = new Payload("dir-files-response", { item: storageItem, requestId });
                 await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
                 break;
             }
@@ -755,10 +755,10 @@ export class SyncManager {
 
         switch (payload.type) {
             case "dir-files-response": {
-                const { files: fileArray, requestId } = payload.data;
+                const { item, requestId } = payload.data;
                 if (this.pendingDirRequests.has(requestId)) {
-                    const filesMap = new Map<string, IResReadDir>(fileArray);
-                    this.pendingDirRequests.get(requestId)(filesMap);
+                    const storageItem = StorageItem.fromObject(item);
+                    this.pendingDirRequests.get(requestId)(storageItem);
                     this.pendingDirRequests.delete(requestId);
                 }
                 break;
@@ -1111,7 +1111,7 @@ export class SyncManager {
         console.log(`Sync completed. Updated sync history for both remotes.`);
     }
 
-    private getRemoteDirFilesViaWebSocket(path: string, excludedItems: string[], appId: string): Promise<Map<string, IResReadDir>> {
+    private getRemoteDirFilesViaWebSocket(path: string, excludedItems: string[], appId: string): Promise<StorageItem> {
         return new Promise(async (resolve, reject) => {
             const requestId = Math.random().toString(36).substring(2, 15);
             this.pendingDirRequests.set(requestId, resolve);
@@ -1170,41 +1170,39 @@ export class SyncManager {
             ? this.getRemoteDirFilesViaWebSocket(path, excludedItems, remotes[1].appId)
             : SyncUtils.getDirFilesRecursively(path, remotes[1], true, excludedItems);
 
-        const [filesOne, filesTwo] = await Promise.all([
+        const storageItems = await Promise.all(Array.from([
             filesOnePromise,
             filesTwoPromise
-        ]);
+        ]));
 
-        // Create a combined map of all files
-        const allFiles = new Map<string, IResReadDir>();
+        if ((!storageItems[0] && !storageItems[1]) || (!storageItems[0]?.item && !storageItems[1]?.item)) {
+            console.log(`Directory ${path} does not exist on either remote. Skipping sync.`);
+            return;
+        }
 
-        [...filesOne, ...filesTwo].forEach(pair => {
-            allFiles.set(pair[0], pair[1]);
-        });
+        // Create a combined storage item to iterate through all files
+        const storageItem = StorageItem.joinItems(storageItems[0], storageItems[1]);
+
+        const items = [
+            storageItems[0].getAllChildren(),
+            storageItems[1].getAllChildren()
+        ];
 
         // Split files into directories and regular files
-        const directories = new Map<string, IResReadDir>();
-        const files = new Map<string, IResReadDir>();
-
-        for (const [filePath, fileInfo] of allFiles.entries()) {
-            if (fileInfo?.isDir) {
-                directories.set(filePath, fileInfo);
-            } else {
-                files.set(filePath, fileInfo);
-            }
-        }
+        const directories = storageItem.getAllChildDirectories();
+        const files = storageItem.getAllChildFiles();
 
         const directoryPromises: Promise<void>[] = [];
         const filePromises: Promise<void>[] = [];
 
-        for (const [filePath] of directories.entries()) {
+        for (const dir of directories) {
             const remoteFileInfos: [Remote, Remote] = [
-                remotes[0].withFile(filesOne.get(filePath)),
-                remotes[1].withFile(filesTwo.get(filePath))
+                remotes[0].withFile(items[0].find(it => it.path === dir.path)?.item),
+                remotes[1].withFile(items[1].find(it => it.path === dir.path)?.item)
             ];
 
             directoryPromises.push(this.syncFile(
-                filePath,
+                dir.path,
                 options,
                 remoteFileInfos
             ));
@@ -1212,14 +1210,14 @@ export class SyncManager {
 
         await Promise.all(directoryPromises);
 
-        for (const [filePath] of files.entries()) {
+        for (const file of files) {
             const remoteFileInfos: [Remote, Remote] = [
-                remotes[0].withFile(filesOne.get(filePath)),
-                remotes[1].withFile(filesTwo.get(filePath))
+                remotes[0].withFile(items[0].find(it => it.path === file.path)?.item),
+                remotes[1].withFile(items[1].find(it => it.path === file.path)?.item)
             ];
 
             filePromises.push(this.syncFile(
-                filePath,
+                file.path,
                 options,
                 remoteFileInfos
             ));
@@ -1257,6 +1255,7 @@ export class SyncManager {
 
         await Promise.all(remotes.map(async (remote) => {
             if (!remote.file) {
+                console.log(`File info for ${filePath} missing from ${remote.name}, fetching...`);
                 const dir = await readDir(parentPath, remote.url, SyncUtils.getHeaders(remote.key));
                 remote.file = dir?.find(it => it.name === fileName);
             }

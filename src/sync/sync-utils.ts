@@ -1,5 +1,5 @@
 import { getFileBlob, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
-import { Remote } from "@/sync";
+import { Remote, StorageItem } from "@/sync";
 
 export class SyncUtils {
     /**
@@ -8,21 +8,21 @@ export class SyncUtils {
      * @param remote The remote information containing URL and key.
      * @param skipSymlinks Whether to skip symbolic links.
      * @param excludedItems Array of file/directory names to exclude from sync.
-     * @returns A map of file paths to their metadata.
+     * @returns A StorageItem representing the directory and its contents, or null if not found.
      */
     static async getDirFilesRecursively(
         path: string,
         remote: Remote,
         skipSymlinks: boolean = true,
         excludedItems: string[] = []
-    ): Promise<Map<string, IResReadDir>> {
-        const filesMap = new Map<string, IResReadDir>();
+    ): Promise<StorageItem> {
+        let storageItem: StorageItem = new StorageItem(path);
 
         const dirResponse = await readDir(path, remote.url, SyncUtils.getHeaders(remote.key));
 
         if (!dirResponse) {
             console.log("No files found or invalid response for path:", path);
-            return filesMap;
+            return storageItem;
         }
 
         const dir = dirResponse
@@ -31,12 +31,12 @@ export class SyncUtils {
 
         if (!dir || dir.length === 0) {
             console.log("No files found or invalid response for path:", path);
-            return filesMap;
+            return storageItem;
         }
 
         // Add current level files to the map
         dir.forEach(file => {
-            filesMap.set(`${path}/${file.name}`, file);
+            storageItem.addFileFromItem(file);
         });
 
         // Collect all promises for subdirectories
@@ -47,14 +47,12 @@ export class SyncUtils {
         // Wait for all promises to resolve
         const results = await Promise.all(promises);
 
-        // Merge all result maps into the main map
-        results.forEach(resultMap => {
-            for (const [filePath, file] of resultMap.entries()) {
-                filesMap.set(filePath, file);
-            }
+        // Collect all items into their respective parents
+        results.forEach(item => {
+            storageItem.files.find(dirItem => dirItem.path === item.path)?.files.push(...item.files);
         });
 
-        return filesMap;
+        return storageItem;
     }
 
     /**
