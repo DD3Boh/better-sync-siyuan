@@ -1,5 +1,5 @@
 import { getFileBlob, readDir } from "@/api";
-import { SyncUtils } from "@/sync";
+import { Remote, SyncUtils } from "@/sync";
 
 export class SyncHistory {
     /**
@@ -9,7 +9,7 @@ export class SyncHistory {
      * @param remote The remote information containing URL and key.
      * @returns A Map of remote URLs to their last sync timestamps.
      */
-    static async loadSyncHistory(remote: RemoteInfo): Promise<Map<string, number>> {
+    static async loadSyncHistory(remote: Remote): Promise<Map<string, number>> {
         try {
             const dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
 
@@ -50,7 +50,7 @@ export class SyncHistory {
      * @param remote The remote information containing URL and key.
      * @param syncHistory A Map of remote instance ids to their last sync timestamps.
      */
-    static async saveSyncHistory(remote: RemoteInfo, syncHistory: Map<string, number>): Promise<void> {
+    static async saveSyncHistory(remote: Remote, syncHistory: Map<string, number>): Promise<void> {
         try {
             const filePath = "/data/.siyuan/sync/sync-history.json";
 
@@ -77,7 +77,7 @@ export class SyncHistory {
      * @param timestamp The timestamp of the sync.
      */
     static async updateSyncHistories(
-        remotes: [RemoteInfo, RemoteInfo]
+        remotes: [Remote, Remote]
     ): Promise<void> {
         await Promise.allSettled([
             SyncHistory.saveSyncHistory(remotes[0], remotes[0].syncHistory),
@@ -92,7 +92,7 @@ export class SyncHistory {
      * @param instanceId The instance ID of the other remote.
      * @returns The last sync timestamp, or 0 if never synced.
      */
-    static getLastSyncWithRemote(remote: RemoteInfo, instanceId: string): number {
+    static getLastSyncWithRemote(remote: Remote, instanceId: string): number {
         if (!remote.syncHistory)
             return 0;
 
@@ -105,7 +105,7 @@ export class SyncHistory {
      * @param remote The remote whose history we're checking.
      * @returns The most recent sync timestamp, or 0 if no syncs recorded.
      */
-    static getMostRecentSyncTime(remote: RemoteInfo): number {
+    static getMostRecentSyncTime(remote: Remote): number {
         if (!remote.syncHistory || remote.syncHistory.size === 0)
             return 0;
 

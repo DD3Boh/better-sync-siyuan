@@ -1,18 +1,3 @@
-interface RemoteInfo {
-    url: string;
-    key: string;
-    name: string;
-    lastSyncTime: number;
-    appId?: string;
-    instanceId?: string;
-    // Maps instance ids to last sync times
-    syncHistory?: Map<string, number>;
-}
-
-interface RemoteFileInfo extends RemoteInfo {
-    file?: IResReadDir;
-}
-
 interface Transaction {
     doOperations: IOperation[];
     undoOperations: IOperation[];

@@ -1,0 +1,140 @@
+/**
+ * Represents a remote server connection for synchronization.
+ * This class encapsulates all information needed to connect to and sync with a remote SiYuan instance.
+ */
+export class Remote {
+    url: string;
+    key: string;
+    name: string;
+    lastSyncTime: number;
+    appId?: string;
+    instanceId?: string;
+    syncHistory: Map<string, number>;
+    file?: IResReadDir;
+
+    constructor(
+        url: string,
+        key: string,
+        name: string,
+        lastSyncTime: number = 0,
+        appId?: string,
+        instanceId?: string,
+        syncHistory: Map<string, number> = new Map(),
+        file?: IResReadDir
+    ) {
+        this.url = url;
+        this.key = key;
+        this.name = name;
+        this.lastSyncTime = lastSyncTime;
+        this.appId = appId;
+        this.instanceId = instanceId;
+        this.syncHistory = syncHistory;
+        this.file = file;
+    }
+
+    /**
+     * Create a copy of this Remote instance.
+     * @returns A new Remote instance with the same values.
+     */
+    clone(): Remote {
+        return new Remote(
+            this.url,
+            this.key,
+            this.name,
+            this.lastSyncTime,
+            this.appId,
+            this.instanceId,
+            new Map(this.syncHistory),
+            this.file
+        );
+    }
+
+    static default(): Remote {
+        return new Remote(
+            "",
+            "SKIP",
+            "Local",
+            0,
+        );
+    }
+
+    static empty(): Remote {
+        return new Remote(
+            "",
+            "",
+            "remote",
+            0,
+        );
+    }
+
+    /**
+     * Check if this is a local remote (has no URL or key is "SKIP").
+     * @returns True if this is a local remote, false otherwise.
+     */
+    isLocal(): boolean {
+        return this.url === "" || this.key === "SKIP";
+    }
+
+    /**
+     * Check if the appId is set and valid.
+     * @returns True if appId is set and not "unknown-app-id", false otherwise.
+     */
+    hasValidAppId(): boolean {
+        return !!this.appId && this.appId !== "unknown-app-id";
+    }
+
+    /**
+     * Get headers for API requests.
+     * @returns An object containing the Authorization header.
+     */
+    getHeaders(): Record<string, string> {
+        if (this.key === "SKIP" || !this.key) {
+            return {};
+        }
+        return {
+            "Authorization": `Token ${this.key}`
+        };
+    }
+
+    /**
+     * Create a Remote instance with file information attached.
+     * @param file The file information to attach.
+     * @returns A new Remote instance with the file attached.
+     */
+    withFile(file: IResReadDir): Remote {
+        return new Remote(
+            this.url,
+            this.key,
+            this.name,
+            this.lastSyncTime,
+            this.appId,
+            this.instanceId,
+            new Map(this.syncHistory),
+            file
+        );
+    }
+
+    /**
+     * Update the last sync time.
+     * @param timestamp The new sync time in seconds.
+     */
+    updateSyncTime(timestamp: number): void {
+        this.lastSyncTime = timestamp;
+    }
+
+    /**
+     * Set the appId for this remote.
+     * @param appId The appId to set.
+     */
+    setAppId(appId: string): void {
+        this.appId = appId;
+    }
+
+    /**
+     * Set the instanceId for this remote.
+     * @param instanceId The instanceId to set.
+     */
+    setInstanceId(instanceId: string): void {
+        this.instanceId = instanceId;
+    }
+}

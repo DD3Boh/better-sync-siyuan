@@ -10,7 +10,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
-import { ConflictHandler, SyncHistory, SyncUtils, WebSocketManager, defaultRemoteInfo, getSyncTargets } from "@/sync";
+import { ConflictHandler, Remote, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback } from "@/types/sync-status";
 
@@ -29,9 +29,9 @@ export class SyncManager {
      * Remotes array containing information about local and remote servers.
      * The first element is always the local server, the second is the remote server.
      */
-    private remotes: [RemoteInfo, RemoteInfo] = [
-        { url: "", key: "SKIP", name: "local", lastSyncTime: undefined, syncHistory: new Map() },
-        { url: "", key: "", name: "remote", lastSyncTime: undefined, syncHistory: new Map() }
+    private remotes: [Remote, Remote] = [
+        Remote.default(),
+        Remote.empty()
     ];
 
     /**
@@ -154,28 +154,9 @@ export class SyncManager {
      * WebSocket connections for real-time sync operations.
      */
     async init() {
-        let url = this.getUrl()
-        let key = this.getKey()
-
-        const lastSyncTimes = this.remotes.map(remote => remote.lastSyncTime);
-        const syncHistories = this.remotes.map(remote => remote.syncHistory || new Map());
-
-        this.remotes = [
-            {
-                url: "",
-                key: "SKIP",
-                name: "local",
-                lastSyncTime: lastSyncTimes[0] || undefined,
-                syncHistory: syncHistories[0]
-            },
-            {
-                url: url || "",
-                key: key || "",
-                name: this.getNickname() || "remote",
-                lastSyncTime: lastSyncTimes[1] || undefined,
-                syncHistory: syncHistories[1]
-            }
-        ];
+        this.remotes[1].url = this.getUrl() || "";
+        this.remotes[1].key = this.getKey() || "";
+        this.remotes[1].name = this.getNickname() || "remote";
 
         // Update instance IDs for remotes
         await this.checkAndSetInstanceId(this.remotes[0]);
@@ -199,7 +180,7 @@ export class SyncManager {
 
     /* Instance ID management */
     private async checkAndSetInstanceId(
-        remote: RemoteInfo = this.remotes[0]
+        remote: Remote = this.remotes[0]
     ) {
         if (remote.instanceId) return;
 
@@ -265,7 +246,7 @@ export class SyncManager {
      *
      * @param remote The remote to acquire the lock for.
      */
-    private async acquireLock(remote: RemoteInfo): Promise<void> {
+    private async acquireLock(remote: Remote): Promise<void> {
         const lockParent = "data/.siyuan/sync";
         const resDir = await readDir(lockParent, remote.url, SyncUtils.getHeaders(remote.key));
         const lockFileInfo = resDir?.find(file => file.name === "lock");
@@ -290,7 +271,7 @@ export class SyncManager {
      * This is used to allow other sync operations to proceed.
      * @param remote The remote to release the lock for.
      */
-    private async releaseLock(remote: RemoteInfo): Promise<void> {
+    private async releaseLock(remote: Remote): Promise<void> {
         const lockPath = "/data/.siyuan/sync/lock";
         try {
             await SyncUtils.deleteFile(lockPath, remote);
@@ -307,7 +288,7 @@ export class SyncManager {
      * This ensures that both sides are locked before starting the sync process.
      * @param remotes The remotes to acquire locks for, defaults to the current remotes.
      */
-    private async acquireAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
+    private async acquireAllLocks(remotes: [Remote, Remote] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
         // Acquire the remote lock first
@@ -324,7 +305,7 @@ export class SyncManager {
      * This is called after the sync process is complete to ensure both sides are unlocked.
      * @param remotes The remotes to release locks for, defaults to the current remotes.
      */
-    private async releaseAllLocks(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<void> {
+    private async releaseAllLocks(remotes: [Remote, Remote] = this.copyRemotes(this.remotes)): Promise<void> {
         SyncUtils.checkRemotes(remotes);
 
         await Promise.allSettled(remotes.map(remote => this.releaseLock(remote)));
@@ -600,7 +581,7 @@ export class SyncManager {
      * @param appId The appId to set for the remote.
      * @param remote The remote information to set the appId for, defaults to the second remote.
      */
-    private setRemoteAppId(appId: string, remote: RemoteInfo = this.remotes[1]) {
+    private setRemoteAppId(appId: string, remote: Remote = this.remotes[1]) {
         remote.appId = appId;
     }
 
@@ -610,7 +591,7 @@ export class SyncManager {
      * @param remote The remote information to check, defaults to the second remote.
      * @returns True if the remote appId is set and not "unknown-app-id", false otherwise.
      */
-    private isRemoteAppIdSet(remote: RemoteInfo = this.remotes[1]): boolean {
+    private isRemoteAppIdSet(remote: Remote = this.remotes[1]): boolean {
         return !!remote.appId && remote.appId !== "unknown-app-id";
     }
 
@@ -620,7 +601,7 @@ export class SyncManager {
      * @param remotes The list of remote connections.
      * @returns A Promise that resolves to a boolean indicating whether the appId was found successfully.
      */
-    public async fetchAndSetRemoteAppId(remotes: RemoteInfo[] = this.remotes): Promise<boolean> {
+    public async fetchAndSetRemoteAppId(remotes: Remote[] = this.remotes): Promise<boolean> {
         if (!(await this.shouldUseWebSocket())) return false;
 
         await Promise.all([
@@ -693,7 +674,7 @@ export class SyncManager {
                     return console.warn(`Ignoring get-dir-files request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
 
                 console.log(`Received request for directory files: ${path} with app ID ${appId}`);
-                const files = await SyncUtils.getDirFilesRecursively(path, defaultRemoteInfo, true, excludedItems);
+                const files = await SyncUtils.getDirFilesRecursively(path, Remote.default(), true, excludedItems);
                 const responsePayload = new Payload("dir-files-response", { files: Array.from(files.entries()), requestId });
                 await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
                 break;
@@ -942,7 +923,7 @@ export class SyncManager {
      */
     async syncHandler(
         persistentMessage: boolean = true,
-        remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)
+        remotes: [Remote, Remote] = this.copyRemotes(this.remotes)
     ) {
         this.setSyncStatus(SyncStatus.InProgress);
         const startTime = Date.now();
@@ -1014,9 +995,9 @@ export class SyncManager {
      * Synchronize data with a remote server.
      * This function handles the main synchronization logic, including fetching notebooks,
      * creating data snapshots if enabled, and syncing directories and files.
-     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     * @param remotes An array of exactly two Remote objects containing remote server information.
      */
-    private async syncWithRemote(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes), promise: Promise<void> | null = null) {
+    private async syncWithRemote(remotes: [Remote, Remote] = this.copyRemotes(this.remotes), promise: Promise<void> | null = null) {
         SyncUtils.checkRemotes(remotes);
 
         // Create data snapshots if enabled
@@ -1168,7 +1149,7 @@ export class SyncManager {
     /**
      * Synchronize a directory between local and remote devices, in both directions.
      * @param path The path of the directory to synchronize.
-     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     * @param remotes An array of exactly two Remote objects containing remote server information.
      * @param excludedItems An array of item names to exclude from synchronization.
      * @param options Synchronization options including:
      * - deleteFoldersOnly: If true, only delete folders and not single files.
@@ -1178,7 +1159,7 @@ export class SyncManager {
      */
     private async syncDirectory(
         path: string,
-        remotes: [RemoteInfo, RemoteInfo],
+        remotes: [Remote, Remote],
         excludedItems: string[] = [],
         options?: {
             deleteFoldersOnly?: boolean,
@@ -1234,15 +1215,9 @@ export class SyncManager {
         const filePromises: Promise<void>[] = [];
 
         for (const [filePath] of directories.entries()) {
-            const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
-                {
-                    ...remotes[0],
-                    file: filesOne.get(filePath)
-                },
-                {
-                    ...remotes[1],
-                    file: filesTwo.get(filePath)
-                }
+            const remoteFileInfos: [Remote, Remote] = [
+                remotes[0].withFile(filesOne.get(filePath)),
+                remotes[1].withFile(filesTwo.get(filePath))
             ];
 
             directoryPromises.push(this.syncFile(
@@ -1255,15 +1230,9 @@ export class SyncManager {
         await Promise.all(directoryPromises);
 
         for (const [filePath] of files.entries()) {
-            const remoteFileInfos: [RemoteFileInfo, RemoteFileInfo] = [
-                {
-                    ...remotes[0],
-                    file: filesOne.get(filePath)
-                },
-                {
-                    ...remotes[1],
-                    file: filesTwo.get(filePath)
-                }
+            const remoteFileInfos: [Remote, Remote] = [
+                remotes[0].withFile(filesOne.get(filePath)),
+                remotes[1].withFile(filesTwo.get(filePath))
             ];
 
             filePromises.push(this.syncFile(
@@ -1297,7 +1266,7 @@ export class SyncManager {
             trackConflicts?: boolean,
             trackUpdatedFiles?: boolean
         },
-        remotes: [RemoteFileInfo, RemoteFileInfo] = this.remotes,
+        remotes: [Remote, Remote] = this.remotes,
     ) {
         remotes = this.copyRemotes(remotes);
         const parentPath = filePath.replace(/\/[^/]+$/, "");
@@ -1410,9 +1379,9 @@ export class SyncManager {
     /**
      * Synchronize the petals list between local and remote devices.
      * This function checks if the petals list is empty in either remote and syncs it if necessary.
-     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     * @param remotes An array of exactly two Remote objects containing remote server information.
      */
-    private async syncPetalsListIfEmpty(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
+    private async syncPetalsListIfEmpty(remotes: [Remote, Remote] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
         const petalsList = await Promise.all([
@@ -1434,10 +1403,10 @@ export class SyncManager {
     /**
      * Get the names of unused assets from both local and remote devices.
      * This function fetches the list of unused assets from both remotes and combines them.
-     * @param remotes An array of exactly two RemoteInfo objects containing remote server information.
+     * @param remotes An array of exactly two Remote objects containing remote server information.
      * @returns A Promise that resolves to an array of asset names that are not used in either remote.
      */
-    private async getUnusedAssetsNames(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)): Promise<string[]> {
+    private async getUnusedAssetsNames(remotes: [Remote, Remote] = this.copyRemotes(this.remotes)): Promise<string[]> {
         SyncUtils.checkRemotes(remotes);
 
         const [unusedAssetsOne, unusedAssetsTwo] = await Promise.all([
@@ -1458,9 +1427,9 @@ export class SyncManager {
      *
      * This function checks the last snapshot creation time and creates a new snapshot
      * if the minimum time between snapshots has passed.
-     * @param remotes - An array of exactly two RemoteInfo objects containing remote server information.
+     * @param remotes - An array of exactly two Remote objects containing remote server information.
      */
-    private async createDataSnapshots(remotes: [RemoteInfo, RemoteInfo] = this.copyRemotes(this.remotes)) {
+    private async createDataSnapshots(remotes: [Remote, Remote] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
         console.log("Creating data snapshots for both local and remote devices...");
@@ -1494,12 +1463,12 @@ export class SyncManager {
     /* Utility functions */
 
     /**
-     * Create a deep copy of RemoteInfo or RemoteFileInfo objects to prevent mutations
+     * Create a deep copy of Remote or RemoteFileInfo objects to prevent mutations
      */
-    private copyRemotes<T extends RemoteInfo>(remotes: [T, T]): [T, T] {
+    private copyRemotes<T extends Remote>(remotes: [T, T]): [T, T] {
         return [
-            { ...remotes[0] },
-            { ...remotes[1] }
+            remotes[0].clone() as T,
+            remotes[1].clone() as T
         ];
     }
 

@@ -1,13 +1,5 @@
 import { getFileBlob, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
-
-export const defaultRemoteInfo: RemoteInfo = {
-    url: "",
-    key: undefined,
-    name: "Local",
-    lastSyncTime: 0,
-    appId: undefined,
-    syncHistory: new Map(),
-};
+import { Remote } from "@/sync";
 
 export class SyncUtils {
     /**
@@ -20,7 +12,7 @@ export class SyncUtils {
      */
     static async getDirFilesRecursively(
         path: string,
-        remote: RemoteInfo,
+        remote: Remote,
         skipSymlinks: boolean = true,
         excludedItems: string[] = []
     ): Promise<Map<string, IResReadDir>> {
@@ -72,7 +64,7 @@ export class SyncUtils {
      */
     static async deleteFile(
         filePath: string,
-        remote: RemoteInfo
+        remote: Remote
     ) {
         try {
             console.log(`Deleting ${filePath} from remote ${remote.name}`);
@@ -104,7 +96,7 @@ export class SyncUtils {
     /**
      * Validate and check the remotes array
      */
-    static checkRemotes(remotes: [RemoteInfo, RemoteInfo]) {
+    static checkRemotes(remotes: [Remote, Remote]) {
         if (!remotes || !Array.isArray(remotes))
             throw new Error("remotes is not properly initialized");
 
@@ -133,7 +125,7 @@ export class SyncUtils {
      * @param remote The remote information containing URL and key.
      * @returns The last sync time as a timestamp, or 0 if not found.
      */
-    static async getLastSyncTime(remote: RemoteInfo = defaultRemoteInfo): Promise<number> {
+    static async getLastSyncTime(remote: Remote = Remote.default()): Promise<number> {
         let dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
 
         if (!dir || dir.length === 0) {
@@ -154,7 +146,7 @@ export class SyncUtils {
      * Set the sync status file with the provided remotes or URL-to-key mapping.
      */
     static async setSyncStatus(
-        remotes: [RemoteInfo, RemoteInfo],
+        remotes: [Remote, Remote],
         timestamp: number = Date.now()
     ): Promise<void> {
         let filePath = `/data/.siyuan/sync/status`;
@@ -172,7 +164,7 @@ export class SyncUtils {
      * @returns The instance ID as a string, or an empty string if not found.
      */
     static async getInstanceId(
-        remote: RemoteInfo
+        remote: Remote
     ): Promise<string> {
         const blob = await getFileBlob("/data/.siyuan/sync/instance-id", remote.url, SyncUtils.getHeaders(remote.key));
         return blob ? await blob.text() : "";
@@ -186,7 +178,7 @@ export class SyncUtils {
      */
     static async setInstanceId(
         instanceId: string,
-        remote: RemoteInfo
+        remote: Remote
     ): Promise<void> {
         const filePath = "/data/.siyuan/sync/instance-id";
         const file = new File([instanceId], "instance-id", { lastModified: Date.now() });
@@ -210,7 +202,7 @@ export class SyncUtils {
      * @param remote The remote information containing URL and key.
      * @returns The timestamp of the file, or 0 if not found.
      */
-    static async getFileTimestamp(parent: string, fileName: string, remote: RemoteInfo): Promise<number> {
+    static async getFileTimestamp(parent: string, fileName: string, remote: Remote): Promise<number> {
         const dir = await readDir(parent, remote.url, SyncUtils.getHeaders(remote.key));
         const file = dir.find(file => file.name === fileName);
 

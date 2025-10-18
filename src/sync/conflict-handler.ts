@@ -1,5 +1,5 @@
 import { createDocWithMd, getFileBlob, getHPathByID, getPathByID, renameDocByID } from "@/api";
-import { SyncUtils } from "@/sync";
+import { Remote, SyncUtils } from "@/sync";
 import { showMessage } from "siyuan";
 
 export class ConflictHandler {
@@ -32,14 +32,14 @@ export class ConflictHandler {
      * @param humanReadablePath - The human-readable path for the conflict file.
      * @param blob - The Blob object containing the file data.
      * @param olderFileTimestamp - The timestamp of the older file in seconds.
-     * @param remotes - An array of exactly two RemoteFileInfo objects containing remote server information.
+     * @param remotes - An array of exactly two Remote objects containing remote server information.
      */
     static async createConflictFile(
         notebookId: string,
         humanReadablePath: string,
         blob: Blob,
         olderFileTimestamp: number,
-        remotes: [RemoteFileInfo, RemoteFileInfo]
+        remotes: [Remote, Remote]
     ) {
         const timestamp = olderFileTimestamp * 1000; // Convert to milliseconds
         const originalNoteTitle = humanReadablePath.split("/").pop();
@@ -108,20 +108,20 @@ export class ConflictHandler {
      * Handles conflict detection between two files.
      *
      * @param path - The path of the file being synced.
-     * @param remotes - An array of exactly two RemoteFileInfo objects containing remote server information.
+     * @param remotes - An array of exactly two Remote objects containing remote server information.
      * @param i18n - The internationalization object for localized messages.
      * @returns A Promise that resolves to a boolean indicating whether a conflict was detected.
      */
     static async handleConflictDetection(
         path: string,
-        remotes: [RemoteFileInfo, RemoteFileInfo],
+        remotes: [Remote, Remote],
         i18n: any
     ): Promise<boolean> {
         if (!remotes[0].file || !remotes[1].file) return false;
 
         const fileRes = remotes[0].file || remotes[1].file;
 
-        const fetchLastSyncTime = async (remote: RemoteFileInfo) => {
+        const fetchLastSyncTime = async (remote: Remote) => {
             if (!remote.lastSyncTime)
                remote.lastSyncTime = await SyncUtils.getLastSyncTime(remote) || 0;
         };

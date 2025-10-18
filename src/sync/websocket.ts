@@ -1,12 +1,12 @@
 import { broadcastPublish, getChannelInfo, newBroadcastWebSocket, postBroadcastMessage } from "@/api";
-import { SyncUtils } from "@/sync";
+import { Remote, SyncUtils } from "@/sync";
 
 export class WebSocketManager {
     private socket: WebSocket | null = null;
-    private remote: RemoteInfo | null = null;
+    private remote: Remote | null = null;
     private broadcastChannel: string;
 
-    constructor(channel: string, remote: RemoteInfo | null) {
+    constructor(channel: string, remote: Remote | null) {
         this.broadcastChannel = channel;
         this.remote = remote;
     }
