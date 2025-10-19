@@ -158,8 +158,11 @@ export class SyncManager {
         this.remotes[1].key = this.getKey() || "";
         this.remotes[1].name = this.getNickname() || "remote";
 
-        // Update instance IDs for remotes
+        // Update the instance ID for the local remote
         await this.checkAndSetInstanceId(this.remotes[0]);
+
+        // Load sync history for the local remote
+        await this.loadSyncHistory(this.remotes[0]);
 
         // Update WebSocket managers with the new remotes
         this.cleanupWebSockets();
@@ -175,7 +178,8 @@ export class SyncManager {
         return this.remotes[0].lastSyncTime;
     }
 
-    /* Instance ID management */
+    /* Sync history management */
+
     private async checkAndSetInstanceId(
         remote: Remote = this.remotes[0]
     ) {
@@ -190,6 +194,11 @@ export class SyncManager {
             await SyncUtils.setInstanceId(newInstanceId, remote);
             remote.instanceId = newInstanceId;
         }
+    }
+
+    private async loadSyncHistory(remote: Remote = this.remotes[0]) {
+        const syncHistory = await SyncHistory.loadSyncHistory(remote);
+        remote.syncHistory = syncHistory;
     }
 
     /* Protyle management */
