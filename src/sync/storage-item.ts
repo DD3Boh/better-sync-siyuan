@@ -88,6 +88,15 @@ export class StorageItem {
         return items;
     }
 
+    getFilesMap(): Map<string, StorageItem> {
+        const fileMap = new Map<string, StorageItem>();
+        for (const file of this.files) {
+            fileMap.set(file.path, file);
+        }
+
+        return fileMap;
+    }
+
     /**
      * Creates a StorageItem instance from a plain object.
      * Recursively constructs child StorageItem instances from the files array.

@@ -426,7 +426,7 @@ export class SyncManager {
                 console.log(`Creating new notebook on remote server: ${notebookId}`);
 
                 await this.syncDirectory(
-                    `data/${notebookId}`,
+                    [new StorageItem(`data/${notebookId}`)],
                     this.copyRemotes(this.remotes),
                     [],
                     {
@@ -1053,7 +1053,7 @@ export class SyncManager {
         // Execute all sync operations
         const promises = syncTargets.map(target => {
             return this.syncDirectory(
-                target.path,
+                [new StorageItem(target.path)],
                 remotes,
                 target.excludedItems || [],
                 target.options
@@ -1070,7 +1070,7 @@ export class SyncManager {
 
         // Handle missing assets
         await this.syncDirectory(
-            "data/assets",
+            [new StorageItem("data/assets")],
             remotes,
             await this.getUnusedAssetsNames(remotes),
             { avoidDeletions: true }
@@ -1143,7 +1143,7 @@ export class SyncManager {
 
     /**
      * Synchronize a directory between local and remote devices, in both directions.
-     * @param path The path of the directory to synchronize.
+     * @param items The StorageItem(s) representing the directory to synchronize.
      * @param remotes An array of exactly two Remote objects containing remote server information.
      * @param excludedItems An array of item names to exclude from synchronization.
      * @param options Synchronization options including:
@@ -1153,7 +1153,7 @@ export class SyncManager {
      * - trackConflicts: If true, track conflicts during synchronization.
      */
     private async syncDirectory(
-        path: string,
+        items: StorageItem[],
         remotes: [Remote, Remote],
         excludedItems: string[] = [],
         options?: {
@@ -1164,70 +1164,75 @@ export class SyncManager {
             trackUpdatedFiles?: boolean
         }
     ) {
+        const path = items[0]?.path || items[1]?.path;
+        if (!path) {
+            console.warn("No valid path provided for directory sync.");
+            return;
+        }
+
         console.log(`Syncing directory ${path}. Excluding items: ${excludedItems.join(", ")}`);
 
-        const useWebSocket: boolean = await this.shouldUseWebSocket() && this.isRemoteAppIdSet(remotes[1]);
+        const useWebSocket = await this.shouldUseWebSocket() && this.isRemoteAppIdSet(remotes[1]);
 
-        const filesOnePromise = SyncUtils.getDirFilesRecursively(path, remotes[0], true, excludedItems);
+        // Fetch directory files only when not already provided
+        if ((!items[0]?.files || !items[1]?.files) && (!items[0]?.item || !items[1]?.item)) {
+            const filesOnePromise = SyncUtils.getDirFilesRecursively(path, remotes[0], true, excludedItems);
 
-        const filesTwoPromise = useWebSocket
-            ? this.getRemoteDirFilesViaWebSocket(path, excludedItems, remotes[1].appId)
-            : SyncUtils.getDirFilesRecursively(path, remotes[1], true, excludedItems);
+            const filesTwoPromise = useWebSocket
+                ? this.getRemoteDirFilesViaWebSocket(path, excludedItems, remotes[1].appId)
+                : SyncUtils.getDirFilesRecursively(path, remotes[1], true, excludedItems);
 
-        const storageItems = await Promise.all(Array.from([
-            filesOnePromise,
-            filesTwoPromise
-        ]));
+            items = await Promise.all([
+                filesOnePromise,
+                filesTwoPromise
+            ]);
+        }
 
-        if ((!storageItems[0] && !storageItems[1]) || (!storageItems[0]?.item && !storageItems[1]?.item)) {
+        if ((!items[0] && !items[1]) || (!items[0]?.item && !items[1]?.item)) {
             console.log(`Directory ${path} does not exist on either remote. Skipping sync.`);
             return;
         }
 
         // Create a combined storage item to iterate through all files
-        const storageItem = StorageItem.joinItems(storageItems[0], storageItems[1]);
-
-        const items = [
-            storageItems[0].getAllChildren(),
-            storageItems[1].getAllChildren()
+        const item = StorageItem.joinItems(items[0], items[1]);
+        const fileMaps = [
+            items[0]?.getFilesMap(),
+            items[1]?.getFilesMap()
         ];
 
-        // Split files into directories and regular files
-        const directories = storageItem.getAllChildDirectories();
-        const files = storageItem.getAllChildFiles();
+        await this.syncFile(
+            item.path,
+            options,
+            [
+                remotes[0].withFile(items[0]?.item),
+                remotes[1].withFile(items[1]?.item)
+            ]
+        );
 
-        const directoryPromises: Promise<void>[] = [];
-        const filePromises: Promise<void>[] = [];
-
-        for (const dir of directories) {
-            const remoteFileInfos: [Remote, Remote] = [
-                remotes[0].withFile(items[0].find(it => it.path === dir.path)?.item),
-                remotes[1].withFile(items[1].find(it => it.path === dir.path)?.item)
-            ];
-
-            directoryPromises.push(this.syncFile(
-                dir.path,
-                options,
-                remoteFileInfos
-            ));
-        }
-
-        await Promise.all(directoryPromises);
-
-        for (const file of files) {
-            const remoteFileInfos: [Remote, Remote] = [
-                remotes[0].withFile(items[0].find(it => it.path === file.path)?.item),
-                remotes[1].withFile(items[1].find(it => it.path === file.path)?.item)
-            ];
-
-            filePromises.push(this.syncFile(
-                file.path,
-                options,
-                remoteFileInfos
-            ));
-        }
-
-        await Promise.all(filePromises);
+        await Promise.allSettled([
+            item.files?.map(file => {
+                if (file.isDir) {
+                    this.syncDirectory(
+                        [
+                            fileMaps[0]?.get(file.path),
+                            fileMaps[1]?.get(file.path)
+                        ],
+                        remotes,
+                        [],
+                        options
+                    );
+                } else {
+                    this.syncFile(
+                        file.path,
+                        options,
+                        [
+                            remotes[0].withFile(fileMaps[0]?.get(file.path)?.item),
+                            remotes[1].withFile(fileMaps[1]?.get(file.path)?.item)
+                        ]
+                    );
+                }
+            }) || []
+        ]);
     }
 
     /**
