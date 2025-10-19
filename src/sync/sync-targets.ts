@@ -42,6 +42,7 @@ export function getSyncTargets(config: SyncTargetsConfig): SyncTarget[] {
 
         // Storage/av directory with file tracking
         { path: "data/storage/av", options: { trackUpdatedFiles: true } },
+        { path: "data/storage/riff", options: { trackUpdatedFiles: true } },
 
         // Directories without deletions
         {
