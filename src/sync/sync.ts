@@ -1200,7 +1200,7 @@ export class SyncManager {
             items[1]?.getFilesMap()
         ];
 
-        await this.syncFile(
+        const result = await this.syncFile(
             item.path,
             options,
             [
@@ -1208,6 +1208,11 @@ export class SyncManager {
                 remotes[1].withFile(items[1]?.item)
             ]
         );
+
+        if (result === SyncFileResult.DirectoryDeleted) {
+            console.log(`Directory ${path} was deleted during sync. Skipping further processing.`);
+            return;
+        }
 
         await Promise.allSettled([
             item.files?.map(file => {
