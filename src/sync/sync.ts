@@ -1334,18 +1334,21 @@ export class SyncManager {
              * - The last sync time with the other remote is greater than 0 (they have synced before).
              * - The last sync time with the other remote is greater than the file's last updated timestamp.
              * - The last sync time with the other remote is greater than the existing remote's last sync time.
+             * Or if there is a directory/file mismatch.
              * This ensures that we only delete files that were present during the last sync and have not been updated since.
              */
+            const dirMismatch = remotes[0].file.isDir != remotes[1].file?.isDir;
             const shouldDelete: boolean = (commonSync > 0) &&
                 (commonSync > updated[existingIndex]) &&
-                (commonSync >= existingLastSync);
+                (commonSync >= existingLastSync) || dirMismatch;
 
             console.log(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}. Should delete: ${shouldDelete}`);
 
             if (shouldDelete) {
                 if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
                     await SyncUtils.deleteFile(filePath, remotes[existingIndex]);
-                    return fileRes.isDir ? SyncFileResult.DirectoryDeleted : SyncFileResult.Deleted;
+                    if (!dirMismatch)
+                        return fileRes.isDir ? SyncFileResult.DirectoryDeleted : SyncFileResult.Deleted;
                 }
             } else {
                 console.log(`File ${filePath} is missing on ${remotes[missingIndex].name} but will be synced (timestamp check passed)`);
