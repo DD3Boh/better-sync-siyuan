@@ -12,7 +12,7 @@ import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
 import { ConflictHandler, Remote, StorageItem, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
-import { SyncStatus, SyncStatusCallback } from "@/types/sync-status";
+import { SyncStatus, SyncStatusCallback, SyncFileResult } from "@/types/sync-status";
 
 export class SyncManager {
     // Plugin instance
@@ -1255,7 +1255,7 @@ export class SyncManager {
             trackUpdatedFiles?: boolean
         },
         remotes: [Remote, Remote] = this.remotes,
-    ) {
+    ): Promise<SyncFileResult> {
         remotes = this.copyRemotes(remotes);
         const parentPath = filePath.replace(/\/[^/]+$/, "");
         const fileName = filePath.replace(/^.*\//, "");
@@ -1272,7 +1272,7 @@ export class SyncManager {
 
         if (!fileRes) {
             console.log(`File ${filePath} not found in either remote.`);
-            return;
+            return SyncFileResult.NotFound;
         }
 
         const updated: [number, number] = [
@@ -1301,7 +1301,7 @@ export class SyncManager {
         // Multiply by 1000 because `putFile` makes the conversion automatically
         const timestamp: number = Math.max(updated[0], updated[1]) * 1000;
 
-        if (remotes[0].file && remotes[1].file && (updated[0] === updated[1] || options?.onlyIfMissing)) return;
+        if (remotes[0].file && remotes[1].file && (updated[0] === updated[1] || options?.onlyIfMissing)) return SyncFileResult.Skipped;
 
         const inputIndex = updated[0] > updated[1] ? 0 : 1;
         const outputIndex = updated[0] > updated[1] ? 1 : 0;
@@ -1340,7 +1340,7 @@ export class SyncManager {
             if (shouldDelete) {
                 if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
                     await SyncUtils.deleteFile(filePath, remotes[existingIndex]);
-                    return;
+                    return fileRes.isDir ? SyncFileResult.DirectoryDeleted : SyncFileResult.Deleted;
                 }
             } else {
                 console.log(`File ${filePath} is missing on ${remotes[missingIndex].name} but will be synced (timestamp check passed)`);
@@ -1348,12 +1348,12 @@ export class SyncManager {
         }
 
         // Avoid writing directories
-        if (fileRes.isDir) return;
+        if (fileRes.isDir) return SyncFileResult.Skipped;
 
         const syFile = await getFileBlob(filePath, remotes[inputIndex].url, SyncUtils.getHeaders(remotes[inputIndex].key));
         if (!syFile) {
             console.log(`File ${filePath} not found in source: ${remotes[inputIndex].name}`);
-            return;
+            return SyncFileResult.NotFound;
         }
 
         const file = new File([syFile], fileRes.name, { lastModified: timestamp });
@@ -1363,6 +1363,8 @@ export class SyncManager {
             const updatedFiles = inputIndex === 0 ? this.remotelyUpdatedFiles : this.locallyUpdatedFiles;
             updatedFiles.add(filePath);
         }
+
+        return SyncFileResult.Success;
     }
 
     /**

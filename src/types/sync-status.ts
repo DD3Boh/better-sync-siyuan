@@ -7,3 +7,11 @@ export enum SyncStatus {
 }
 
 export type SyncStatusCallback = (status: SyncStatus) => void;
+
+export enum SyncFileResult {
+    Success,
+    NotFound,
+    Deleted,
+    DirectoryDeleted,
+    Skipped
+}
