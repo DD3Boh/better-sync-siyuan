@@ -997,6 +997,16 @@ export class SyncManager {
     private async syncWithRemote(remotes: [Remote, Remote] = this.copyRemotes(this.remotes), promise: Promise<void> | null = null) {
         SyncUtils.checkRemotes(remotes);
 
+        const isRemoteAppIdSet = this.isRemoteAppIdSet(remotes[1]);
+        const useWebSocket: boolean = await this.shouldUseWebSocket() && isRemoteAppIdSet;
+        let disconnectWebSocket = false;
+
+        if (useWebSocket && !this.outputWebSocketManagers[1].isConnected()) {
+            this.connectRemoteOutputWebSocket();
+            console.log("Connected to remote output WebSocket for directory sync.");
+            disconnectWebSocket = true;
+        }
+
         // Create data snapshots if enabled
         if (this.plugin.settingsManager.getPref("createDataSnapshots")) {
             await this.createDataSnapshots(remotes);
@@ -1108,6 +1118,8 @@ export class SyncManager {
 
         await SyncHistory.updateSyncHistories(this.remotes);
 
+        if (disconnectWebSocket) this.disconnectRemoteOutputWebSocket();
+
         console.log(`Sync completed. Updated sync history for both remotes.`);
     }
 
@@ -1154,15 +1166,7 @@ export class SyncManager {
     ) {
         console.log(`Syncing directory ${path}. Excluding items: ${excludedItems.join(", ")}`);
 
-        const isRemoteAppIdSet = this.isRemoteAppIdSet(remotes[1]);
-        const useWebSocket: boolean = await this.shouldUseWebSocket() && isRemoteAppIdSet;
-        let disconnectWebSocket = false;
-
-        if (useWebSocket && !this.outputWebSocketManagers[1].isConnected()) {
-            this.connectRemoteOutputWebSocket();
-            console.log("Connected to remote output WebSocket for directory sync.");
-            disconnectWebSocket = true;
-        }
+        const useWebSocket: boolean = await this.shouldUseWebSocket() && this.isRemoteAppIdSet(remotes[1]);
 
         const filesOnePromise = SyncUtils.getDirFilesRecursively(path, remotes[0], true, excludedItems);
 
@@ -1224,8 +1228,6 @@ export class SyncManager {
         }
 
         await Promise.all(filePromises);
-
-        if (disconnectWebSocket) this.disconnectRemoteOutputWebSocket();
     }
 
     /**
