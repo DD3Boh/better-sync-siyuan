@@ -2,7 +2,7 @@
   "name": "better-sync",
   "author": "DD3Boh",
   "url": "https://github.com/DD3Boh/better-sync-siyuan",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "minAppVersion": "3.0.12",
   "backends": [
     "windows",

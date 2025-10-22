@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+- Fix a bug with files being accidentally deleted when two remotes sync to the same third remote, under some conditions
+- Rework how last sync time is handled, creating a new sync history
+- Avoid syncing files in a directory when the directory has been deleted
+- Add flashcards to sync targets
+- Add an option to replace the default SiYuan sync menu
+- Reduce the number of API calls during the directory scanning process
+- Refactor the sync code fully
+
 ## 1.3.2
 
 - Fix deletions of directories
