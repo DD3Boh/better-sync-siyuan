@@ -1,4 +1,5 @@
 import { createDocWithMd, getFileBlob, getHPathByID, getPathByID, renameDocByID } from "@/api";
+import { consoleError, consoleLog } from "@/logging";
 import { Remote, SyncUtils } from "@/sync";
 import { showMessage } from "siyuan";
 
@@ -46,7 +47,7 @@ export class ConflictHandler {
         const conflictNoteTitle = `${originalNoteTitle} - Conflict ${this.getFormattedDate(new Date(timestamp))}`;
         const conflictFilePath = humanReadablePath.replace(originalNoteTitle, conflictNoteTitle);
 
-        console.log(`Conflict file will be saved as: ${conflictFilePath}`);
+        consoleLog(`Conflict file will be saved as: ${conflictFilePath}`);
 
         const conflictDocId = await createDocWithMd(
             notebookId,
@@ -57,7 +58,7 @@ export class ConflictHandler {
         const conflictStoragePath = await getPathByID(conflictDocId);
         const conflictPathString = `data/${conflictStoragePath.notebook}${conflictStoragePath.path}`;
 
-        console.log(`Created conflict document with ID: ${conflictDocId}`);
+        consoleLog(`Created conflict document with ID: ${conflictDocId}`);
 
         let file = new File([blob], `${conflictDocId}.sy`, { lastModified: timestamp });
 
@@ -81,7 +82,7 @@ export class ConflictHandler {
 
         const promises = remotes.map((_, index) => {
             return createConflictFileInRemote(index).catch((error) => {
-                console.error(`Error creating conflict file`, error);
+                consoleError(`Error creating conflict file`, error);
             });
         });
 
@@ -125,11 +126,11 @@ export class ConflictHandler {
             remotes[0].file.updated > remotes[0].lastSyncTime && remotes[1].file.updated > remotes[1].lastSyncTime &&
             remotes[0].file.updated !== remotes[1].file.updated) {
 
-            console.log(`Conflict detected for file: ${path}`);
+            consoleLog(`Conflict detected for file: ${path}`);
 
             // print timestamps and last sync times
-            console.log(`File One Timestamp: ${remotes[0].file.updated}, Last Sync Time One: ${remotes[0].lastSyncTime}`);
-            console.log(`File Two Timestamp: ${remotes[1].file.updated}, Last Sync Time Two: ${remotes[1].lastSyncTime}`);
+            consoleLog(`File One Timestamp: ${remotes[0].file.updated}, Last Sync Time One: ${remotes[0].lastSyncTime}`);
+            consoleLog(`File Two Timestamp: ${remotes[1].file.updated}, Last Sync Time Two: ${remotes[1].lastSyncTime}`);
 
             // Check if the two files are actually different
             const [fileOne, fileTwo] = await Promise.all([
@@ -138,7 +139,7 @@ export class ConflictHandler {
             ]);
 
             if (await this.compareBlobsAsText(fileOne, fileTwo)) {
-                console.log(`Files are identical, no conflict created.`);
+                consoleLog(`Files are identical, no conflict created.`);
                 return false;
             }
 
@@ -153,13 +154,13 @@ export class ConflictHandler {
             const docId = fileRes.name.replace(/\.sy$/, "");
 
             const humanReadablePath = await getHPathByID(docId, remotes[olderFileIndex].url, SyncUtils.getHeaders(remotes[olderFileIndex].key));
-            console.log(`Human readable path for conflict file: ${humanReadablePath}`);
+            consoleLog(`Human readable path for conflict file: ${humanReadablePath}`);
 
             showMessage(i18n.conflictDetectedForDocument.replace("{{documentName}}", humanReadablePath.split("/").pop()), 5000);
 
             const oldFileBlob = await getFileBlob(path, remotes[olderFileIndex].url, SyncUtils.getHeaders(remotes[olderFileIndex].key));
             if (!oldFileBlob) {
-                console.log(`File ${path} not found in ${remotes[olderFileIndex].url}`);
+                consoleLog(`File ${path} not found in ${remotes[olderFileIndex].url}`);
                 return true;
             }
 

@@ -7,6 +7,7 @@
  */
 
 import { fetchPost, fetchSyncPost, IWebSocketData } from "siyuan";
+import { consoleError, consoleLog } from "./logging";
 
 
 export async function request(url: string, data: any) {
@@ -27,13 +28,13 @@ export async function requestWithHeaders(url: string, data: any, headers?: Recor
                 if (response.code === 0) {
                     resolve(response.data);
                 } else {
-                    console.error(`Request failed for ${url}:`, response.msg || 'Unknown error');
+                    consoleError(`Request failed for ${url}:`, response.msg || 'Unknown error');
                     resolve(null);
                 }
             }, headers);
         } catch (error) {
             clearTimeout(timeoutId);
-            console.error(`Request failed for ${url}:`, error);
+            consoleError(`Request failed for ${url}:`, error);
             reject(error);
         }
     });
@@ -413,7 +414,7 @@ export const getFileBlob = async (path: string, urlPrefix: string = '', headers?
         const data = await response.blob();
         return data;
     } catch (error) {
-        console.error(`getFileBlob failed for ${endpoint}:`, error);
+        consoleError(`getFileBlob failed for ${endpoint}:`, error);
         throw error;
     }
 }
@@ -605,7 +606,7 @@ export function broadcastSubscribe(channels: string[], urlPrefix: string = '', t
     if (params.length > 0)
         url += `?${params.join('&')}`;
 
-    console.log(`Connecting to broadcast channel: ${url}`);
+    consoleLog(`Connecting to broadcast channel: ${url}`);
 
     return new EventSource(url);
 }

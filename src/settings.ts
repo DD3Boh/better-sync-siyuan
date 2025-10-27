@@ -1,5 +1,6 @@
 import { SettingUtils } from "@/libs/setting-utils";
 import BetterSyncPlugin from ".";
+import { consoleError } from "@/logging";
 
 const STORAGE_NAME = "menu-config";
 
@@ -189,7 +190,7 @@ export class SettingsManager {
         try {
             await this.settingUtils.load();
         } catch (error) {
-            console.error("Error loading settings storage, probably empty config json:", error);
+            consoleError("Error loading settings storage, probably empty config json:", error);
         }
     }
 

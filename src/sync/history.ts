@@ -1,4 +1,5 @@
 import { getFileBlob, readDir } from "@/api";
+import { consoleError, consoleLog, consoleWarn } from "@/logging";
 import { Remote, SyncUtils } from "@/sync";
 
 export class SyncHistory {
@@ -14,13 +15,13 @@ export class SyncHistory {
             const dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
 
             if (!dir || dir.length === 0) {
-                console.log(`No sync directory found for ${remote.name}`);
+                consoleLog(`No sync directory found for ${remote.name}`);
                 return new Map();
             }
 
             const historyFile = dir.find(file => file.name === "sync-history.json");
             if (!historyFile) {
-                console.log(`No sync history file found for ${remote.name}`);
+                consoleLog(`No sync history file found for ${remote.name}`);
                 return new Map();
             }
 
@@ -29,7 +30,7 @@ export class SyncHistory {
             const blob = await getFileBlob(filePath, remote.url, SyncUtils.getHeaders(remote.key));
 
             if (!blob) {
-                console.warn(`Failed to fetch sync history for ${remote.name}`);
+                consoleWarn(`Failed to fetch sync history for ${remote.name}`);
                 return new Map();
             }
 
@@ -39,7 +40,7 @@ export class SyncHistory {
             // Convert plain object to Map
             return new Map(Object.entries(historyData));
         } catch (error) {
-            console.error(`Error loading sync history for ${remote.name}:`, error);
+            consoleError(`Error loading sync history for ${remote.name}:`, error);
             return new Map();
         }
     }
@@ -64,9 +65,9 @@ export class SyncHistory {
             const file = new File([jsonContent], "sync-history.json", { lastModified: Date.now() });
 
             await SyncUtils.putFile(filePath, file, remote.url, remote.key);
-            console.log(`Saved sync history for ${remote.name}`);
+            consoleLog(`Saved sync history for ${remote.name}`);
         } catch (error) {
-            console.error(`Error saving sync history for ${remote.name}:`, error);
+            consoleError(`Error saving sync history for ${remote.name}:`, error);
         }
     }
 

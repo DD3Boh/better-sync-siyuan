@@ -16,7 +16,7 @@ export class Payload {
             const jsonData = JSON.stringify(this.data);
             return `b-sync-payload:${this.type}:${jsonData}`;
         } catch (e) {
-            console.error("Failed to encode Payload", e);
+            consoleError("Failed to encode Payload", e);
             throw new Error("Failed to encode Payload");
         }
     }
@@ -29,7 +29,7 @@ export class Payload {
     public static fromString(str: string): Payload | null {
         const prefix = 'b-sync-payload:';
         if (!str.startsWith(prefix)) {
-            console.warn("String does not start with expected prefix:", prefix);
+            consoleWarn("String does not start with expected prefix:", prefix);
             return null;
         }
 
@@ -46,7 +46,7 @@ export class Payload {
             const data = JSON.parse(jsonData);
             return new Payload(type, data);
         } catch (e) {
-            console.error("Failed to parse Payload string", e);
+            consoleError("Failed to parse Payload string", e);
             return null;
         }
     }

@@ -1,3 +1,4 @@
+import { consoleError, consoleLog } from "@/logging";
 import { getFileBlob, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
 import { Remote, StorageItem } from "@/sync";
 
@@ -21,7 +22,7 @@ export class SyncUtils {
         const dirResponse = await readDir(path, remote.url, SyncUtils.getHeaders(remote.key));
 
         if (!dirResponse) {
-            console.log("No files found or invalid response for path:", path);
+            consoleLog("No files found or invalid response for path:", path);
             return storageItem;
         }
 
@@ -30,7 +31,7 @@ export class SyncUtils {
             .filter(file => !excludedItems.includes(file.name));
 
         if (!dir || dir.length === 0) {
-            console.log("No files found or invalid response for path:", path);
+            consoleLog("No files found or invalid response for path:", path);
             return storageItem;
         }
 
@@ -65,11 +66,11 @@ export class SyncUtils {
         remote: Remote
     ) {
         try {
-            console.log(`Deleting ${filePath} from remote ${remote.name}`);
+            consoleLog(`Deleting ${filePath} from remote ${remote.name}`);
             await removeFile(filePath, remote.url, SyncUtils.getHeaders(remote.key));
             await removeIndexes([filePath.replace("data/", "")], remote.url, SyncUtils.getHeaders(remote.key));
         } catch (error) {
-            console.error(`Error deleting file ${filePath}:`, error);
+            consoleError(`Error deleting file ${filePath}:`, error);
         }
     }
 
@@ -83,10 +84,10 @@ export class SyncUtils {
         try {
             await putFile(filePath, false, file, url, SyncUtils.getHeaders(key), timestamp);
             await upsertIndexes([filePath.replace("data/", "")], url, SyncUtils.getHeaders(key));
-            console.log(`File ${file.name} (${filePath}) with timestamp ${timestamp} synced successfully.`);
+            consoleLog(`File ${file.name} (${filePath}) with timestamp ${timestamp} synced successfully.`);
             return true;
         } catch (error) {
-            console.error(`Error putting file ${filePath} to ${url}:`, error);
+            consoleError(`Error putting file ${filePath} to ${url}:`, error);
             return false;
         }
     }
@@ -127,13 +128,13 @@ export class SyncUtils {
         let dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
 
         if (!dir || dir.length === 0) {
-            console.log("No sync directory found.");
+            consoleLog("No sync directory found.");
             return 0;
         }
 
         let file = dir.find(file => file.name === "status");
         if (!file) {
-            console.log("No status file found.");
+            consoleLog("No status file found.");
             return 0;
         }
 

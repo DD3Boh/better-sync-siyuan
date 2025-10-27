@@ -1,4 +1,5 @@
 import { broadcastPublish, getChannelInfo, newBroadcastWebSocket, postBroadcastMessage } from "@/api";
+import { consoleError, consoleLog, consoleWarn } from "@/logging";
 import { Remote, SyncUtils } from "@/sync";
 
 export class WebSocketManager {
@@ -20,21 +21,21 @@ export class WebSocketManager {
                 this.socket = newBroadcastWebSocket(this.broadcastChannel, this.remote?.url, this.remote?.key);
 
                 this.socket.onopen = () => {
-                    console.log(`WebSocket connection established for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
+                    consoleLog(`WebSocket connection established for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
                     resolve();
                 };
 
                 this.socket.onerror = (error) => {
-                    console.error(`WebSocket error for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
+                    consoleError(`WebSocket error for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
                     reject(error);
                 };
 
                 this.socket.onclose = () => {
-                    console.log(`WebSocket connection closed for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
+                    consoleLog(`WebSocket connection closed for remote ${this.remote?.name} with channel ${this.broadcastChannel}`);
                     this.socket = null;
                 };
             } catch (error) {
-                console.error(`Failed to initialize WebSocket for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
+                consoleError(`Failed to initialize WebSocket for remote ${this.remote?.name} with channel ${this.broadcastChannel}:`, error);
                 reject(error);
             }
         });
@@ -47,7 +48,7 @@ export class WebSocketManager {
         if (this.socket)
             this.socket.close();
         else
-            console.warn("WebSocket connection is already closed or not initialized.");
+            consoleWarn("WebSocket connection is already closed or not initialized.");
     }
 
     /**

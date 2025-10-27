@@ -7,6 +7,7 @@
  * @Description  : 
  */
 
+import { consoleError } from '@/logging';
 import { Plugin, Setting } from 'siyuan';
 
 
@@ -244,7 +245,7 @@ export class SettingUtils {
         const IsCustom = item.type === 'custom';
         let error = IsCustom && (item.createElement === undefined || item.getEleVal === undefined || item.setEleVal === undefined);
         if (error) {
-            console.error('The custom setting item must have createElement, getEleVal and setEleVal methods');
+            consoleError('The custom setting item must have createElement, getEleVal and setEleVal methods');
             return;
         }
 

@@ -13,6 +13,7 @@ import { IProtyle, Protyle, showMessage } from "siyuan";
 import { ConflictHandler, Remote, StorageItem, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback, SyncFileResult } from "@/types/sync-status";
+import { consoleError, consoleLog, consoleWarn } from "@/logging";
 
 export class SyncManager {
     // Plugin instance
@@ -189,7 +190,7 @@ export class SyncManager {
         if (instanceId) {
             remote.instanceId = instanceId;
         } else {
-            console.warn("No instance ID found, generating a new one.");
+            consoleWarn("No instance ID found, generating a new one.");
             const newInstanceId = SyncUtils.generateInstanceId();
             await SyncUtils.setInstanceId(newInstanceId, remote);
             remote.instanceId = newInstanceId;
@@ -263,7 +264,7 @@ export class SyncManager {
             const fiveMinutesInMs = 5 * 60 * 1000;
 
             if (lockAge > fiveMinutesInMs)
-                console.log(`Lock file is ${Math.round(lockAge / 1000)} seconds old, ignoring stale lock for ${remote.name}`);
+                consoleLog(`Lock file is ${Math.round(lockAge / 1000)} seconds old, ignoring stale lock for ${remote.name}`);
             else
                 throw new Error(this.plugin.i18n.syncLockAlreadyExists.replace("{{remoteName}}", remote.name));
         }
@@ -284,7 +285,7 @@ export class SyncManager {
         } catch (error) {
             this.dismissMainSyncNotification();
 
-            console.error("Failed to release sync lock:", error);
+            consoleError("Failed to release sync lock:", error);
             showMessage("Failed to release sync lock, please remove it manually.", 6000, "error");
         }
     }
@@ -303,7 +304,7 @@ export class SyncManager {
         // Acquire the local lock
         await this.acquireLock(remotes[0]);
 
-        console.log("Acquired sync locks.");
+        consoleLog("Acquired sync locks.");
     }
 
     /**
@@ -379,7 +380,7 @@ export class SyncManager {
 
                 if (useWebSocket) {
                     const appId = this.remotes[1].appId;
-                    console.log(`Sending ${url} request via WebSocket with app ID: ${appId}`);
+                    consoleLog(`Sending ${url} request via WebSocket with app ID: ${appId}`);
 
                     const wsPayload = new Payload(url, {
                         requestData: init.body,
@@ -387,7 +388,7 @@ export class SyncManager {
                     });
                     await this.transmitWebSocketMessage(wsPayload.toString(), this.inputWebSocketManagers[1]);
                 } else {
-                    console.log(`Sending ${url} request via regular fetch.`);
+                    consoleLog(`Sending ${url} request via regular fetch.`);
                     await requestWithHeaders(
                         `${this.remotes[1].url}${url}`,
                         JSON.parse(init.body as string),
@@ -407,7 +408,7 @@ export class SyncManager {
                 const fullPath = `data/${createDocPayload.notebook}${createDocPayload.path}`;
                 const parent = fullPath.replace(fileName, "");
 
-                console.log(`Creating new doc on remote server: ${fullPath}`);
+                consoleLog(`Creating new doc on remote server: ${fullPath}`);
                 await fetchPromise;
 
                 const [fileBlob, resDir] = await Promise.all([
@@ -432,7 +433,7 @@ export class SyncManager {
                 const apiResponse = await (await fetchPromise).clone().json();
                 const notebookId = apiResponse.data.notebook.id;
 
-                console.log(`Creating new notebook on remote server: ${notebookId}`);
+                consoleLog(`Creating new notebook on remote server: ${notebookId}`);
 
                 await this.syncDirectory(
                     [new StorageItem(`data/${notebookId}`)],
@@ -621,12 +622,12 @@ export class SyncManager {
         for (let i = 0; i < 500; i++) {
             if (this.receivedAppIds.size > 0) {
                 if (this.receivedAppIds.has(remotes[1].appId)) {
-                    console.log(`Remote app ID already set: ${remotes[1].appId}`);
+                    consoleLog(`Remote app ID already set: ${remotes[1].appId}`);
                     return true;
                 }
 
                 this.setRemoteAppId(this.chooseRemoteAppId(), remotes[1]);
-                console.log(`Remote app ID set to: ${remotes[1].appId}`);
+                consoleLog(`Remote app ID set to: ${remotes[1].appId}`);
                 this.receivedAppIds.clear();
                 return true;
             }
@@ -634,7 +635,7 @@ export class SyncManager {
             await new Promise(resolve => setTimeout(resolve, 5));
         }
 
-        console.warn("Timeout waiting for remote app ID.");
+        consoleWarn("Timeout waiting for remote app ID.");
         return false;
     }
 
@@ -647,13 +648,13 @@ export class SyncManager {
     private async webSocketInputCallback(data: any) {
         const payload = Payload.fromString(data);
         if (!payload) {
-            console.warn("Received invalid WebSocket input message:", data);
+            consoleWarn("Received invalid WebSocket input message:", data);
             return;
         }
 
         switch (true) {
             case payload.type === "reload-protyles":
-                console.log("Reloading all Protyles due to WebSocket message.");
+                consoleLog("Reloading all Protyles due to WebSocket message.");
                 await this.reloadProtyles();
                 break;
 
@@ -664,10 +665,10 @@ export class SyncManager {
                     const protyle = Array.from(this.loadedProtyles.values())
                         .find(p => `data/${p.protyle.notebookId}${p.protyle.path}` === path);
                     if (protyle) {
-                        console.log(`Reloading Protyle for path: ${path}`);
+                        consoleLog(`Reloading Protyle for path: ${path}`);
                         protyle.reload(this.activeProtyle === protyle);
                     } else {
-                        console.warn(`No Protyle found for path: ${path}`);
+                        consoleWarn(`No Protyle found for path: ${path}`);
                     }
                 }
                 break;
@@ -677,9 +678,9 @@ export class SyncManager {
                 const { path, excludedItems, requestId, appId } = payload.data;
 
                 if (appId && appId !== this.plugin.app.appId)
-                    return console.warn(`Ignoring get-dir-files request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
+                    return consoleWarn(`Ignoring get-dir-files request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
 
-                console.log(`Received request for directory files: ${path} with app ID ${appId}`);
+                consoleLog(`Received request for directory files: ${path} with app ID ${appId}`);
                 const storageItem = await SyncUtils.getDirFilesRecursively(path, Remote.default(), true, excludedItems);
                 const responsePayload = new Payload("dir-files-response", { item: storageItem, requestId });
                 await this.transmitWebSocketMessage(responsePayload.toString(), this.outputWebSocketManagers[0]);
@@ -687,12 +688,12 @@ export class SyncManager {
             }
 
             case payload.type.startsWith("/api/"): {
-                console.log(`Processing api request via WebSocket: ${payload.type}`);
+                consoleLog(`Processing api request via WebSocket: ${payload.type}`);
 
                 const { appId, requestData } = payload.data;
 
                 if (appId && appId !== this.plugin.app.appId) {
-                    console.warn(`Ignoring request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
+                    consoleWarn(`Ignoring request for app ID ${appId}, current app ID is ${this.plugin.app.appId}`);
                     return;
                 }
 
@@ -716,7 +717,7 @@ export class SyncManager {
             }
 
             default:
-                console.warn("Unknown WebSocket message:", payload);
+                consoleWarn("Unknown WebSocket message:", payload);
                 break;
         }
     }
@@ -727,7 +728,7 @@ export class SyncManager {
      * @param websocketManager The WebSocket manager that was closed.
      */
     private async webSocketCloseRetryCallback(websocketManager: WebSocketManager) {
-        console.warn(`WebSocket connection closed, attempting to reconnect...`);
+        consoleWarn(`WebSocket connection closed, attempting to reconnect...`);
 
         const retry = async () => {
             try {
@@ -740,7 +741,7 @@ export class SyncManager {
                 if (!websocketManager.isConnected())
                     setTimeout(retry, 5000);
             } catch (error) {
-                console.error(`Failed to reconnect WebSocket, retrying in 5 seconds...`, error);
+                consoleError(`Failed to reconnect WebSocket, retrying in 5 seconds...`, error);
                 setTimeout(retry, 5000);
             }
         };
@@ -758,7 +759,7 @@ export class SyncManager {
     private async webSocketOutputCallback(data: any) {
         const payload = Payload.fromString(data);
         if (!payload) {
-            console.warn("Received invalid WebSocket output message:", data);
+            consoleWarn("Received invalid WebSocket output message:", data);
             return;
         }
 
@@ -776,12 +777,12 @@ export class SyncManager {
             case "app-id-response": {
                 const { appId } = payload.data;
                 this.receivedAppIds.add(appId);
-                console.log(`Received app ID from remote: ${appId}`);
+                consoleLog(`Received app ID from remote: ${appId}`);
                 break;
             }
 
             default:
-                console.warn("Unknown WebSocket message:", payload);
+                consoleWarn("Unknown WebSocket message:", payload);
                 break;
         }
     }
@@ -833,12 +834,12 @@ export class SyncManager {
         onerrorCallback?: (error: any) => void
     ) {
         if (!webSocketManager) {
-            console.warn("WebSocket manager is not initialized.");
+            consoleWarn("WebSocket manager is not initialized.");
             return;
         }
 
         if (webSocketManager.isConnected()) {
-            console.log("WebSocket is already connected.");
+            consoleLog("WebSocket is already connected.");
             return;
         }
 
@@ -865,9 +866,9 @@ export class SyncManager {
                 this.webSocketOutputCallback(message);
             });
         } else if (this.outputWebSocketManagers[1]) {
-            console.log("Remote output WebSocket is already connected.");
+            consoleLog("Remote output WebSocket is already connected.");
         } else {
-            console.warn("Remote output WebSocket manager is not initialized.");
+            consoleWarn("Remote output WebSocket manager is not initialized.");
         }
     }
 
@@ -878,7 +879,7 @@ export class SyncManager {
         if (this.outputWebSocketManagers[1])
             this.outputWebSocketManagers[1].closeWebSocket();
         else
-            console.warn("Remote output WebSocket manager is not initialized.");
+            consoleWarn("Remote output WebSocket manager is not initialized.");
     }
 
     /**
@@ -889,7 +890,7 @@ export class SyncManager {
      */
     async sendReloadProtylesMessage(paths: string[] | undefined = undefined) {
         if (!(await this.shouldUseWebSocket())) {
-            console.warn("WebSocket is not enabled or remote is not listening.");
+            consoleWarn("WebSocket is not enabled or remote is not listening.");
             return;
         }
 
@@ -903,7 +904,7 @@ export class SyncManager {
         if (this.inputWebSocketManagers[1])
             await this.transmitWebSocketMessage(payload.toString(), this.inputWebSocketManagers[1]);
         else
-            console.warn("Remote input WebSocket manager is not initialized.");
+            consoleWarn("Remote input WebSocket manager is not initialized.");
     }
 
     /**
@@ -941,7 +942,7 @@ export class SyncManager {
             if (persistentMessage)
                 showMessage(this.plugin.i18n.syncingWithRemote.replace("{{remoteName}}", remotes[1].name), 0, "info", "mainSyncNotification");
 
-            console.log(`Syncing with remote server ${remotes[1].name}...`);
+            consoleLog(`Syncing with remote server ${remotes[1].name}...`);
 
             if (this.shouldUseWebSocket()) promise = this.connectRemoteOutputWebSocket();
 
@@ -958,7 +959,7 @@ export class SyncManager {
             this.setSyncStatus(SyncStatus.Failed);
         } finally {
             await this.releaseAllLocks(remotes);
-            console.log("Released all sync locks.");
+            consoleLog("Released all sync locks.");
 
             const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
 
@@ -967,7 +968,7 @@ export class SyncManager {
                 this.dismissMainSyncNotification();
 
             if (savedError !== null) {
-                console.error("Error during sync:", savedError);
+                consoleError("Error during sync:", savedError);
 
                 showMessage(
                     this.plugin.i18n.syncWithRemoteFailed
@@ -980,12 +981,12 @@ export class SyncManager {
             } else if (this.conflictDetected) {
                 if (persistentMessage)
                     showMessage(this.plugin.i18n.syncCompletedWithConflicts.replace("{{duration}}", duration), 6000);
-                console.warn(`Sync completed with conflicts in ${duration} seconds.`);
+                consoleWarn(`Sync completed with conflicts in ${duration} seconds.`);
                 this.setSyncStatus(SyncStatus.DoneWithConflict);
             } else {
                 if (persistentMessage)
                     showMessage(this.plugin.i18n.syncCompletedSuccessfully.replace("{{duration}}", duration), 6000);
-                console.log(`Sync completed successfully in ${duration} seconds!`);
+                consoleLog(`Sync completed successfully in ${duration} seconds!`);
                 this.setSyncStatus(SyncStatus.Done);
             }
 
@@ -1012,7 +1013,7 @@ export class SyncManager {
 
         if (useWebSocket && !this.outputWebSocketManagers[1].isConnected()) {
             this.connectRemoteOutputWebSocket();
-            console.log("Connected to remote output WebSocket for directory sync.");
+            consoleLog("Connected to remote output WebSocket for directory sync.");
             disconnectWebSocket = true;
         }
 
@@ -1036,9 +1037,9 @@ export class SyncManager {
             })
         ]);
 
-        console.log(`Last sync times: ${remotes[0].lastSyncTime} (${remotes[0].name}), ${remotes[1].lastSyncTime} (${remotes[1].name})`);
-        console.log(`Sync history loaded for ${remotes[0].name}:`, Array.from(remotes[0].syncHistory?.entries() || []));
-        console.log(`Sync history loaded for ${remotes[1].name}:`, Array.from(remotes[1].syncHistory?.entries() || []));
+        consoleLog(`Last sync times: ${remotes[0].lastSyncTime} (${remotes[0].name}), ${remotes[1].lastSyncTime} (${remotes[1].name})`);
+        consoleLog(`Sync history loaded for ${remotes[0].name}:`, Array.from(remotes[0].syncHistory?.entries() || []));
+        consoleLog(`Sync history loaded for ${remotes[1].name}:`, Array.from(remotes[1].syncHistory?.entries() || []));
 
         const [notebooksOne, notebooksTwo] = await Promise.all([
             this.getNotebooks(remotes[0].url, remotes[0].key),
@@ -1073,7 +1074,7 @@ export class SyncManager {
         promises.push(this.syncPetalsListIfEmpty(remotes));
 
         // Execute all sync operations concurrently
-        console.log(`Starting sync operations for ${notebooks.length} notebooks and ${syncTargets.length - notebooks.length * 2} other directories...`);
+        consoleLog(`Starting sync operations for ${notebooks.length} notebooks and ${syncTargets.length - notebooks.length * 2} other directories...`);
 
         await Promise.all(promises);
 
@@ -1093,7 +1094,7 @@ export class SyncManager {
         );
 
         if (localAvFiles.length > 0) {
-            console.log(`Locally updated AV files detected: ${localAvFiles.join(", ")}`);
+            consoleLog(`Locally updated AV files detected: ${localAvFiles.join(", ")}`);
             await this.reloadProtyles();
         }
 
@@ -1101,7 +1102,7 @@ export class SyncManager {
             if (localAvFiles.length > 0) break;
 
             if (this.locallyUpdatedFiles.has(path)) {
-                console.log(`Locally updated file ${path} is currently loaded in protyle ${protyle.protyle.id}`);
+                consoleLog(`Locally updated file ${path} is currently loaded in protyle ${protyle.protyle.id}`);
 
                 protyle.reload(this.activeProtyle === protyle);
             }
@@ -1112,7 +1113,7 @@ export class SyncManager {
         );
 
         if (remoteAvFiles.length > 0) {
-            console.log(`Remotely updated AV files detected: ${remoteAvFiles.join(", ")}`);
+            consoleLog(`Remotely updated AV files detected: ${remoteAvFiles.join(", ")}`);
             await this.sendReloadProtylesMessage();
         } else {
             this.sendReloadProtylesMessage(Array.from(this.remotelyUpdatedFiles));
@@ -1129,7 +1130,7 @@ export class SyncManager {
 
         if (disconnectWebSocket) this.disconnectRemoteOutputWebSocket();
 
-        console.log(`Sync completed. Updated sync history for both remotes.`);
+        consoleLog(`Sync completed. Updated sync history for both remotes.`);
     }
 
     private getRemoteDirFilesViaWebSocket(path: string, excludedItems: string[], appId: string): Promise<StorageItem> {
@@ -1175,11 +1176,11 @@ export class SyncManager {
     ) {
         const path = items[0]?.path || items[1]?.path;
         if (!path) {
-            console.warn("No valid path provided for directory sync.");
+            consoleWarn("No valid path provided for directory sync.");
             return;
         }
 
-        console.log(`Syncing directory ${path}. Excluding items: ${excludedItems.join(", ")}`);
+        consoleLog(`Syncing directory ${path}. Excluding items: ${excludedItems.join(", ")}`);
 
         const useWebSocket = await this.shouldUseWebSocket() && this.isRemoteAppIdSet(remotes[1]);
 
@@ -1198,7 +1199,7 @@ export class SyncManager {
         }
 
         if ((!items[0] && !items[1]) || (!items[0]?.item && !items[1]?.item)) {
-            console.log(`Directory ${path} does not exist on either remote. Skipping sync.`);
+            consoleLog(`Directory ${path} does not exist on either remote. Skipping sync.`);
             return;
         }
 
@@ -1219,7 +1220,7 @@ export class SyncManager {
         );
 
         if (result === SyncFileResult.DirectoryDeleted) {
-            console.log(`Directory ${path} was deleted during sync. Skipping further processing.`);
+            consoleLog(`Directory ${path} was deleted during sync. Skipping further processing.`);
             return;
         }
 
@@ -1276,7 +1277,7 @@ export class SyncManager {
 
         await Promise.all(remotes.map(async (remote) => {
             if (!remote.file) {
-                console.log(`File info for ${filePath} missing from ${remote.name}, fetching...`);
+                consoleLog(`File info for ${filePath} missing from ${remote.name}, fetching...`);
                 const dir = await readDir(parentPath, remote.url, SyncUtils.getHeaders(remote.key));
                 remote.file = dir?.find(it => it.name === fileName);
             }
@@ -1285,7 +1286,7 @@ export class SyncManager {
         const fileRes = remotes[0].file || remotes[1].file;
 
         if (!fileRes) {
-            console.log(`File ${filePath} not found in either remote.`);
+            consoleLog(`File ${filePath} not found in either remote.`);
             return SyncFileResult.NotFound;
         }
 
@@ -1297,7 +1298,7 @@ export class SyncManager {
         // Conflict detection
         let trackConflicts = options?.trackConflicts ?? false;
         if (this.pendingFileChanges.has(filePath) && trackConflicts) {
-            console.log(`Conflicts tracking skipped for ${filePath} as it has pending changes.`);
+            consoleLog(`Conflicts tracking skipped for ${filePath} as it has pending changes.`);
             trackConflicts = false;
             this.pendingFileChanges.delete(filePath);
         }
@@ -1321,7 +1322,7 @@ export class SyncManager {
         const outputIndex = updated[0] > updated[1] ? 1 : 0;
 
         if (!fileRes.isDir)
-            console.log(`Syncing file from ${remotes[inputIndex].name} to ${remotes[outputIndex].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
+            consoleLog(`Syncing file from ${remotes[inputIndex].name} to ${remotes[outputIndex].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
         // Handle deletions
         if (!remotes[0].file || !remotes[1].file) {
@@ -1351,7 +1352,7 @@ export class SyncManager {
                 (commonSync > updated[existingIndex]) &&
                 (commonSync >= existingLastSync) || dirMismatch;
 
-            console.log(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}. Should delete: ${shouldDelete}`);
+            consoleLog(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}. Should delete: ${shouldDelete}`);
 
             if (shouldDelete) {
                 if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
@@ -1360,7 +1361,7 @@ export class SyncManager {
                         return fileRes.isDir ? SyncFileResult.DirectoryDeleted : SyncFileResult.Deleted;
                 }
             } else {
-                console.log(`File ${filePath} is missing on ${remotes[missingIndex].name} but will be synced (timestamp check passed)`);
+                consoleLog(`File ${filePath} is missing on ${remotes[missingIndex].name} but will be synced (timestamp check passed)`);
             }
         }
 
@@ -1369,7 +1370,7 @@ export class SyncManager {
 
         const syFile = await getFileBlob(filePath, remotes[inputIndex].url, SyncUtils.getHeaders(remotes[inputIndex].key));
         if (!syFile) {
-            console.log(`File ${filePath} not found in source: ${remotes[inputIndex].name}`);
+            consoleLog(`File ${filePath} not found in source: ${remotes[inputIndex].name}`);
             return SyncFileResult.NotFound;
         }
 
@@ -1400,7 +1401,7 @@ export class SyncManager {
         for (let index = 0; index < petalsList.length; index++) {
             if (!petalsList[index] || await petalsList[index].text() === "[]") {
                 const otherIndex = index === 0 ? 1 : 0;
-                console.log(`Syncing petals list from ${remotes[otherIndex].name} to ${remotes[index].name}`);
+                consoleLog(`Syncing petals list from ${remotes[otherIndex].name} to ${remotes[index].name}`);
                 let file = new File([petalsList[otherIndex]], "petals.json");
                 SyncUtils.putFile("/data/storage/petal/petals.json", file, remotes[index].url, remotes[index].key);
                 break;
@@ -1440,7 +1441,7 @@ export class SyncManager {
     private async createDataSnapshots(remotes: [Remote, Remote] = this.copyRemotes(this.remotes)) {
         SyncUtils.checkRemotes(remotes);
 
-        console.log("Creating data snapshots for both local and remote devices...");
+        consoleLog("Creating data snapshots for both local and remote devices...");
 
         const minHours = this.plugin.settingsManager.getPref("minHoursBetweenSnapshots");
         const minMilliseconds = minHours * 3600 * 1000;
@@ -1455,14 +1456,14 @@ export class SyncManager {
         for (let i = 0; i < snapshots.length; i++) {
             if (!snapshots[i] || snapshots[i].snapshots.length <= 0) {
                 showMessage(this.plugin.i18n.initializeDataRepo.replace(/{{remoteName}}/g, remotes[i].name), 6000);
-                console.warn(`Failed to fetch snapshots for ${remotes[i].name}, skipping snapshot creation.`);
+                consoleWarn(`Failed to fetch snapshots for ${remotes[i].name}, skipping snapshot creation.`);
                 return;
             }
 
             if (Date.now() - snapshots[i].snapshots[0].created > minMilliseconds)
                 promises.push(createSnapshot("[better-sync] Cloud sync", remotes[i].url, SyncUtils.getHeaders(remotes[i].key)));
             else
-                console.log(`Skipping snapshot for ${remotes[i].name}, last one was less than ${minHours} hours ago.`);
+                consoleLog(`Skipping snapshot for ${remotes[i].name}, last one was less than ${minHours} hours ago.`);
         }
 
         await Promise.all(promises);
