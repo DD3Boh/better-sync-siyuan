@@ -1346,7 +1346,7 @@ export class SyncManager {
              * Or if there is a directory/file mismatch.
              * This ensures that we only delete files that were present during the last sync and have not been updated since.
              */
-            const dirMismatch = remotes[0].file.isDir != remotes[1].file?.isDir;
+            const dirMismatch = remotes[0].file && remotes[1].file && remotes[0].file.isDir != remotes[1].file.isDir;
             const shouldDelete: boolean = (commonSync > 0) &&
                 (commonSync > updated[existingIndex]) &&
                 (commonSync >= existingLastSync) || dirMismatch;
