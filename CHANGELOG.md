@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Fix files being wrongly deleted when syncing with a remote.
+
 ## 1.4.0
 
 - Fix a bug with files being accidentally deleted when two remotes sync to the same third remote, under some conditions
