@@ -120,28 +120,6 @@ export class SyncUtils {
     }
 
     /**
-     * Get the last sync time from the status file.
-     * @param remote The remote information containing URL and key.
-     * @returns The last sync time as a timestamp, or 0 if not found.
-     */
-    static async getLastSyncTime(remote: Remote = Remote.default()): Promise<number> {
-        let dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
-
-        if (!dir || dir.length === 0) {
-            consoleLog("No sync directory found.");
-            return 0;
-        }
-
-        let file = dir.find(file => file.name === "status");
-        if (!file) {
-            consoleLog("No status file found.");
-            return 0;
-        }
-
-        return file.updated;
-    }
-
-    /**
      * Get the instance ID from the instance-id file.
      *
      * @param remote The remote information containing URL and key.
