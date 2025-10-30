@@ -1,6 +1,6 @@
 import { consoleError, consoleLog } from "@/logging";
 import { getFileBlob, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
-import { Remote, StorageItem } from "@/sync";
+import { INSTANCE_ID_FILE, Remote, StorageItem, SYNC_CONFIG_DIR } from "@/sync";
 
 export class SyncUtils {
     /**
@@ -128,7 +128,8 @@ export class SyncUtils {
     static async getInstanceId(
         remote: Remote
     ): Promise<string> {
-        const blob = await getFileBlob("/data/.siyuan/sync/instance-id", remote.url, SyncUtils.getHeaders(remote.key));
+        const path = `${SYNC_CONFIG_DIR}${INSTANCE_ID_FILE}`;
+        const blob = await getFileBlob(path, remote.url, SyncUtils.getHeaders(remote.key));
         return blob ? await blob.text() : "";
     }
 
@@ -142,9 +143,9 @@ export class SyncUtils {
         instanceId: string,
         remote: Remote
     ): Promise<void> {
-        const filePath = "/data/.siyuan/sync/instance-id";
-        const file = new File([instanceId], "instance-id", { lastModified: Date.now() });
-        await SyncUtils.putFile(filePath, file, remote.url, remote.key);
+        const path = `${SYNC_CONFIG_DIR}${INSTANCE_ID_FILE}`;
+        const file = new File([instanceId], INSTANCE_ID_FILE, { lastModified: Date.now() });
+        await SyncUtils.putFile(path, file, remote.url, remote.key);
     }
 
     /**

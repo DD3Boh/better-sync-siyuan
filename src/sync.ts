@@ -6,3 +6,4 @@ export * from "./sync/sync-targets";
 export * from "./sync/history";
 export * from "./sync/remote";
 export * from "./sync/storage-item";
+export * from "./sync/constants";

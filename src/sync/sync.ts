@@ -10,7 +10,7 @@ import {
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
-import { ConflictHandler, Remote, StorageItem, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
+import { ConflictHandler, LOCK_FILE, Remote, SYNC_CONFIG_DIR, StorageItem, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback, SyncFileResult } from "@/types/sync-status";
 import { consoleError, consoleLog, consoleWarn } from "@/logging";
@@ -279,9 +279,9 @@ export class SyncManager {
      * @param remote The remote to release the lock for.
      */
     private async releaseLock(remote: Remote): Promise<void> {
-        const lockPath = "/data/.siyuan/sync/lock";
+        const path = `${SYNC_CONFIG_DIR}${LOCK_FILE}`;
         try {
-            await SyncUtils.deleteFile(lockPath, remote);
+            await SyncUtils.deleteFile(path, remote);
         } catch (error) {
             this.dismissMainSyncNotification();
 

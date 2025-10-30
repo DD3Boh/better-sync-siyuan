@@ -1,6 +1,6 @@
 import { getFileBlob, readDir } from "@/api";
 import { consoleError, consoleLog, consoleWarn } from "@/logging";
-import { Remote, SyncUtils } from "@/sync";
+import { Remote, SYNC_CONFIG_DIR, SYNC_HISTORY_FILE, SyncUtils } from "@/sync";
 
 export class SyncHistory {
     /**
@@ -12,22 +12,22 @@ export class SyncHistory {
      */
     static async loadSyncHistory(remote: Remote): Promise<Map<string, number>> {
         try {
-            const dir = await readDir(`/data/.siyuan/sync/`, remote.url, SyncUtils.getHeaders(remote.key));
+            const dir = await readDir(SYNC_CONFIG_DIR, remote.url, SyncUtils.getHeaders(remote.key));
 
             if (!dir || dir.length === 0) {
                 consoleLog(`No sync directory found for ${remote.name}`);
                 return new Map();
             }
 
-            const historyFile = dir.find(file => file.name === "sync-history.json");
+            const historyFile = dir.find(file => file.name === SYNC_HISTORY_FILE);
             if (!historyFile) {
                 consoleLog(`No sync history file found for ${remote.name}`);
                 return new Map();
             }
 
             // Fetch the file content
-            const filePath = "/data/.siyuan/sync/sync-history.json";
-            const blob = await getFileBlob(filePath, remote.url, SyncUtils.getHeaders(remote.key));
+            const path = `${SYNC_CONFIG_DIR}${SYNC_HISTORY_FILE}`;
+            const blob = await getFileBlob(path, remote.url, SyncUtils.getHeaders(remote.key));
 
             if (!blob) {
                 consoleWarn(`Failed to fetch sync history for ${remote.name}`);
@@ -53,7 +53,7 @@ export class SyncHistory {
      */
     static async saveSyncHistory(remote: Remote, syncHistory: Map<string, number>): Promise<void> {
         try {
-            const filePath = "/data/.siyuan/sync/sync-history.json";
+            const path = `${SYNC_CONFIG_DIR}${SYNC_HISTORY_FILE}`;
 
             // Convert Map to plain object for JSON serialization
             const historyObj: Record<string, number> = {};
@@ -62,9 +62,9 @@ export class SyncHistory {
             });
 
             const jsonContent = JSON.stringify(historyObj, null, 2);
-            const file = new File([jsonContent], "sync-history.json", { lastModified: Date.now() });
+            const file = new File([jsonContent], SYNC_HISTORY_FILE, { lastModified: Date.now() });
 
-            await SyncUtils.putFile(filePath, file, remote.url, remote.key);
+            await SyncUtils.putFile(path, file, remote.url, remote.key);
             consoleLog(`Saved sync history for ${remote.name}`);
         } catch (error) {
             consoleError(`Error saving sync history for ${remote.name}:`, error);
