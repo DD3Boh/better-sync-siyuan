@@ -1,6 +1,6 @@
 import { consoleError, consoleLog } from "@/logging";
 import { getFileBlob, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
-import { INSTANCE_ID_FILE, Remote, StorageItem, SYNC_CONFIG_DIR } from "@/sync";
+import { INSTANCE_ID_FILE, Remote, StorageItem, SYNC_CONFIG_DIR, SYNC_LOGS_DIR } from "@/sync";
 
 export class SyncUtils {
     /**
@@ -170,5 +170,17 @@ export class SyncUtils {
         const file = dir.find(file => file.name === fileName);
 
         return file ? file.updated * 1000 : 0;
+    }
+
+    /**
+     * Write the sync log to a file on the remote
+     *
+     * @param remote The remote information containing URL and key.
+     */
+    static async writeSyncLog(content: string, remote: Remote, timestamp: number = Date.now()): Promise<void> {
+        const logFilePath = `${SYNC_LOGS_DIR}${timestamp}.log`;
+
+        const file = new File([content], logFilePath, { lastModified: timestamp });
+        await SyncUtils.putFile(logFilePath, file, remote.url, remote.key, timestamp);
     }
 }
