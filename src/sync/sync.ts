@@ -13,7 +13,7 @@ import { IProtyle, Protyle, showMessage } from "siyuan";
 import { ConflictHandler, LOCK_FILE, Remote, SYNC_CONFIG_DIR, StorageItem, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
 import { SyncStatus, SyncStatusCallback, SyncFileResult } from "@/types/sync-status";
-import { consoleError, consoleLog, consoleWarn } from "@/logging";
+import { consoleError, consoleLog, consoleWarn, SessionLog } from "@/logging";
 
 export class SyncManager {
     // Plugin instance
@@ -989,6 +989,14 @@ export class SyncManager {
                 consoleLog(`Sync completed successfully in ${duration} seconds!`);
                 this.setSyncStatus(SyncStatus.Done);
             }
+
+            await SyncUtils.writeSyncLog(
+                SessionLog.getLogsAsString(),
+                remotes[0]
+            );
+
+            // Clear session log after writing
+            SessionLog.clear();
 
             this.conflictDetected = false;
             this.locallyUpdatedFiles.clear();
