@@ -38,5 +38,9 @@
     "syncDone": "同步成功。",
     "syncDoneWithConflict": "同步完成但有冲突。",
     "syncFailed": "同步失败。",
-    "lastSyncTime": "上次同步时间：{{lastSyncTime}}"
+    "lastSyncTime": "上次同步时间：{{lastSyncTime}}",
+    "getLastSyncLog": "获取最后的同步日志",
+    "getLastSyncLogDesc": "将最后的同步日志复制到资源文件夹。您可以从丢失的资源部分检索它，或将其包含在笔记中并打开它。",
+    "lastSyncMessageCopied": "最后的同步日志 ({{name}}) 已复制到资源文件夹。",
+    "copyToAssetsFolder": "复制到资源文件夹"
 }

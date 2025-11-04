@@ -241,4 +241,20 @@ export class SyncUtils {
         const blob = await getFileBlob(path, remote.url, SyncUtils.getHeaders(remote.key));
         return blob ? await blob.text() : null;
     }
+
+    /**
+     * Get the newest sync log File object
+     *
+     * @param remote The remote information containing URL and key.
+     * @returns The File object of the newest sync log file, or null if none found.
+     */
+    static async getNewestSyncLogFile(remote: Remote = Remote.default()): Promise<File | null> {
+        const logFiles = await SyncUtils.getAllSyncLogFiles(remote);
+
+        if (!logFiles || logFiles.length === 0) return null;
+
+        const path = `${SYNC_LOGS_DIR}/${logFiles[0].name}`;
+        const blob = await getFileBlob(path, remote.url, SyncUtils.getHeaders(remote.key));
+        return blob ? new File([blob], logFiles[0].name, { lastModified: logFiles[0].updated * 1000 }) : null;
+    }
 }

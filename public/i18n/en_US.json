@@ -38,5 +38,9 @@
     "syncDone": "Sync successful.",
     "syncDoneWithConflict": "Sync completed with conflicts.",
     "syncFailed": "Sync failed.",
-    "lastSyncTime": "Last sync time: {{lastSyncTime}}"
+    "lastSyncTime": "Last sync time: {{lastSyncTime}}",
+    "getLastSyncLog": "Get the last sync log",
+    "getLastSyncLogDesc": "Copy the last sync log to the assets folder. You can retrieve it from the missing assets section, or include it in a note and open it.",
+    "lastSyncMessageCopied": "The last sync log ({{name}}) has been copied to the assets folder.",
+    "copyToAssetsFolder": "Copy to Assets Folder"
 }

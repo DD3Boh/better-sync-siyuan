@@ -6,7 +6,8 @@ import {
     readDir,
     reloadFiletree,
     getUnusedAssets,
-    requestWithHeaders
+    requestWithHeaders,
+    upload
 } from "@/api";
 import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
@@ -1475,6 +1476,33 @@ export class SyncManager {
         }
 
         await Promise.all(promises);
+    }
+
+    /**
+     * Get the newest sync log file for a remote and turn it into an asset.
+     * Return the asset path.
+     *
+     * @param remote The remote information containing URL and key.
+     * @returns The asset file path of the newest sync log.
+     */
+    async getNewestSyncLogAsAsset(remote: Remote = this.copyRemotes(this.remotes)[0]): Promise<string | null> {
+        const lastSyncLog = await SyncUtils.getNewestSyncLogFile(remote);
+
+        if (!lastSyncLog) return null;
+
+        const result: IResUpload = await upload([lastSyncLog]);
+        if (!result.succMap) {
+            consoleWarn("Failed to upload sync log file.");
+            return null;
+        }
+
+        const assetPath = Object.values(result.succMap)[0];
+        if (!assetPath) {
+            consoleWarn("No asset path found in upload result.");
+            return null;
+        }
+
+        return assetPath;
     }
 
     /* Utility functions */

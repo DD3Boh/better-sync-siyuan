@@ -1,6 +1,7 @@
 import { SettingUtils } from "@/libs/setting-utils";
 import BetterSyncPlugin from ".";
 import { consoleError } from "@/logging";
+import { showMessage } from "siyuan";
 
 const STORAGE_NAME = "menu-config";
 
@@ -183,6 +184,22 @@ export class SettingsManager {
                 callback: () => {
                     let value = !this.settingUtils.get("useExperimentalWebSocket");
                     this.settingUtils.set("useExperimentalWebSocket", value);
+                }
+            }
+        });
+
+        this.settingUtils.addItem({
+            key: "getLastSyncLog",
+            value: "",
+            type: "button",
+            title: this.plugin.i18n.getLastSyncLog,
+            description: this.plugin.i18n.getLastSyncLogDesc,
+            button: {
+                label: this.plugin.i18n.copyToAssetsFolder,
+                callback: async () => {
+                    const path = await this.plugin.syncManager.getNewestSyncLogAsAsset();
+                    if (path)
+                        showMessage(this.plugin.i18n.lastSyncMessageCopied.replace("{{name}}", path.split("/").pop()));
                 }
             }
         });
