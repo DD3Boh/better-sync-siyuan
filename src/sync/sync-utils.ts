@@ -182,5 +182,35 @@ export class SyncUtils {
 
         const file = new File([content], logFilePath, { lastModified: timestamp });
         await SyncUtils.putFile(logFilePath, file, remote.url, remote.key, timestamp);
+
+        // Cleanup old log files after writing
+        await SyncUtils.cleanupOldLogs(remote);
+    }
+
+    /**
+     * Clean up old log files, keeping only the 10 most recent ones
+     *
+     * @param remote The remote information containing URL and key.
+     */
+    static async cleanupOldLogs(remote: Remote) {
+        const logFiles = await readDir(SYNC_LOGS_DIR, remote.url, SyncUtils.getHeaders(remote.key));
+
+        if (!logFiles || logFiles.length === 0) return;
+
+        const logFilesOnly = logFiles.filter(file => !file.isDir && file.name.endsWith('.log'));
+
+        if (logFilesOnly.length <= 10) return;
+
+        // Sort by updated timestamp in descending order
+        logFilesOnly.sort((a, b) => b.updated - a.updated);
+
+        const filesToDelete = logFilesOnly.slice(10);
+
+        for (const file of filesToDelete) {
+            const filePath = `${SYNC_LOGS_DIR}${file.name}`;
+            await removeFile(filePath, remote.url, SyncUtils.getHeaders(remote.key));
+        }
+
+        consoleLog(`Cleaned up ${filesToDelete.length} old log files, keeping the 10 most recent`);
     }
 }
