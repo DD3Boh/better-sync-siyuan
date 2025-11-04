@@ -188,23 +188,35 @@ export class SyncUtils {
     }
 
     /**
+     * Get a list of all sync log files, in descending order by timestamp
+     *
+     * @param remote The remote information containing URL and key.
+     * @returns An array of log file names.
+     */
+    static async getAllSyncLogFiles(remote: Remote): Promise<IResReadDir[]> {
+        const logFiles = await readDir(SYNC_LOGS_DIR, remote.url, SyncUtils.getHeaders(remote.key));
+
+        if (!logFiles || logFiles.length === 0) return [];
+
+        const logFilesOnly = logFiles.filter(file => !file.isDir && file.name.endsWith('.log'));
+
+        // Sort by updated timestamp in descending order
+        logFilesOnly.sort((a, b) => b.updated - a.updated);
+
+        return logFilesOnly;
+    }
+
+    /**
      * Clean up old log files, keeping only the 10 most recent ones
      *
      * @param remote The remote information containing URL and key.
      */
     static async cleanupOldLogs(remote: Remote) {
-        const logFiles = await readDir(SYNC_LOGS_DIR, remote.url, SyncUtils.getHeaders(remote.key));
+        const logFiles = await SyncUtils.getAllSyncLogFiles(remote);
 
-        if (!logFiles || logFiles.length === 0) return;
+        if (!logFiles || logFiles.length <= 10) return;
 
-        const logFilesOnly = logFiles.filter(file => !file.isDir && file.name.endsWith('.log'));
-
-        if (logFilesOnly.length <= 10) return;
-
-        // Sort by updated timestamp in descending order
-        logFilesOnly.sort((a, b) => b.updated - a.updated);
-
-        const filesToDelete = logFilesOnly.slice(10);
+        const filesToDelete = logFiles.slice(10);
 
         for (const file of filesToDelete) {
             const filePath = `${SYNC_LOGS_DIR}${file.name}`;
@@ -221,18 +233,11 @@ export class SyncUtils {
      * @returns The contents of the newest sync log file as a string, or null if none found.
      */
     static async getNewestSyncLog(remote: Remote): Promise<string | null> {
-        const logFiles = await readDir(SYNC_LOGS_DIR, remote.url, SyncUtils.getHeaders(remote.key));
+        const logFiles = await SyncUtils.getAllSyncLogFiles(remote);
 
         if (!logFiles || logFiles.length === 0) return null;
 
-        const logFilesOnly = logFiles.filter(file => !file.isDir && file.name.endsWith('.log'));
-
-        if (logFilesOnly.length === 0) return null;
-
-        // Sort by updated timestamp in descending order
-        logFilesOnly.sort((a, b) => b.updated - a.updated);
-
-        const path = `${SYNC_LOGS_DIR}/${logFilesOnly[0].name}`;
+        const path = `${SYNC_LOGS_DIR}/${logFiles[0].name}`;
         const blob = await getFileBlob(path, remote.url, SyncUtils.getHeaders(remote.key));
         return blob ? await blob.text() : null;
     }
