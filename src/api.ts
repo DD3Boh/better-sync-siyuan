@@ -185,12 +185,15 @@ export async function getPathByID(id: BlockId, urlPrefix: string = '', headers?:
 
 // **************************************** Asset Files ****************************************
 
-export async function upload(assetsDirPath: string, files: any[], urlPrefix: string = '', headers?: Record<string, string>): Promise<IResUpload> {
+export async function upload(files: any[], assetsDirPath: string = null, urlPrefix: string = '', headers?: Record<string, string>): Promise<IResUpload> {
     let form = new FormData();
-    form.append('assetsDirPath', assetsDirPath);
-    for (let file of files) {
+
+    if (assetsDirPath)
+        form.append('assetsDirPath', assetsDirPath);
+
+    for (let file of files)
         form.append('file[]', file);
-    }
+
     let url = `${urlPrefix}/api/asset/upload`;
     return requestWithHeaders(url, form, headers);
 }
