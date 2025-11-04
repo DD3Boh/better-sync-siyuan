@@ -213,4 +213,27 @@ export class SyncUtils {
 
         consoleLog(`Cleaned up ${filesToDelete.length} old log files, keeping the 10 most recent`);
     }
+
+    /**
+     * Get the newest sync log contents
+     *
+     * @param remote The remote information containing URL and key.
+     * @returns The contents of the newest sync log file as a string, or null if none found.
+     */
+    static async getNewestSyncLog(remote: Remote): Promise<string | null> {
+        const logFiles = await readDir(SYNC_LOGS_DIR, remote.url, SyncUtils.getHeaders(remote.key));
+
+        if (!logFiles || logFiles.length === 0) return null;
+
+        const logFilesOnly = logFiles.filter(file => !file.isDir && file.name.endsWith('.log'));
+
+        if (logFilesOnly.length === 0) return null;
+
+        // Sort by updated timestamp in descending order
+        logFilesOnly.sort((a, b) => b.updated - a.updated);
+
+        const path = `${SYNC_LOGS_DIR}/${logFilesOnly[0].name}`;
+        const blob = await getFileBlob(path, remote.url, SyncUtils.getHeaders(remote.key));
+        return blob ? await blob.text() : null;
+    }
 }
