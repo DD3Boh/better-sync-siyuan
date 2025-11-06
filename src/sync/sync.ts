@@ -1212,6 +1212,11 @@ export class SyncManager {
             return;
         }
 
+        if ((items[0] && items[1] && items[0].isDir !== items[1].isDir)) {
+            consoleLog(`Directory ${path} exists as a file on one remote and a directory on the other. Skipping sync.`);
+            return;
+        }
+
         // Create a combined storage item to iterate through all files
         const item = StorageItem.joinItems(items[0], items[1]);
         const fileMaps = [
