@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2
+
+- Add a logger utility with an option to export the most recent log, adding it to SiYuan's assets
+- Minor fixes
+
 ## 1.4.1
 
 - Fix files being wrongly deleted when syncing with a remote.
