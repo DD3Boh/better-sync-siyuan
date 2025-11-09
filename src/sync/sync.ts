@@ -256,7 +256,7 @@ export class SyncManager {
      */
     private async acquireLock(remote: Remote): Promise<void> {
         const lockParent = "data/.siyuan/sync";
-        const resDir = await readDir(lockParent, remote.url, SyncUtils.getHeaders(remote.key));
+        const resDir = await readDir(lockParent, remote.url, SyncUtils.getHeaders(remote.key), 5000);
         const lockFileInfo = resDir?.find(file => file.name === "lock");
         const now = Date.now();
 
