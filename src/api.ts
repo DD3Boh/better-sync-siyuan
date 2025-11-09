@@ -19,7 +19,7 @@ export async function request(url: string, data: any) {
 export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>, timeoutMs: number = 5000): Promise<any> {
     return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
-            reject(new Error(`Request timeout`));
+            reject(new Error(`Request timeout for ${url}`));
         }, timeoutMs);
 
         try {
@@ -394,7 +394,7 @@ export const getFileBlob = async (path: string, urlPrefix: string = '', headers?
 
     try {
         const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error(`Request timeout`)), timeoutMs);
+            setTimeout(() => reject(new Error(`Request timeout for ${endpoint}`)), timeoutMs);
         });
 
         const fetchPromise = fetch(endpoint, {
