@@ -16,7 +16,7 @@ export async function request(url: string, data: any) {
     return res;
 }
 
-export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>, timeoutMs: number = 5000): Promise<any> {
+export async function requestWithHeaders(url: string, data: any, headers?: Record<string, string>, timeoutMs: number = 15000): Promise<any> {
     return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
             reject(new Error(`Request timeout for ${url}`));
