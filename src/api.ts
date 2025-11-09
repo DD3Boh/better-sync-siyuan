@@ -440,11 +440,15 @@ export async function removeFile(path: string, urlPrefix: string = '', headers?:
     return requestWithHeaders(url, data, headers);
 }
 
-export async function readDir(path: string, urlPrefix: string = '', headers?: Record<string, string>): Promise<IResReadDir[]> {
+export async function readDir(path: string, urlPrefix: string = '', headers?: Record<string, string>, timeoutMs?: number): Promise<IResReadDir[]> {
     let data = {
         path: path
     }
     let url = `${urlPrefix}/api/file/readDir`;
+
+    if (timeoutMs)
+        return requestWithHeaders(url, data, headers, timeoutMs);
+
     return requestWithHeaders(url, data, headers);
 }
 
