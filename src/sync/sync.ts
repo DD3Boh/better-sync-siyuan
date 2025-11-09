@@ -937,6 +937,7 @@ export class SyncManager {
         const startTime = Date.now();
         let savedError: Error | null = null;
         let promise: Promise<void> | null = null;
+        let locked = false;
         try {
             SyncUtils.checkRemotes(remotes);
 
@@ -948,6 +949,7 @@ export class SyncManager {
             if (this.shouldUseWebSocket()) promise = this.connectRemoteOutputWebSocket();
 
             await this.acquireAllLocks(remotes);
+            locked = true;
 
             this.pendingFileChanges.forEach((timeoutId, filePath) => {
                 clearTimeout(timeoutId);
@@ -959,7 +961,7 @@ export class SyncManager {
             savedError = error;
             this.setSyncStatus(SyncStatus.Failed);
         } finally {
-            await this.releaseAllLocks(remotes);
+            if (locked) await this.releaseAllLocks(remotes);
             consoleLog("Released all sync locks.");
 
             const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
