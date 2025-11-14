@@ -1483,6 +1483,8 @@ export class SyncManager {
         }
 
         await Promise.all(promises);
+
+        consoleLog("Data snapshots created successfully.");
     }
 
     /**
