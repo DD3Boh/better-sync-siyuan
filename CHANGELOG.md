@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.3
+
+- Increase logging
+- Update the timeouts for requests to try fixing random failures
+- Improve logging of errors in the log file
+- Minor fixes
+
 ## 1.4.2
 
 - Add a logger utility with an option to export the most recent log, adding it to SiYuan's assets
