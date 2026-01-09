@@ -1230,8 +1230,8 @@ export class SyncManager {
             item.path,
             options,
             [
-                remotes[0].withFile(items[0]?.item),
-                remotes[1].withFile(items[1]?.item)
+                remotes[0].withFile(items[0]?.item, items[0]?.path),
+                remotes[1].withFile(items[1]?.item, items[1]?.path)
             ]
         );
 
@@ -1257,8 +1257,8 @@ export class SyncManager {
                         file.path,
                         options,
                         [
-                            remotes[0].withFile(fileMaps[0]?.get(file.path)?.item),
-                            remotes[1].withFile(fileMaps[1]?.get(file.path)?.item)
+                            remotes[0].withFile(fileMaps[0]?.get(file.path)?.item, fileMaps[0]?.get(file.path)?.path),
+                            remotes[1].withFile(fileMaps[1]?.get(file.path)?.item, fileMaps[1]?.get(file.path)?.path)
                         ]
                     );
                 }
