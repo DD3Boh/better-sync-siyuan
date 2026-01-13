@@ -88,10 +88,18 @@ export class StorageItem {
         return items;
     }
 
-    getFilesMap(): Map<string, StorageItem> {
+    /**
+     * Returns a map of all child files with their paths or file names as keys.
+     * @param useFileNames Whether to use file names as keys instead of file paths.
+     * @returns A map of StorageItem instances where the keys are file names or file paths.
+     */
+    getFilesMap(useFileNames: boolean = false): Map<string, StorageItem> {
         const fileMap = new Map<string, StorageItem>();
         for (const file of this.files) {
-            fileMap.set(file.path, file);
+            if (useFileNames)
+                fileMap.set(file.name, file);
+            else
+                fileMap.set(file.path, file);
         }
 
         return fileMap;
