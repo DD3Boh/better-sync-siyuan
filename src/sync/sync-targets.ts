@@ -4,6 +4,7 @@ export interface SyncTarget {
     options?: {
         deleteFoldersOnly?: boolean;
         onlyIfMissing?: boolean;
+        useFileNames?: boolean;
         avoidDeletions?: boolean;
         trackConflicts?: boolean;
         trackUpdatedFiles?: boolean;
@@ -24,6 +25,7 @@ export function getSyncTargets(config: SyncTargetsConfig): SyncTarget[] {
             path: `data/${notebook.id}`,
             excludedItems: [".siyuan"],
             options: {
+                useFileNames: true,
                 trackConflicts: trackConflicts,
                 trackUpdatedFiles: true
             }

@@ -1180,6 +1180,7 @@ export class SyncManager {
         options?: {
             deleteFoldersOnly?: boolean,
             onlyIfMissing?: boolean,
+            useFileNames?: boolean,
             avoidDeletions?: boolean,
             trackConflicts?: boolean,
             trackUpdatedFiles?: boolean
@@ -1222,8 +1223,8 @@ export class SyncManager {
         // Create a combined storage item to iterate through all files
         const item = StorageItem.joinItems(items[0], items[1]);
         const fileMaps = [
-            items[0]?.getFilesMap(),
-            items[1]?.getFilesMap()
+            items[0]?.getFilesMap(options?.useFileNames),
+            items[1]?.getFilesMap(options?.useFileNames)
         ];
 
         const result = await this.syncFile(
@@ -1242,11 +1243,14 @@ export class SyncManager {
 
         await Promise.allSettled([
             item.files?.map(file => {
+                const file0 = options?.useFileNames ? fileMaps[0]?.get(file.name) : fileMaps[0]?.get(file.path);
+                const file1 = options?.useFileNames ? fileMaps[1]?.get(file.name) : fileMaps[1]?.get(file.path);
+
                 if (file.isDir) {
                     this.syncDirectory(
                         [
-                            fileMaps[0]?.get(file.path),
-                            fileMaps[1]?.get(file.path)
+                            file0,
+                            file1
                         ],
                         remotes,
                         [],
@@ -1257,8 +1261,8 @@ export class SyncManager {
                         file.path,
                         options,
                         [
-                            remotes[0].withFile(fileMaps[0]?.get(file.path)?.item, fileMaps[0]?.get(file.path)?.path),
-                            remotes[1].withFile(fileMaps[1]?.get(file.path)?.item, fileMaps[1]?.get(file.path)?.path)
+                            remotes[0].withFile(file0?.item, file0?.path),
+                            remotes[1].withFile(file1?.item, file1?.path)
                         ]
                     );
                 }
