@@ -106,6 +106,53 @@ export class StorageItem {
     }
 
     /**
+     * Returns a recursive map of all child files with their paths or file names as keys.
+     *
+     * @param useFileNames Whether to use file names as keys instead of file paths.
+     * @returns A map of StorageItem instances where the keys are file names or paths and the values are StorageItems.
+     */
+    getFilesMapRecursive(useFileNames: boolean = false): Map<string, StorageItem> {
+        const fileMap = new Map<string, StorageItem>();
+        for (const file of this.files) {
+            if (useFileNames)
+                fileMap.set(file.name, file);
+            else
+                fileMap.set(file.path, file);
+
+            if (file.isDir) {
+                for (const [key, value] of file.getFilesMapRecursive(useFileNames)) {
+                    fileMap.set(key, value);
+                }
+            }
+        }
+
+        return fileMap;
+    }
+
+    /**
+     * Takes two StorageItems as input, returns a map of file names or paths to pairs of StorageItems.
+     * The pairs are the children of the two StorageItems.
+     *
+     * @param item1 The first StorageItem
+     * @param item2 The second StorageItem
+     * @param useFileNames Whether to use file names as keys instead of file paths.
+     * @returns A map of StorageItem instances where the keys are file names or paths and the values are pairs of StorageItems.
+     */
+    static getFilesMapPair(item1: StorageItem, item2: StorageItem, useFileNames: boolean = false): Map<string, [StorageItem, StorageItem]> {
+        const fileMap = new Map<string, [StorageItem, StorageItem]>();
+        const files1 = item1.getFilesMapRecursive(useFileNames);
+        const files2 = item2.getFilesMapRecursive(useFileNames);
+
+        // Collect unique keys from both maps
+        const allKeys = new Set<string>([...files1.keys(), ...files2.keys()]);
+
+        for (const key of allKeys) {
+            fileMap.set(key, [files1.get(key), files2.get(key)]);
+        }
+        return fileMap;
+    }
+
+    /**
      * Creates a StorageItem instance from a plain object.
      * Recursively constructs child StorageItem instances from the files array.
      *
