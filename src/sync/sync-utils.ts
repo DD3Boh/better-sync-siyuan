@@ -243,6 +243,61 @@ export class SyncUtils {
     }
 
     /**
+     * Compare parent directory timestamps when two remotes have files with
+     * the same timestamp but different paths.
+     * Iterates up the directory tree until different timestamps are found.
+     *
+     * @param remotes An array of exactly two Remote objects with file info.
+     * @returns An object with inputIndex (source) and outputIndex (destination),
+     *          or null if timestamps are equal at all levels (should skip).
+     */
+    static async compareParentDirectoryTimestamps(
+        remotes: [Remote, Remote]
+    ): Promise<{
+        inputIndex: number;
+        outputIndex: number;
+    } | null> {
+        let currentPaths = [
+            remotes[0].file?.parentPath,
+            remotes[1].file?.parentPath
+        ];
+
+        while (currentPaths[0] && currentPaths[1] && currentPaths[0].length > 0 && currentPaths[1].length > 0) {
+            const parentDirNames = currentPaths.map(path => path.split('/').pop());
+            const grandparentPaths = currentPaths.map((path, i) => path.replace(parentDirNames[i], ''));
+
+            const dirs = await Promise.all(
+                remotes.map((remote, i) =>
+                    readDir(grandparentPaths[i], remote.url, SyncUtils.getHeaders(remote.key))
+                )
+            );
+
+            const dirFiles = dirs.map((dir, i) => dir?.find(it => it.name === parentDirNames[i]));
+
+            if (!dirFiles[0] || !dirFiles[1]) {
+                consoleLog(`Parent directory not found in either remote.`);
+                return null;
+            }
+
+            const updated = dirFiles.map(file => file.updated * 1000);
+
+            if (updated[0] !== updated[1]) {
+                const inputIndex = updated[0] > updated[1] ? 0 : 1;
+                return {
+                    inputIndex,
+                    outputIndex: inputIndex === 0 ? 1 : 0
+                };
+            }
+
+            currentPaths = grandparentPaths;
+            consoleLog(`Parent directories have the same timestamp, checking grandparent...`);
+        }
+
+        consoleLog(`Reached root with same timestamps, skipping.`);
+        return null;
+    }
+
+    /**
      * Get the newest sync log File object
      *
      * @param remote The remote information containing URL and key.
