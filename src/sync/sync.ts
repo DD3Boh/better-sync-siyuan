@@ -1173,9 +1173,8 @@ export class SyncManager {
     private async scanDirectory(
         items: StorageItem[],
         remotes: [Remote, Remote],
-        excludedItems: string[] = [],
-        useFileNames: boolean = false
-    ): Promise<Map<string, [StorageItem, StorageItem]> | null> {
+        excludedItems: string[] = []
+    ): Promise<[StorageItem, StorageItem] | null> {
         remotes = this.copyRemotes(remotes);
         const path = items[0]?.path || items[1]?.path;
         if (!path) {
@@ -1211,7 +1210,7 @@ export class SyncManager {
             return null;
         }
 
-        return StorageItem.getFilesMapPair(items[0], items[1], useFileNames);
+        return [items[0], items[1]];
     }
 
     /**
@@ -1244,14 +1243,15 @@ export class SyncManager {
             return;
         }
 
-        const scanResult: Map<string, [StorageItem, StorageItem]> = await this.scanDirectory(items, remotes, excludedItems, options?.useFileNames);
+        const scanResult: [StorageItem, StorageItem] = await this.scanDirectory(items, remotes, excludedItems);
         if (!scanResult) {
             consoleWarn(`Failed to scan directory ${path}. Skipping sync.`);
             return;
         }
 
         const syncPromises: Promise<any>[] = [];
-        for (const [_, [file0, file1]] of scanResult.entries()) {
+        const filesMapPair = StorageItem.getFilesMapPair(scanResult[0], scanResult[1], options?.useFileNames);
+        for (const [_, [file0, file1]] of filesMapPair) {
             const fileItem = file0 || file1;
             if (!fileItem) continue;
 
