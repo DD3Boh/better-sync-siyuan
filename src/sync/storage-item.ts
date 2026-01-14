@@ -128,25 +128,26 @@ export class StorageItem {
     }
 
     /**
-     * Merges two StorageItem instances with the same path into a single StorageItem.
+     * Merges two StorageItem instances with the same path or names into a single StorageItem.
      * Combines their files, ensuring no duplicate file paths.
-     * Throws an error if the paths of the two items do not match.
+     * Throws an error if the names of the two items do not match.
      *
      * @param item1 - The first StorageItem to join.
      * @param item2 - The second StorageItem to join.
+     * @param useFileNames Whether to use file names as keys instead of file paths.
      * @returns A new StorageItem containing merged files from both items.
-     * @throws Error if item1.path !== item2.path.
+     * @throws Error if item1.name !== item2.name.
      */
-    static joinItems(item1: StorageItem, item2: StorageItem): StorageItem {
-        if (item1?.path !== item2?.path)
-            throw new Error("Cannot join StorageItems with different paths");
+    static joinItems(item1: StorageItem, item2: StorageItem, useFileNames: boolean = false): StorageItem {
+        if (item1?.name !== item2?.name)
+            throw new Error("Cannot join StorageItems with different names");
 
         if (!item1 || !item2)
             return item1 || item2;
 
         const filesMap = new Map<string, StorageItem>();
         for (const file of [...item1.files || [], ...item2.files || []]) {
-            filesMap.set(file.path, file);
+            filesMap.set(useFileNames ? file.name : file.path, file);
         }
 
         return new StorageItem(item1.path, item1.parentPath, item1.item, Array.from(filesMap.values()));
