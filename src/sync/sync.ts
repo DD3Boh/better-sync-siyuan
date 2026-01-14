@@ -1187,6 +1187,7 @@ export class SyncManager {
         excludedItems: string[] = []
     ): Promise<[Remote, Remote] | null> {
         remotes = this.copyRemotes(remotes);
+
         const path = remotes[0].filePath || remotes[1].filePath;
         if (!path) {
             consoleWarn("No valid path provided for directory sync.");
@@ -1198,7 +1199,7 @@ export class SyncManager {
         const useWebSocket = await this.shouldUseWebSocket() && this.isRemoteAppIdSet(remotes[1]);
 
         // Fetch directory files only when not already provided
-        if ((!remotes[0].file?.files || !remotes[1].file?.files) && (!remotes[0].file?.item || !remotes[1].file?.item)) {
+        if ((remotes[0].file?.files?.length === 0 || remotes[1].file?.files?.length === 0) && (!remotes[0].file?.item || !remotes[1].file?.item)) {
             const filesOnePromise = SyncUtils.getDirFilesRecursively(path, remotes[0], true, excludedItems);
 
             const filesTwoPromise = useWebSocket
@@ -1211,7 +1212,7 @@ export class SyncManager {
             ]);
         }
 
-        if ((!remotes[0].file && !remotes[1].file) || (!remotes[0].file?.item && !remotes[1].file?.item)) {
+        if ((!remotes[0].file && !remotes[1].file) && (!remotes[0].file?.item && !remotes[1].file?.item)) {
             consoleLog(`Directory ${path} does not exist on either remote. Skipping sync.`);
             return null;
         }
