@@ -1,7 +1,7 @@
 export class StorageItem {
     path: string;
     parentPath: string | null = null;
-    item: IResReadDir
+    item?: IResReadDir | null;
     files: StorageItem[];
 
     public get name(): string | undefined {
@@ -36,7 +36,7 @@ export class StorageItem {
 
         this.path = path;
         this.parentPath = parentPath;
-        this.item = item ?? {} as IResReadDir;
+        this.item = item;
         this.files = files;
     }
 
