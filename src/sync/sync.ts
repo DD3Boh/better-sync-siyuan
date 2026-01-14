@@ -1336,7 +1336,10 @@ export class SyncManager {
         // Multiply by 1000 because `putFile` makes the conversion automatically
         const timestamp: number = Math.max(updated[0], updated[1]) * 1000;
 
-        if (remotes[0].file?.item && remotes[1].file?.item && (updated[0] === updated[1] || options?.onlyIfMissing)) return SyncFileResult.Skipped;
+        if (remotes[0].file?.item && remotes[1].file?.item && (updated[0] === updated[1] || options?.onlyIfMissing) &&
+            remotes[0].file?.path === remotes[1].file?.path) {
+            return SyncFileResult.Skipped;
+        }
 
         let inputIndex = updated[0] > updated[1] ? 0 : 1;
         let outputIndex = updated[0] > updated[1] ? 1 : 0;
@@ -1391,9 +1394,12 @@ export class SyncManager {
 
             consoleLog(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}, dir mismatch: ${dirMismatch}, path mismatch: ${pathMismatch}. Should delete: ${shouldDelete}`);
 
+            // If the file is a path mismatch, delete the older file that we're marking as least recently updated
+            const target = pathMismatch ? remotes[outputIndex] : remotes[inputIndex];
+
             if (shouldDelete) {
                 if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
-                    await SyncUtils.deleteFile(filePath, remotes[existingIndex]);
+                    await SyncUtils.deleteFile(target.file?.path, target);
 
                     // Continue syncing the file if it's a directory mismatch or path mismatch
                     if (!dirMismatch && !pathMismatch)
