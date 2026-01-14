@@ -1,4 +1,5 @@
 import { SyncHistory } from "./history";
+import { StorageItem } from "./storage-item";
 
 /**
  * Represents a remote server connection for synchronization.
@@ -11,7 +12,7 @@ export class Remote {
     public appId?: string;
     public instanceId?: string;
     public syncHistory: Map<string, number>;
-    public file?: IResReadDir;
+    public file?: StorageItem;
     public filePath?: string;
 
     public get lastSyncTime(): number {
@@ -25,7 +26,7 @@ export class Remote {
         appId?: string,
         instanceId?: string,
         syncHistory: Map<string, number> = new Map(),
-        file?: IResReadDir,
+        file?: StorageItem,
         filePath?: string
     ) {
         this.url = url;
@@ -98,7 +99,7 @@ export class Remote {
      * @param filePath The path of the file.
      * @returns A new Remote instance with the file attached.
      */
-    withFile(file: IResReadDir, filePath: string): Remote {
+    withFile(file: StorageItem, filePath: string): Remote {
         return new Remote(
             this.url,
             this.key,

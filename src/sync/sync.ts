@@ -1231,8 +1231,8 @@ export class SyncManager {
             item.path,
             options,
             [
-                remotes[0].withFile(items[0]?.item, items[0]?.path),
-                remotes[1].withFile(items[1]?.item, items[1]?.path)
+                remotes[0].withFile(items[0], items[0]?.path),
+                remotes[1].withFile(items[1], items[1]?.path)
             ]
         );
 
@@ -1261,8 +1261,8 @@ export class SyncManager {
                         file.path,
                         options,
                         [
-                            remotes[0].withFile(file0?.item, file0?.path),
-                            remotes[1].withFile(file1?.item, file1?.path)
+                            remotes[0].withFile(file0, file0?.path),
+                            remotes[1].withFile(file1, file1?.path)
                         ]
                     );
                 }
@@ -1292,18 +1292,20 @@ export class SyncManager {
         remotes: [Remote, Remote] = this.remotes,
     ): Promise<SyncFileResult> {
         remotes = this.copyRemotes(remotes);
-        const parentPath = filePath.replace(/\/[^/]+$/, "");
-        const fileName = filePath.replace(/^.*\//, "");
 
         await Promise.all(remotes.map(async (remote) => {
-            if (!remote.file) {
+            const parentPath = filePath.replace(/\/[^/]+$/, "");
+            const fileName = filePath.replace(/^.*\//, "");
+
+            if (!remote.file || !remote.file.item) {
                 consoleLog(`File info for ${filePath} missing from ${remote.name}, fetching...`);
                 const dir = await readDir(parentPath, remote.url, SyncUtils.getHeaders(remote.key));
-                remote.file = dir?.find(it => it.name === fileName);
+                const file = dir?.find(it => it.name === fileName);
+                if (file) remote.file = new StorageItem(filePath, parentPath, file);
             }
         }));
 
-        const fileRes = remotes[0].file || remotes[1].file;
+        const fileRes = remotes[0].file?.item || remotes[1].file?.item;
 
         if (!fileRes) {
             consoleLog(`File ${filePath} not found in either remote.`);
@@ -1311,8 +1313,8 @@ export class SyncManager {
         }
 
         const updated: [number, number] = [
-            remotes[0].file?.updated || 0,
-            remotes[1].file?.updated || 0
+            remotes[0].file?.timestamp || 0,
+            remotes[1].file?.timestamp || 0
         ];
 
         // Conflict detection
@@ -1336,7 +1338,7 @@ export class SyncManager {
         // Multiply by 1000 because `putFile` makes the conversion automatically
         const timestamp: number = Math.max(updated[0], updated[1]) * 1000;
 
-        if (remotes[0].file && remotes[1].file && (updated[0] === updated[1] || options?.onlyIfMissing)) return SyncFileResult.Skipped;
+        if (remotes[0].file?.item && remotes[1].file?.item && (updated[0] === updated[1] || options?.onlyIfMissing)) return SyncFileResult.Skipped;
 
         const inputIndex = updated[0] > updated[1] ? 0 : 1;
         const outputIndex = updated[0] > updated[1] ? 1 : 0;
@@ -1345,7 +1347,7 @@ export class SyncManager {
             consoleLog(`Syncing file from ${remotes[inputIndex].name} to ${remotes[outputIndex].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
         // Handle deletions
-        if (!remotes[0].file || !remotes[1].file) {
+        if (!remotes[0].file?.item || !remotes[1].file?.item) {
             const missingIndex = outputIndex;
             const existingIndex = inputIndex;
 
@@ -1367,7 +1369,7 @@ export class SyncManager {
              * Or if there is a directory/file mismatch.
              * This ensures that we only delete files that were present during the last sync and have not been updated since.
              */
-            const dirMismatch = remotes[0].file && remotes[1].file && remotes[0].file.isDir != remotes[1].file.isDir;
+            const dirMismatch = remotes[0].file?.item && remotes[1].file?.item && remotes[0].file?.isDir != remotes[1].file?.isDir;
             const shouldDelete: boolean = (commonSync > 0) &&
                 (commonSync > updated[existingIndex]) &&
                 (commonSync >= existingLastSync) || dirMismatch;
