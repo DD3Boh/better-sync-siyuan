@@ -1259,8 +1259,8 @@ export class SyncManager {
                 fileItem.path,
                 options,
                 [
-                    remotes[0].withFile(file0, file0?.path),
-                    remotes[1].withFile(file1, file1?.path)
+                    remotes[0].withFile(file0),
+                    remotes[1].withFile(file1)
                 ]
             ));
         }

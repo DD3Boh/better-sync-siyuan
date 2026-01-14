@@ -13,10 +13,13 @@ export class Remote {
     public instanceId?: string;
     public syncHistory: Map<string, number>;
     public file?: StorageItem;
-    public filePath?: string;
 
     public get lastSyncTime(): number {
         return SyncHistory.getLastSyncWithRemote(this, this.instanceId || "");
+    }
+
+    public get filePath(): string | undefined {
+        return this.file?.path;
     }
 
     constructor(
@@ -26,8 +29,7 @@ export class Remote {
         appId?: string,
         instanceId?: string,
         syncHistory: Map<string, number> = new Map(),
-        file?: StorageItem,
-        filePath?: string
+        file?: StorageItem
     ) {
         this.url = url;
         this.key = key;
@@ -36,7 +38,6 @@ export class Remote {
         this.instanceId = instanceId;
         this.syncHistory = syncHistory;
         this.file = file;
-        this.filePath = filePath;
     }
 
     /**
@@ -51,8 +52,7 @@ export class Remote {
             this.appId,
             this.instanceId,
             new Map(this.syncHistory),
-            this.file,
-            this.filePath
+            this.file
         );
     }
 
@@ -96,10 +96,9 @@ export class Remote {
     /**
      * Create a Remote instance with file information attached.
      * @param file The file information to attach.
-     * @param filePath The path of the file.
      * @returns A new Remote instance with the file attached.
      */
-    withFile(file: StorageItem, filePath: string): Remote {
+    withFile(file: StorageItem): Remote {
         return new Remote(
             this.url,
             this.key,
@@ -107,8 +106,7 @@ export class Remote {
             this.appId,
             this.instanceId,
             new Map(this.syncHistory),
-            file,
-            filePath
+            file
         );
     }
 }
