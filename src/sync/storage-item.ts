@@ -20,6 +20,16 @@ export class StorageItem {
         return this.item?.isSymlink;
     }
 
+    public get recursiveTimestamp(): number | undefined {
+        let maxTimestamp = this.timestamp;
+        for (const child of this.getAllChildren()) {
+            if (child.timestamp !== undefined && (maxTimestamp === undefined || child.timestamp > maxTimestamp)) {
+                maxTimestamp = child.timestamp;
+            }
+        }
+        return maxTimestamp;
+    }
+
     constructor(path: string, parentPath: string | null = null, item?: IResReadDir | null, files: StorageItem[] = []) {
         if (!path)
             throw new Error("StorageItem path cannot be null or undefined");
