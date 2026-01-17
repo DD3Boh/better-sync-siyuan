@@ -13,7 +13,7 @@ import BetterSyncPlugin from "..";
 import { IProtyle, Protyle, showMessage } from "siyuan";
 import { ConflictHandler, LOCK_FILE, Remote, SYNC_CONFIG_DIR, StorageItem, SyncHistory, SyncUtils, WebSocketManager, getSyncTargets } from "@/sync";
 import { Payload } from "@/libs/payload";
-import { SyncStatus, SyncStatusCallback, SyncFileResult } from "@/types/sync-status";
+import { SyncStatus, SyncStatusCallback, SyncFileResult, SyncFileOperation, SyncFileOperationType } from "@/types/sync-status";
 import { consoleError, consoleLog, consoleWarn, SessionLog } from "@/logging";
 
 export class SyncManager {
@@ -1538,6 +1538,169 @@ export class SyncManager {
         }
 
         return SyncFileResult.Success;
+    }
+
+    /**
+     * Get the operation that would be performed on a file.
+     * @param filePath The path of the file to sync.
+     * @param options The options for the sync operation.
+     * @param remotes The remotes to sync with.
+     */
+    async getSyncFileOperation(
+        filePath: string,
+        options?: {
+            deleteFoldersOnly?: boolean,
+            onlyIfMissing?: boolean,
+            avoidDeletions?: boolean,
+            trackConflicts?: boolean,
+            trackUpdatedFiles?: boolean
+        },
+        remotes: [Remote, Remote] = this.copyRemotes(this.remotes)
+    ): Promise<SyncFileOperation | null> {
+        remotes = this.copyRemotes(remotes);
+
+        await Promise.all(remotes.map(async (remote) => {
+            const parentPath = filePath.replace(/\/[^/]+$/, "");
+            const fileName = filePath.replace(/^.*\//, "");
+
+            if (!remote.file || !remote.file.item) {
+                consoleLog(`File info for ${filePath} missing from ${remote.name}, fetching...`);
+                const dir = await readDir(parentPath, remote.url, SyncUtils.getHeaders(remote.key));
+                const file = dir?.find(it => it.name === fileName);
+                if (file) remote.file = new StorageItem(filePath, parentPath, file);
+            }
+        }));
+
+        const fileRes = remotes[0].file?.item || remotes[1].file?.item;
+
+        if (!fileRes) {
+            consoleLog(`File ${filePath} not found in either remote.`);
+            return null;
+        }
+
+        const updated: [number, number] = [
+            remotes[0].file?.timestamp || 0,
+            remotes[1].file?.timestamp || 0
+        ];
+
+        // Conflict detection
+        let trackConflicts = options?.trackConflicts ?? false;
+        if (this.pendingFileChanges.has(filePath) && trackConflicts) {
+            consoleLog(`Conflicts tracking skipped for ${filePath} as it has pending changes.`);
+            trackConflicts = false;
+            this.pendingFileChanges.delete(filePath);
+        }
+
+        let hasConflict = false;
+        if (!options?.onlyIfMissing && !fileRes.isDir && trackConflicts) {
+            const result = await ConflictHandler.detectConflict(
+                filePath,
+                remotes
+            );
+
+            if (result.hasConflict) hasConflict = true;
+        }
+
+        if (remotes[0].file?.item && remotes[1].file?.item && (updated[0] === updated[1] || options?.onlyIfMissing) &&
+            remotes[0].file?.path === remotes[1].file?.path) {
+            return null;
+        }
+
+        let inputIndex = updated[0] > updated[1] ? 0 : 1;
+        let outputIndex = updated[0] > updated[1] ? 1 : 0;
+
+        const pathMismatch = remotes[0]?.file?.item && remotes[1]?.file?.item && remotes[0].file?.path !== remotes[1].file?.path;
+
+        if (pathMismatch) {
+            if (remotes[0].file?.timestamp === remotes[1].file?.timestamp || fileRes.isDir) {
+                consoleLog(`File ${filePath} has different paths but the same timestamp on the two remotes, looking at the parent directory...`);
+
+                const result = await SyncUtils.compareParentDirectoryTimestamps(remotes);
+
+                if (!result) return null;
+
+                inputIndex = result.inputIndex;
+                outputIndex = result.outputIndex;
+
+                if (fileRes.isDir) {
+                    return {
+                        operationType: SyncFileOperationType.MoveDocsDir,
+                        source: remotes[inputIndex],
+                        destination: remotes[outputIndex]
+                    };
+                }
+            } else {
+                consoleLog(`File ${filePath} has different paths and different timestamps on the two remotes (${remotes[0].file?.timestamp} vs ${remotes[1].file?.timestamp}), deleting the older file...`);
+            }
+        }
+
+        if (!fileRes.isDir)
+            consoleLog(`Syncing file from ${remotes[inputIndex].name} to ${remotes[outputIndex].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
+
+        // Handle deletions
+        if (!remotes[0].file?.item || !remotes[1].file?.item || pathMismatch) {
+            const missingIndex = outputIndex;
+            const existingIndex = inputIndex;
+
+            const commonSync = SyncHistory.getLastSyncWithRemote(
+                remotes[existingIndex],
+                remotes[missingIndex].instanceId
+            );
+
+            const existingLastSync = SyncHistory.getMostRecentSyncTime(
+                remotes[existingIndex]
+            );
+
+            /**
+             * Determine if the file should be deleted based on sync history.
+             * The file should be deleted if all the following conditions are met:
+             * - The last sync time with the other remote is greater than 0 (they have synced before).
+             * - The last sync time with the other remote is greater than the file's last updated timestamp.
+             * - The last sync time with the other remote is greater than the existing remote's last sync time.
+             * Or if there is a directory/file mismatch or file path mismatch.
+             * This ensures that we only delete files that were present during the last sync and have not been updated since.
+             */
+            const dirMismatch = remotes[0].file?.item && remotes[1].file?.item && remotes[0].file?.isDir != remotes[1].file?.isDir;
+            const shouldDelete: boolean = (commonSync > 0) &&
+                (commonSync > updated[existingIndex]) &&
+                (commonSync >= existingLastSync) || dirMismatch || pathMismatch;
+
+            consoleLog(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}, dir mismatch: ${dirMismatch}, path mismatch: ${pathMismatch}. Should delete: ${shouldDelete}`);
+
+            // If the file is a path mismatch, delete the older file that we're marking as least recently updated
+            const target = pathMismatch ? remotes[outputIndex] : remotes[inputIndex];
+
+            if (shouldDelete) {
+                if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
+                    // TODO: Re-implement this
+                    // Continue syncing the file if it's a directory mismatch or path mismatch
+                    // if (!dirMismatch && !pathMismatch)
+                    return {
+                        operationType: SyncFileOperationType.Delete,
+                        destination: target
+                    };
+                }
+            } else {
+                consoleLog(`File ${filePath} is missing on ${remotes[missingIndex].name} but will be synced (timestamp check passed)`);
+            }
+        }
+
+        // Avoid writing directories
+        if (fileRes.isDir) return null;
+
+        if (hasConflict) {
+            return {
+                operationType: SyncFileOperationType.HandleConflictAndSync,
+                source: remotes[inputIndex],
+                destination: remotes[outputIndex]
+            };
+        }
+
+        return {
+            operationType: SyncFileOperationType.Sync,
+            source: remotes[inputIndex],
+            destination: remotes[outputIndex]
+        };
     }
 
     /**

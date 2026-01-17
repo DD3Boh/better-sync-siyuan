@@ -1,3 +1,5 @@
+import { Remote } from "@/sync";
+
 export enum SyncStatus {
     None,
     InProgress,
@@ -15,4 +17,24 @@ export enum SyncFileResult {
     DirectoryDeleted,
     DirectoryMoved,
     Skipped
+}
+
+export enum SyncFileOperationType {
+    Sync,
+    Delete,
+    HandleConflictAndSync,
+    MoveDocsDir,
+}
+
+export interface SyncFileOperation {
+    operationType: SyncFileOperationType;
+    source?: Remote;
+    destination?: Remote;
+    options?: {
+        deleteFoldersOnly?: boolean,
+        onlyIfMissing?: boolean,
+        avoidDeletions?: boolean,
+        trackConflicts?: boolean,
+        trackUpdatedFiles?: boolean
+    };
 }
