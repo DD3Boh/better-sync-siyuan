@@ -1704,6 +1704,68 @@ export class SyncManager {
     }
 
     /**
+     * Execute a sync operation.
+     * @param operation The sync operation to execute.
+     */
+    private async executeSyncOperation(operation: SyncFileOperation) {
+        const [source, destination] = [operation.source, operation.destination];
+        if (!source && !destination) {
+            consoleWarn("No valid source or destination provided for sync operation.");
+            return;
+        }
+
+        const filePath = source?.filePath || destination?.filePath;
+        if (!filePath) {
+            consoleWarn("No valid file path provided for sync operation.");
+            return;
+        }
+
+        switch (operation.operationType) {
+            case SyncFileOperationType.Sync:
+                // Multiply the timestamp by 1000 because `putFile` converts it automatically
+                const timestamp = source.file?.timestamp * 1000;
+
+                const syFile = await getFileBlob(filePath, source.url, SyncUtils.getHeaders(source.key));
+                if (!syFile) {
+                    consoleLog(`File ${filePath} not found in source: ${source.name}`);
+                    return SyncFileResult.NotFound;
+                }
+
+                const file = new File([syFile], source.file.name, { lastModified: timestamp });
+                await SyncUtils.putFile(filePath, file, destination.url, destination.key, timestamp);
+
+                if (operation?.options?.trackUpdatedFiles) {
+                    // TODO: Re-implement this
+                    // const updatedFiles = inputIndex === 0 ? this.remotelyUpdatedFiles : this.locallyUpdatedFiles;
+                    // updatedFiles.add(filePath);
+                }
+                break;
+
+            case SyncFileOperationType.Delete:
+                await SyncUtils.deleteFile(filePath, destination);
+                break;
+
+            case SyncFileOperationType.HandleConflictAndSync:
+                await ConflictHandler.handleConflictDetection(
+                    filePath,
+                    [source!, destination!],
+                    this.plugin.i18n
+                );
+
+                await this.executeSyncOperation({
+                    operationType: SyncFileOperationType.Sync,
+                    source,
+                    destination
+                });
+                break;
+
+            case SyncFileOperationType.MoveDocsDir:
+                await SyncUtils.moveDocsDir(destination!.filePath, source?.file?.parentPath, destination!);
+                break;
+        }
+    }
+
+    /**
      * Synchronize the petals list between local and remote devices.
      * This function checks if the petals list is empty in either remote and syncs it if necessary.
      * @param remotes An array of exactly two Remote objects containing remote server information.
