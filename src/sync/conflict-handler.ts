@@ -106,27 +106,35 @@ export class ConflictHandler {
     }
 
     /**
-     * Handles conflict detection between two files.
+     * Result of conflict detection.
+     */
+    static ConflictDetectionResult: {
+        hasConflict: boolean;
+        olderRemote?: Remote;
+        olderFileBlob?: Blob;
+    };
+
+    /**
+     * Detects if there is a conflict between two files.
      *
      * @param path - The path of the file being synced.
      * @param remotes - An array of exactly two Remote objects containing remote server information.
-     * @param i18n - The internationalization object for localized messages.
-     * @returns A Promise that resolves to a boolean indicating whether a conflict was detected.
+     * @returns A Promise that resolves to an object indicating whether a conflict was detected,
+     *          and if so, includes the older remote and the older file blob.
      */
-    static async handleConflictDetection(
+    static async detectConflict(
         path: string,
-        remotes: [Remote, Remote],
-        i18n: any
-    ): Promise<boolean> {
-        if (!remotes[0].file || !remotes[1].file) return false;
-
-        const fileRes = remotes[0].file || remotes[1].file;
+        remotes: [Remote, Remote]
+    ): Promise<{ hasConflict: boolean; olderRemote?: Remote; olderFileBlob?: Blob }> {
+        if (!remotes[0].file || !remotes[1].file) {
+            return { hasConflict: false };
+        }
 
         if (remotes[0].lastSyncTime > 0 && remotes[1].lastSyncTime > 0 &&
             remotes[0].file.timestamp > remotes[0].lastSyncTime && remotes[1].file.timestamp > remotes[1].lastSyncTime &&
             remotes[0].file.timestamp !== remotes[1].file.timestamp) {
 
-            consoleLog(`Conflict detected for file: ${path}`);
+            consoleLog(`Potential conflict detected for file: ${path}`);
 
             // print timestamps and last sync times
             consoleLog(`File One Timestamp: ${remotes[0].file.timestamp}, Last Sync Time One: ${remotes[0].lastSyncTime}`);
@@ -139,42 +147,94 @@ export class ConflictHandler {
             ]);
 
             if (await this.compareBlobsAsText(fileOne, fileTwo)) {
-                consoleLog(`Files are identical, no conflict created.`);
-                return false;
+                consoleLog(`Files are identical, no conflict.`);
+                return { hasConflict: false };
             }
 
-            // Extract notebook ID from path like "data/notebookId/..." or "/data/notebookId/..."
-            const pathParts = path.split('/').filter(part => part !== '');
-            const notebookId = pathParts[1];
+            const olderRemote = remotes[0].file.timestamp > remotes[1].file.timestamp ? remotes[1] : remotes[0];
+            const olderFileBlob = remotes[0].file.timestamp > remotes[1].file.timestamp ? fileTwo : fileOne;
 
-            const olderFileIndex = remotes[0].file.timestamp > remotes[1].file.timestamp ? 1 : 0;
-            const olderFileTimestamp = remotes[olderFileIndex].file.timestamp;
+            return {
+                hasConflict: true,
+                olderRemote,
+                olderFileBlob
+            };
+        }
 
-            // Get document id
-            const docId = fileRes.name.replace(/\.sy$/, "");
+        return { hasConflict: false };
+    }
 
-            const humanReadablePath = await getHPathByID(docId, remotes[olderFileIndex].url, SyncUtils.getHeaders(remotes[olderFileIndex].key));
-            consoleLog(`Human readable path for conflict file: ${humanReadablePath}`);
+    /**
+     * Handles a detected conflict by creating a conflict file.
+     *
+     * @param path - The path of the file being synced.
+     * @param remotes - An array of exactly two Remote objects containing remote server information.
+     * @param olderRemote - The Remote object for the older file.
+     * @param olderFileBlob - The blob of the older file.
+     * @param i18n - The internationalization object for localized messages.
+     * @returns A Promise that resolves to a boolean indicating whether the conflict was handled successfully.
+     */
+    static async handleConflict(
+        path: string,
+        remotes: [Remote, Remote],
+        olderRemote: Remote,
+        olderFileBlob: Blob,
+        i18n: any
+    ): Promise<boolean> {
+        const fileRes = remotes[0].file || remotes[1].file;
+        if (!fileRes) return false;
 
-            showMessage(i18n.conflictDetectedForDocument.replace("{{documentName}}", humanReadablePath.split("/").pop()), 5000);
+        consoleLog(`Handling conflict for file: ${path}`);
 
-            const oldFileBlob = await getFileBlob(path, remotes[olderFileIndex].url, SyncUtils.getHeaders(remotes[olderFileIndex].key));
-            if (!oldFileBlob) {
-                consoleLog(`File ${path} not found in ${remotes[olderFileIndex].url}`);
-                return true;
-            }
+        // Extract notebook ID from path like "data/notebookId/..." or "/data/notebookId/..."
+        const pathParts = path.split('/').filter(part => part !== '');
+        const notebookId = pathParts[1];
 
-            await this.createConflictFile(
-                notebookId,
-                humanReadablePath,
-                oldFileBlob,
-                olderFileTimestamp,
-                remotes
-            );
+        const olderFileTimestamp = olderRemote.file!.timestamp;
 
+        // Get document id
+        const docId = fileRes.name.replace(/\.sy$/, "");
+
+        const humanReadablePath = await getHPathByID(docId, olderRemote.url, SyncUtils.getHeaders(olderRemote.key));
+        consoleLog(`Human readable path for conflict file: ${humanReadablePath}`);
+
+        showMessage(i18n.conflictDetectedForDocument.replace("{{documentName}}", humanReadablePath.split("/").pop()), 5000);
+
+        if (!olderFileBlob) {
+            consoleLog(`File ${path} not found in ${olderRemote.url}`);
             return true;
         }
 
-        return false;
+        await this.createConflictFile(
+            notebookId,
+            humanReadablePath,
+            olderFileBlob,
+            olderFileTimestamp,
+            remotes
+        );
+
+        return true;
+    }
+
+    /**
+     * Detects and handles conflict between two files.
+     *
+     * @param path - The path of the file being synced.
+     * @param remotes - An array of exactly two Remote objects containing remote server information.
+     * @param i18n - The internationalization object for localized messages.
+     * @returns A Promise that resolves to a boolean indicating whether a conflict was detected and handled.
+     */
+    static async handleConflictDetection(
+        path: string,
+        remotes: [Remote, Remote],
+        i18n: any
+    ): Promise<boolean> {
+        const detectionResult = await this.detectConflict(path, remotes);
+
+        if (!detectionResult.hasConflict) {
+            return false;
+        }
+
+        return await this.handleConflict(path, remotes, detectionResult.olderRemote!, detectionResult.olderFileBlob!, i18n);
     }
 }
