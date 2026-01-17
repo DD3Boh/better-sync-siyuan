@@ -123,14 +123,14 @@ export class ConflictHandler {
         const fileRes = remotes[0].file || remotes[1].file;
 
         if (remotes[0].lastSyncTime > 0 && remotes[1].lastSyncTime > 0 &&
-            remotes[0].file.updated > remotes[0].lastSyncTime && remotes[1].file.updated > remotes[1].lastSyncTime &&
-            remotes[0].file.updated !== remotes[1].file.updated) {
+            remotes[0].file.timestamp > remotes[0].lastSyncTime && remotes[1].file.timestamp > remotes[1].lastSyncTime &&
+            remotes[0].file.timestamp !== remotes[1].file.timestamp) {
 
             consoleLog(`Conflict detected for file: ${path}`);
 
             // print timestamps and last sync times
-            consoleLog(`File One Timestamp: ${remotes[0].file.updated}, Last Sync Time One: ${remotes[0].lastSyncTime}`);
-            consoleLog(`File Two Timestamp: ${remotes[1].file.updated}, Last Sync Time Two: ${remotes[1].lastSyncTime}`);
+            consoleLog(`File One Timestamp: ${remotes[0].file.timestamp}, Last Sync Time One: ${remotes[0].lastSyncTime}`);
+            consoleLog(`File Two Timestamp: ${remotes[1].file.timestamp}, Last Sync Time Two: ${remotes[1].lastSyncTime}`);
 
             // Check if the two files are actually different
             const [fileOne, fileTwo] = await Promise.all([
@@ -147,8 +147,8 @@ export class ConflictHandler {
             const pathParts = path.split('/').filter(part => part !== '');
             const notebookId = pathParts[1];
 
-            const olderFileIndex = remotes[0].file.updated > remotes[1].file.updated ? 1 : 0;
-            const olderFileTimestamp = remotes[olderFileIndex].file.updated;
+            const olderFileIndex = remotes[0].file.timestamp > remotes[1].file.timestamp ? 1 : 0;
+            const olderFileTimestamp = remotes[olderFileIndex].file.timestamp;
 
             // Get document id
             const docId = fileRes.name.replace(/\.sy$/, "");
