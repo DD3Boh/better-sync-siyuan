@@ -164,6 +164,29 @@ export class StorageItem {
 
     /**
      * Takes two StorageItems as input, returns a map of file names or paths to pairs of StorageItems.
+     * This includes all items recursively.
+     *
+     * @param item1 The first StorageItem
+     * @param item2 The second StorageItem
+     * @param useFileNames Whether to use file names as keys instead of file paths.
+     * @returns A map of StorageItem instances where the keys are file names or paths and the values are pairs of StorageItems.
+     */
+    static getFilesMapPairRecursively(item1: StorageItem, item2: StorageItem, useFileNames: boolean = false): Map<string, [StorageItem, StorageItem]> {
+        const fileMap = new Map<string, [StorageItem, StorageItem]>();
+        const files1 = item1?.getFilesMapRecursive(useFileNames) || new Map<string, StorageItem>();
+        const files2 = item2?.getFilesMapRecursive(useFileNames) || new Map<string, StorageItem>();
+
+        // Collect unique keys from both maps
+        const allKeys = new Set<string>([...files1.keys(), ...files2.keys()]);
+
+        for (const key of allKeys) {
+            fileMap.set(key, [files1.get(key), files2.get(key)]);
+        }
+        return fileMap;
+    }
+
+    /**
+     * Takes two StorageItems as input, returns a map of file names or paths to pairs of StorageItems.
      * Only includes items that are files (not directories).
      *
      * @param item1 The first StorageItem
