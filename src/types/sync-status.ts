@@ -23,7 +23,7 @@ export enum SyncFileOperationType {
     Sync,
     Delete,
     HandleConflictAndSync,
-    MoveDocsDir,
+    MoveDocs,
 }
 
 export interface SyncFileOperation {

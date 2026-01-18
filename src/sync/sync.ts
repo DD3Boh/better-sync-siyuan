@@ -1412,24 +1412,20 @@ export class SyncManager {
 
                 inputIndex = result.inputIndex;
                 outputIndex = result.outputIndex;
-
-                if (fileRes.isDir) {
-                    return {
-                        operationType: SyncFileOperationType.MoveDocsDir,
-                        source: remotes[inputIndex],
-                        destination: remotes[outputIndex]
-                    };
-                }
-            } else {
-                consoleLog(`File ${filePath} has different paths and different timestamps on the two remotes (${remotes[0].file?.timestamp} vs ${remotes[1].file?.timestamp}), deleting the older file...`);
             }
+
+            return {
+                operationType: SyncFileOperationType.MoveDocs,
+                source: remotes[inputIndex],
+                destination: remotes[outputIndex]
+            };
         }
 
         if (!fileRes.isDir)
             consoleLog(`Syncing file from ${remotes[inputIndex].name} to ${remotes[outputIndex].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
 
         // Handle deletions
-        if (!remotes[0].file?.item || !remotes[1].file?.item || pathMismatch) {
+        if (!remotes[0].file?.item || !remotes[1].file?.item) {
             const missingIndex = outputIndex;
             const existingIndex = inputIndex;
 
@@ -1448,24 +1444,23 @@ export class SyncManager {
              * - The last sync time with the other remote is greater than 0 (they have synced before).
              * - The last sync time with the other remote is greater than the file's last updated timestamp.
              * - The last sync time with the other remote is greater than the existing remote's last sync time.
-             * Or if there is a directory/file mismatch or file path mismatch.
+             * Or if there is a directory/file mismatch.
              * This ensures that we only delete files that were present during the last sync and have not been updated since.
              */
             const dirMismatch = remotes[0].file?.item && remotes[1].file?.item && remotes[0].file?.isDir != remotes[1].file?.isDir;
             const shouldDelete: boolean = (commonSync > 0) &&
                 (commonSync > updated[existingIndex]) &&
-                (commonSync >= existingLastSync) || dirMismatch || pathMismatch;
+                (commonSync >= existingLastSync) || dirMismatch;
 
             consoleLog(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}, dir mismatch: ${dirMismatch}, path mismatch: ${pathMismatch}. Should delete: ${shouldDelete}`);
 
-            // If the file is a path mismatch, delete the older file that we're marking as least recently updated
-            const target = pathMismatch ? remotes[outputIndex] : remotes[inputIndex];
+            const target = remotes[inputIndex];
 
             if (shouldDelete) {
                 if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
                     // TODO: Re-implement this
-                    // Continue syncing the file if it's a directory mismatch or path mismatch
-                    // if (!dirMismatch && !pathMismatch)
+                    // Continue syncing the file if it's a directory mismatch
+                    // if (!dirMismatch)
                     return {
                         operationType: SyncFileOperationType.Delete,
                         destination: target
@@ -1550,8 +1545,8 @@ export class SyncManager {
                 });
                 break;
 
-            case SyncFileOperationType.MoveDocsDir:
-                await SyncUtils.moveDocsDir(destination!.filePath, source?.file?.parentPath, destination!);
+            case SyncFileOperationType.MoveDocs:
+                await SyncUtils.moveDocs(destination!.filePath, source?.file?.parentPath, destination!);
                 break;
         }
     }

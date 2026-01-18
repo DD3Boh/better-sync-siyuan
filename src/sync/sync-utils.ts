@@ -92,7 +92,7 @@ export class SyncUtils {
         }
     }
 
-    static async moveDocsDir(
+    static async moveDocs(
         path: string,
         toPath: string,
         remote: Remote
@@ -102,7 +102,7 @@ export class SyncUtils {
             consoleError(`Error moving directory ${path} to ${toPath}: Invalid path format.`);
             return;
         }
-        const docPath = `/${matchPath[2]}.sy`;
+        const docPath = matchPath[2].endsWith('.sy') ? `/${matchPath[2]}` : `/${matchPath[2]}.sy`;
 
         const matchToPath = toPath.match(/^data\/([^\/]+)\/(.+)$/);
         if (!matchToPath) {
@@ -110,7 +110,7 @@ export class SyncUtils {
             return;
         }
         const notebookIdTo = matchToPath[1];
-        const docPathTo = `/${matchToPath[2]}.sy`;
+        const docPathTo = matchToPath[2].endsWith('.sy') ? `/${matchToPath[2]}` : `/${matchToPath[2]}.sy`;
 
         consoleLog(`Moving directory ${path} to ${toPath} on remote ${remote.name}`);
 
