@@ -1344,6 +1344,7 @@ export class SyncManager {
             // Check if this operation is for a file/directory that's inside a directory being deleted or moved
             for (let skipDir of skipDirs) {
                 if (skipDir.endsWith(".sy")) skipDir = skipDir.slice(0, -3);
+                if (!skipDir.endsWith("/")) skipDir = `${skipDir}/`
 
                 if (operationPath !== skipDir && operationPath.startsWith(skipDir)) {
                     consoleLog(`Filtering out operation for ${operationPath} because parent directory ${skipDir} is being deleted or moved`);
