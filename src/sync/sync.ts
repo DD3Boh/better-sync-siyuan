@@ -1325,7 +1325,28 @@ export class SyncManager {
             }
         }
 
-        for (const operation of validOperations) {
+        // Sanitize validOperations: filter out operations for subfiles/subdirectories when a parent directory is being deleted
+        const deletedDirs = validOperations
+            .filter(op => op.operationType === SyncFileOperationType.Delete)
+            .filter(op => op.destination?.file?.isDir === true)
+            .map(op => op.destination?.filePath)
+            .filter(path => path !== undefined)
+
+        const sanitizedOperations = validOperations.filter(operation => {
+            const operationPath = operation.source?.filePath || operation.destination?.filePath;
+            if (!operationPath) return true;
+
+            // Check if this operation is for a file/directory that's inside a directory being deleted
+            for (const deletedDir of deletedDirs) {
+                if (operationPath !== deletedDir && operationPath.startsWith(deletedDir + '/')) {
+                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${deletedDir} is being deleted`);
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        for (const operation of sanitizedOperations) {
             consoleLog("Executing sync operation:", operation);
             await this.executeSyncOperation(operation);
         }
