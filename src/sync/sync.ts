@@ -1300,15 +1300,13 @@ export class SyncManager {
 
         const operationPromises: Promise<SyncFileOperation>[] = [];
         const mapPairs = StorageItem.getFilesMapPairRecursively(remotes[0].file, remotes[1].file, options?.useFileNames);
-        for (const [query, _] of mapPairs) {
-            const [item0, item1] = StorageItem.findChildPair(remotes[0].file, remotes[1].file, query, options?.useFileNames);
-
-            const item = item0 || item1;
+        for (const [_, items] of mapPairs) {
+            const item = items[0] || items[1];
             if (!item) continue;
 
             const itemRemotes: [Remote, Remote] = [
-                remotes[0].withFile(item0),
-                remotes[1].withFile(item1)
+                remotes[0].withFile(items[0]),
+                remotes[1].withFile(items[1])
             ];
 
             operationPromises.push(this.getSyncFileOperation(item.path, options, itemRemotes));
