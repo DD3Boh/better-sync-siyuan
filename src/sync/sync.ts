@@ -1325,21 +1325,30 @@ export class SyncManager {
             }
         }
 
-        // Sanitize validOperations: filter out operations for subfiles/subdirectories when a parent directory is being deleted
+        // Sanitize validOperations: filter out operations for subfiles/subdirectories when a parent directory is being deleted or moved
         const deletedDirs = validOperations
             .filter(op => op.operationType === SyncFileOperationType.Delete)
             .filter(op => op.destination?.file?.isDir === true)
             .map(op => op.destination?.filePath)
-            .filter(path => path !== undefined)
+            .filter(path => path !== undefined);
+
+        const movedDirs = validOperations
+            .filter(op => op.operationType === SyncFileOperationType.MoveDocs)
+            .map(op => op.destination?.filePath)
+            .filter(path => path !== undefined);
+
+        const skipDirs = [...deletedDirs, ...movedDirs];
 
         const sanitizedOperations = validOperations.filter(operation => {
             const operationPath = operation.source?.filePath || operation.destination?.filePath;
             if (!operationPath) return true;
 
-            // Check if this operation is for a file/directory that's inside a directory being deleted
-            for (const deletedDir of deletedDirs) {
-                if (operationPath !== deletedDir && operationPath.startsWith(deletedDir + '/')) {
-                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${deletedDir} is being deleted`);
+            // Check if this operation is for a file/directory that's inside a directory being deleted or moved
+            for (let skipDir of skipDirs) {
+                if (skipDir.endsWith(".sy")) skipDir = skipDir.slice(0, -3);
+
+                if (operationPath !== skipDir && operationPath.startsWith(skipDir)) {
+                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${skipDir} is being deleted or moved`);
                     return false;
                 }
             }
