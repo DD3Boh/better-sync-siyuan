@@ -22,6 +22,7 @@ export enum SyncFileResult {
 export enum SyncFileOperationType {
     Sync,
     Delete,
+    DeleteAndSync,
     HandleConflictAndSync,
     MoveDocs,
 }

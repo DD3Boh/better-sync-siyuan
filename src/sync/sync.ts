@@ -1560,6 +1560,16 @@ export class SyncManager {
                 await SyncUtils.deleteFile(filePath, destination);
                 break;
 
+            case SyncFileOperationType.DeleteAndSync:
+                await SyncUtils.deleteFile(filePath, destination);
+
+                await this.executeSyncOperation({
+                    operationType: SyncFileOperationType.Sync,
+                    source,
+                    destination
+                });
+                break;
+
             case SyncFileOperationType.HandleConflictAndSync:
                 await ConflictHandler.handleConflictDetection(
                     filePath,
