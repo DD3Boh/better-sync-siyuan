@@ -1421,8 +1421,10 @@ export class SyncManager {
             if (result.hasConflict) hasConflict = true;
         }
 
+        const dirMismatch = remotes[0].file?.item && remotes[1].file?.item && remotes[0].file?.isDir != remotes[1].file?.isDir;
+
         if (remotes[0].file?.item && remotes[1].file?.item && (updated[0] === updated[1] || options?.onlyIfMissing) &&
-            remotes[0].file?.path === remotes[1].file?.path) {
+            remotes[0].file?.path === remotes[1].file?.path && !dirMismatch) {
             return null;
         }
 
@@ -1448,6 +1450,16 @@ export class SyncManager {
                 source: remotes[inputIndex],
                 destination: remotes[outputIndex]
             };
+        }
+
+        if (dirMismatch) {
+            consoleLog(`File ${filePath} is a directory on one remote and a file on the other, performing delete and sync.`);
+
+            return {
+                operationType: SyncFileOperationType.DeleteAndSync,
+                source: remotes[inputIndex],
+                destination: remotes[outputIndex]
+            }
         }
 
         if (!fileRes.isDir)
@@ -1476,20 +1488,16 @@ export class SyncManager {
              * Or if there is a directory/file mismatch.
              * This ensures that we only delete files that were present during the last sync and have not been updated since.
              */
-            const dirMismatch = remotes[0].file?.item && remotes[1].file?.item && remotes[0].file?.isDir != remotes[1].file?.isDir;
             const shouldDelete: boolean = (commonSync > 0) &&
                 (commonSync > updated[existingIndex]) &&
-                (commonSync >= existingLastSync) || dirMismatch;
+                (commonSync >= existingLastSync);
 
-            consoleLog(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}, dir mismatch: ${dirMismatch}, path mismatch: ${pathMismatch}. Should delete: ${shouldDelete}`);
+            consoleLog(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}, path mismatch: ${pathMismatch}. Should delete: ${shouldDelete}`);
 
             const target = remotes[inputIndex];
 
             if (shouldDelete) {
                 if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
-                    // TODO: Re-implement this
-                    // Continue syncing the file if it's a directory mismatch
-                    // if (!dirMismatch)
                     return {
                         operationType: SyncFileOperationType.Delete,
                         destination: target
