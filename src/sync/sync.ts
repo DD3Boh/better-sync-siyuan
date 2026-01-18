@@ -497,10 +497,12 @@ export class SyncManager {
 
         const path = `data/${protyle.notebookId}${protyle.path}`;
 
-        await this.syncFile(
+        const operation = await this.getSyncFileOperation(
             path,
             { avoidDeletions: true }
         );
+
+        await this.executeSyncOperation(operation);
 
         this.pendingFileChanges.delete(path);
         await this.sendReloadProtylesMessage([path]);
@@ -1296,248 +1298,37 @@ export class SyncManager {
             return;
         }
 
-        const dirPromises: { promise: Promise<SyncFileResult>, dirItem: StorageItem, remotes: [Remote, Remote] }[] = [];
-        const dirMapPairs = StorageItem.getDirsOnlyMapPair(remotes[0].file, remotes[1].file, options?.useFileNames);
-        for (const [query, _] of dirMapPairs) {
-            const [dir0, dir1] = StorageItem.findChildPair(remotes[0].file, remotes[1].file, query, options?.useFileNames);
-            if (!dir0 && !dir1) continue;
+        const operationPromises: Promise<SyncFileOperation>[] = [];
+        const mapPairs = StorageItem.getFilesMapPairRecursively(remotes[0].file, remotes[1].file, options?.useFileNames);
+        for (const [query, _] of mapPairs) {
+            const [item0, item1] = StorageItem.findChildPair(remotes[0].file, remotes[1].file, query, options?.useFileNames);
 
-            const dirItem = dir0 || dir1;
+            const item = item0 || item1;
+            if (!item) continue;
 
-            const dirRemotes: [Remote, Remote] = [
-                remotes[0].withFile(dir0),
-                remotes[1].withFile(dir1)
+            const itemRemotes: [Remote, Remote] = [
+                remotes[0].withFile(item0),
+                remotes[1].withFile(item1)
             ];
 
-            dirPromises.push({
-                promise: this.syncFile(dirItem.path, options, dirRemotes),
-                dirItem,
-                remotes: dirRemotes
-            });
-        }
-        const dirResults = await Promise.allSettled(dirPromises.map(p => p.promise));
-
-        // Process directories that weren't deleted
-        for (const [i, result] of dirResults.entries()) {
-            const { dirItem, remotes: dirRemotes } = dirPromises[i];
-
-            // Skip if the promise was rejected
-            if (result.status === 'rejected') {
-                consoleWarn(`Failed to sync directory ${dirItem.path}. Error: ${result.reason}`);
-                continue;
-            }
-
-            // Skip subdirectories if the directory was deleted
-            if (result.value === SyncFileResult.DirectoryDeleted) {
-                consoleLog(`Directory ${dirItem.path} was deleted during sync. Skipping further processing.`);
-                continue;
-            }
-
-            if (result.value === SyncFileResult.DirectoryMoved) {
-                consoleLog(`Directory ${dirItem.path} was moved during sync. Skipping further processing.`);
-                continue;
-            }
-
-            // If the item is a directory and wasn't deleted, recursively sync its contents
-            await this.syncDirWork(dirRemotes, options);
+            operationPromises.push(this.getSyncFileOperation(item.path, options, itemRemotes));
         }
 
-        const filePromises: Promise<SyncFileResult>[] = [];
-        const filesMapPair = StorageItem.getFilesOnlyMapPair(remotes[0].file, remotes[1].file, options?.useFileNames);
-        for (const [query, _] of filesMapPair) {
-            const [file0, file1] = StorageItem.findChildPair(remotes[0].file, remotes[1].file, query, options?.useFileNames);
-            if (!file0 && !file1) continue;
+        const operations = await Promise.allSettled(operationPromises);
+        const validOperations: SyncFileOperation[] = [];
 
-            if (dirPromises.find(p => p.dirItem.path === file0?.path || p.dirItem.path === file1?.path)) {
-                const index = dirPromises.findIndex(p => p.dirItem.path === file0?.path || p.dirItem.path === file1?.path);
-                if (index === -1) continue;
-
-                // Skip if the promise was rejected or if the directory was deleted/moved
-                const dirResult = dirResults[index];
-
-                if (dirResult.status !== 'rejected' && dirResult.value === SyncFileResult.DirectoryMoved) {
-                    consoleLog(`Directory ${file0?.path || file1?.path} was moved during sync. Skipping further processing.`);
-                    continue;
-                }
-            }
-
-            const fileItem = file0 || file1;
-            const fileRemotes: [Remote, Remote] = [
-                remotes[0].withFile(file0),
-                remotes[1].withFile(file1)
-            ];
-
-            filePromises.push(this.syncFile(fileItem.path, options, fileRemotes));
-        }
-
-        await Promise.allSettled(filePromises);
-    }
-
-    /**
-     * Synchronize a file between local and remote devices.
-     * @param filePath The path to the file to synchronize.
-     * @param options Synchronization options including:
-     * - deleteFoldersOnly: If true, only delete folders and not single files.
-     * - onlyIfMissing: If true, only synchronize files that are missing in one of the remotes.
-     * - avoidDeletions: If true, do not delete files in any remote.
-     * - trackConflicts: If true, track conflicts during synchronization.
-     * @param remotes An array of exactly two RemoteFileInfo objects containing remote server information.
-     */
-    async syncFile(
-        filePath: string,
-        options?: {
-            deleteFoldersOnly?: boolean,
-            onlyIfMissing?: boolean,
-            avoidDeletions?: boolean,
-            trackConflicts?: boolean,
-            trackUpdatedFiles?: boolean
-        },
-        remotes: [Remote, Remote] = this.remotes,
-    ): Promise<SyncFileResult> {
-        remotes = this.copyRemotes(remotes);
-
-        await Promise.all(remotes.map(async (remote) => {
-            const parentPath = filePath.replace(/\/[^/]+$/, "");
-            const fileName = filePath.replace(/^.*\//, "");
-
-            if (!remote.file || !remote.file.item) {
-                consoleLog(`File info for ${filePath} missing from ${remote.name}, fetching...`);
-                const dir = await readDir(parentPath, remote.url, SyncUtils.getHeaders(remote.key));
-                const file = dir?.find(it => it.name === fileName);
-                if (file) remote.file = new StorageItem(filePath, parentPath, file);
-            }
-        }));
-
-        const fileRes = remotes[0].file?.item || remotes[1].file?.item;
-
-        if (!fileRes) {
-            consoleLog(`File ${filePath} not found in either remote.`);
-            return SyncFileResult.NotFound;
-        }
-
-        const updated: [number, number] = [
-            remotes[0].file?.timestamp || 0,
-            remotes[1].file?.timestamp || 0
-        ];
-
-        // Conflict detection
-        let trackConflicts = options?.trackConflicts ?? false;
-        if (this.pendingFileChanges.has(filePath) && trackConflicts) {
-            consoleLog(`Conflicts tracking skipped for ${filePath} as it has pending changes.`);
-            trackConflicts = false;
-            this.pendingFileChanges.delete(filePath);
-        }
-
-        if (!options?.onlyIfMissing && !fileRes.isDir && trackConflicts) {
-            const conflictDetected = await ConflictHandler.handleConflictDetection(
-                filePath,
-                remotes,
-                this.plugin.i18n
-            );
-
-            if (conflictDetected) this.conflictDetected = true;
-        }
-
-        // Multiply by 1000 because `putFile` makes the conversion automatically
-        const timestamp: number = Math.max(updated[0], updated[1]) * 1000;
-
-        if (remotes[0].file?.item && remotes[1].file?.item && (updated[0] === updated[1] || options?.onlyIfMissing) &&
-            remotes[0].file?.path === remotes[1].file?.path) {
-            return SyncFileResult.Skipped;
-        }
-
-        let inputIndex = updated[0] > updated[1] ? 0 : 1;
-        let outputIndex = updated[0] > updated[1] ? 1 : 0;
-
-        const pathMismatch = remotes[0]?.file?.item && remotes[1]?.file?.item && remotes[0].file?.path !== remotes[1].file?.path;
-
-        if (pathMismatch) {
-            if (remotes[0].file?.timestamp === remotes[1].file?.timestamp || fileRes.isDir) {
-                consoleLog(`File ${filePath} has different paths but the same timestamp on the two remotes, looking at the parent directory...`);
-
-                const result = await SyncUtils.compareParentDirectoryTimestamps(remotes);
-
-                if (!result) return SyncFileResult.Skipped;
-
-                inputIndex = result.inputIndex;
-                outputIndex = result.outputIndex;
-
-                if (fileRes.isDir) {
-                    await SyncUtils.moveDocsDir(remotes[outputIndex].filePath, remotes[inputIndex]?.file?.parentPath, remotes[outputIndex]);
-                    return SyncFileResult.DirectoryMoved;
-                }
-            } else {
-                consoleLog(`File ${filePath} has different paths and different timestamps on the two remotes (${remotes[0].file?.timestamp} vs ${remotes[1].file?.timestamp}), deleting the older file...`);
+        for (const result of operations) {
+            if (result.status === 'fulfilled' && result.value) {
+                validOperations.push(result.value);
+            } else if (result.status === 'rejected') {
+                consoleWarn(`Failed to get sync operation: ${result.reason}`);
             }
         }
 
-        if (!fileRes.isDir)
-            consoleLog(`Syncing file from ${remotes[inputIndex].name} to ${remotes[outputIndex].name}: ${fileRes.name} (${filePath}), timestamps: ${updated[0]} vs ${updated[1]}`);
-
-        // Handle deletions
-        if (!remotes[0].file?.item || !remotes[1].file?.item || pathMismatch) {
-            const missingIndex = outputIndex;
-            const existingIndex = inputIndex;
-
-            const commonSync = SyncHistory.getLastSyncWithRemote(
-                remotes[existingIndex],
-                remotes[missingIndex].instanceId
-            );
-
-            const existingLastSync = SyncHistory.getMostRecentSyncTime(
-                remotes[existingIndex]
-            );
-
-            /**
-             * Determine if the file should be deleted based on sync history.
-             * The file should be deleted if all the following conditions are met:
-             * - The last sync time with the other remote is greater than 0 (they have synced before).
-             * - The last sync time with the other remote is greater than the file's last updated timestamp.
-             * - The last sync time with the other remote is greater than the existing remote's last sync time.
-             * Or if there is a directory/file mismatch or file path mismatch.
-             * This ensures that we only delete files that were present during the last sync and have not been updated since.
-             */
-            const dirMismatch = remotes[0].file?.item && remotes[1].file?.item && remotes[0].file?.isDir != remotes[1].file?.isDir;
-            const shouldDelete: boolean = (commonSync > 0) &&
-                (commonSync > updated[existingIndex]) &&
-                (commonSync >= existingLastSync) || dirMismatch || pathMismatch;
-
-            consoleLog(`Last sync with other: ${commonSync}, existing last sync: ${existingLastSync}, file updated: ${updated[existingIndex]}, dir mismatch: ${dirMismatch}, path mismatch: ${pathMismatch}. Should delete: ${shouldDelete}`);
-
-            // If the file is a path mismatch, delete the older file that we're marking as least recently updated
-            const target = pathMismatch ? remotes[outputIndex] : remotes[inputIndex];
-
-            if (shouldDelete) {
-                if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
-                    await SyncUtils.deleteFile(target.file?.path, target);
-
-                    // Continue syncing the file if it's a directory mismatch or path mismatch
-                    if (!dirMismatch && !pathMismatch)
-                        return fileRes.isDir ? SyncFileResult.DirectoryDeleted : SyncFileResult.Deleted;
-                }
-            } else {
-                consoleLog(`File ${filePath} is missing on ${remotes[missingIndex].name} but will be synced (timestamp check passed)`);
-            }
+        for (const operation of validOperations) {
+            consoleLog("Executing sync operation:", operation);
+            await this.executeSyncOperation(operation);
         }
-
-        // Avoid writing directories
-        if (fileRes.isDir) return SyncFileResult.Skipped;
-
-        const syFile = await getFileBlob(filePath, remotes[inputIndex].url, SyncUtils.getHeaders(remotes[inputIndex].key));
-        if (!syFile) {
-            consoleLog(`File ${filePath} not found in source: ${remotes[inputIndex].name}`);
-            return SyncFileResult.NotFound;
-        }
-
-        const file = new File([syFile], fileRes.name, { lastModified: timestamp });
-        await SyncUtils.putFile(filePath, file, remotes[outputIndex].url, remotes[outputIndex].key, timestamp);
-
-        if (options?.trackUpdatedFiles) {
-            const updatedFiles = inputIndex === 0 ? this.remotelyUpdatedFiles : this.locallyUpdatedFiles;
-            updatedFiles.add(filePath);
-        }
-
-        return SyncFileResult.Success;
     }
 
     /**
