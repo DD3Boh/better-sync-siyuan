@@ -1,3 +1,5 @@
+import { consoleError, consoleWarn } from "@/logging";
+
 export class Payload {
     public type: string;
     public data: any;
