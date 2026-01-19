@@ -1335,22 +1335,41 @@ export class SyncManager {
             .map(op => op.destination?.filePath)
             .filter(path => path !== undefined);
 
-        const skipDirs = [...deletedDirs, ...movedDirs];
-
         const sanitizedOperations = validOperations.filter(operation => {
             const operationPath = operation.source?.filePath || operation.destination?.filePath;
             if (!operationPath) return true;
 
-            // Check if this operation is for a file/directory that's inside a directory being deleted or moved
-            for (let skipDir of skipDirs) {
+            // Check if this operation is for a file/directory that's inside a directory being deleted
+            for (let skipDir of deletedDirs) {
+                if (!skipDir.endsWith("/")) skipDir = `${skipDir}/`
+
+                if (operationPath !== skipDir && operationPath.startsWith(skipDir)) {
+                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${skipDir} is being deleted`);
+                    return false;
+                }
+            }
+
+            // Check if this operation is for a file/directory that's inside a directory being moved
+            // In that case, convert MoveDocs operations to Sync operations
+            for (let skipDir of movedDirs) {
                 if (skipDir.endsWith(".sy")) skipDir = skipDir.slice(0, -3);
                 if (!skipDir.endsWith("/")) skipDir = `${skipDir}/`
 
                 if (operationPath !== skipDir && operationPath.startsWith(skipDir)) {
-                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${skipDir} is being deleted or moved`);
+                    if (operation.operationType === SyncFileOperationType.MoveDocs) {
+                        // Adjust the destination path accordingly
+                        const file = operation.destination?.file;
+                        file.path = operation?.source?.filePath;
+                        operation.destination = operation.destination?.withFile(file);
+                        operation.operationType = SyncFileOperationType.Sync;
+                        consoleLog(`Converting move operation to sync for ${operationPath} because parent directory ${skipDir} is being moved`);
+                        return true;
+                    }
+                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${skipDir} is being moved`);
                     return false;
                 }
             }
+
             return true;
         });
 
