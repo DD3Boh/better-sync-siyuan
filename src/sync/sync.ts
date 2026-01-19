@@ -1558,9 +1558,8 @@ export class SyncManager {
                 await SyncUtils.putFile(filePath, file, destination.url, destination.key, timestamp);
 
                 if (operation?.options?.trackUpdatedFiles) {
-                    // TODO: Re-implement this
-                    // const updatedFiles = inputIndex === 0 ? this.remotelyUpdatedFiles : this.locallyUpdatedFiles;
-                    // updatedFiles.add(filePath);
+                    const updatedFiles = destination.isLocal() ? this.locallyUpdatedFiles : this.remotelyUpdatedFiles;
+                    updatedFiles.add(filePath);
                 }
                 break;
 
