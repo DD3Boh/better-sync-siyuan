@@ -1421,17 +1421,26 @@ export class SyncManager {
             if (result.hasConflict) hasConflict = true;
         }
 
-        const dirMismatch = remotes[0].file?.item && remotes[1].file?.item && remotes[0].file?.isDir != remotes[1].file?.isDir;
+        const bothExist = remotes[0].file?.item && remotes[1].file?.item;
+        const dirMismatch = bothExist && remotes[0].file?.isDir !== remotes[1].file?.isDir;
+        const pathMismatch = bothExist && remotes[0].file?.path !== remotes[1].file?.path;
 
-        if (remotes[0].file?.item && remotes[1].file?.item && (updated[0] === updated[1] || options?.onlyIfMissing) &&
-            remotes[0].file?.path === remotes[1].file?.path && !dirMismatch) {
+        if (bothExist && !pathMismatch && !dirMismatch && (updated[0] === updated[1] || options?.onlyIfMissing)) {
             return null;
         }
 
         let inputIndex = updated[0] > updated[1] ? 0 : 1;
         let outputIndex = updated[0] > updated[1] ? 1 : 0;
 
-        const pathMismatch = remotes[0]?.file?.item && remotes[1]?.file?.item && remotes[0].file?.path !== remotes[1].file?.path;
+        if (dirMismatch) {
+            consoleLog(`File ${filePath} is a directory on one remote and a file on the other, performing delete and sync.`);
+
+            return {
+                operationType: SyncFileOperationType.DeleteAndSync,
+                source: remotes[inputIndex],
+                destination: remotes[outputIndex]
+            }
+        }
 
         if (pathMismatch) {
             if (remotes[0].file?.timestamp === remotes[1].file?.timestamp || fileRes.isDir) {
@@ -1450,16 +1459,6 @@ export class SyncManager {
                 source: remotes[inputIndex],
                 destination: remotes[outputIndex]
             };
-        }
-
-        if (dirMismatch) {
-            consoleLog(`File ${filePath} is a directory on one remote and a file on the other, performing delete and sync.`);
-
-            return {
-                operationType: SyncFileOperationType.DeleteAndSync,
-                source: remotes[inputIndex],
-                destination: remotes[outputIndex]
-            }
         }
 
         if (!fileRes.isDir)
