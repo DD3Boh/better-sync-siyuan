@@ -1469,7 +1469,8 @@ export class SyncManager {
             return {
                 operationType: SyncFileOperationType.DeleteAndSync,
                 source: remotes[inputIndex],
-                destination: remotes[outputIndex]
+                destination: remotes[outputIndex],
+                options
             }
         }
 
@@ -1488,7 +1489,8 @@ export class SyncManager {
             return {
                 operationType: SyncFileOperationType.MoveDocs,
                 source: remotes[inputIndex],
-                destination: remotes[outputIndex]
+                destination: remotes[outputIndex],
+                options
             };
         }
 
@@ -1530,7 +1532,8 @@ export class SyncManager {
                 if ((fileRes.isDir || !options?.deleteFoldersOnly) && !options?.avoidDeletions) {
                     return {
                         operationType: SyncFileOperationType.Delete,
-                        destination: target
+                        destination: target,
+                        options
                     };
                 }
             } else {
@@ -1545,14 +1548,16 @@ export class SyncManager {
             return {
                 operationType: SyncFileOperationType.HandleConflictAndSync,
                 source: remotes[inputIndex],
-                destination: remotes[outputIndex]
+                destination: remotes[outputIndex],
+                options
             };
         }
 
         return {
             operationType: SyncFileOperationType.Sync,
             source: remotes[inputIndex],
-            destination: remotes[outputIndex]
+            destination: remotes[outputIndex],
+            options
         };
     }
 
@@ -1603,7 +1608,8 @@ export class SyncManager {
                 await this.executeSyncOperation({
                     operationType: SyncFileOperationType.Sync,
                     source,
-                    destination
+                    destination,
+                    options: operation.options
                 });
                 break;
 
@@ -1617,7 +1623,8 @@ export class SyncManager {
                 await this.executeSyncOperation({
                     operationType: SyncFileOperationType.Sync,
                     source,
-                    destination
+                    destination,
+                    options: operation.options
                 });
                 break;
 
@@ -1627,7 +1634,8 @@ export class SyncManager {
                 await this.executeSyncOperation({
                     operationType: SyncFileOperationType.Sync,
                     source,
-                    destination
+                    destination,
+                    options: operation.options
                 });
 
                 break;
