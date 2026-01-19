@@ -1323,66 +1323,63 @@ export class SyncManager {
             }
         }
 
-        // Sanitize validOperations: filter out operations for subfiles/subdirectories when a parent directory is being deleted or moved
+        // Helper to normalize a path as a directory path (ends with /, no .sy suffix)
+        const normalizeDir = (path: string): string => {
+            if (path.endsWith(".sy")) path = path.slice(0, -3);
+            return path.endsWith("/") ? path : `${path}/`;
+        };
+
+        // Collect directories being deleted or moved
         const deletedDirs = validOperations
-            .filter(op => op.operationType === SyncFileOperationType.Delete)
-            .filter(op => op.destination?.file?.isDir === true)
+            .filter(op => op.operationType === SyncFileOperationType.Delete && op.destination?.file?.isDir)
             .map(op => op.destination?.filePath)
-            .filter(path => path !== undefined);
+            .filter((path): path is string => path !== undefined);
 
         const movedDirs = validOperations
             .filter(op => op.operationType === SyncFileOperationType.MoveDocs)
             .map(op => ({ old: op.destination?.filePath, new: op.source?.filePath }))
-            .filter(path => path !== undefined);
+            .filter((dirs): dirs is { old: string; new: string } => dirs.old !== undefined && dirs.new !== undefined);
 
         const sanitizedOperations = validOperations.filter(operation => {
             const operationPath = operation.source?.filePath || operation.destination?.filePath;
             if (!operationPath) return true;
 
-            // Check if this operation is for a file/directory that's inside a directory being deleted
-            for (let skipDir of deletedDirs) {
-                if (!skipDir.endsWith("/")) skipDir = `${skipDir}/`
+            // Skip operations inside a directory being deleted
+            const isInsideDeletedDir = deletedDirs.some(dir => {
+                const dirPath = normalizeDir(dir);
+                return operationPath !== dirPath && operationPath.startsWith(dirPath);
+            });
 
-                if (operationPath !== skipDir && operationPath.startsWith(skipDir)) {
-                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${skipDir} is being deleted`);
-                    return false;
-                }
+            if (isInsideDeletedDir) {
+                consoleLog(`Filtering out operation for ${operationPath} because parent directory is being deleted`);
+                return false;
             }
 
-            // Check if this operation is for a file/directory that's inside a directory being moved
-            // In that case, convert MoveDocs operations to Sync operations
-            for (let dirs of movedDirs) {
-                let oldDir = dirs.old;
-                if (oldDir.endsWith(".sy")) oldDir = oldDir.slice(0, -3);
-                if (!oldDir.endsWith("/")) oldDir = `${oldDir}/`
+            // Handle operations inside a directory being moved
+            for (const { old: oldPath, new: newPath } of movedDirs) {
+                const oldDir = normalizeDir(oldPath);
+                const newDir = normalizeDir(newPath);
 
-                let newDir = dirs.new;
-                if (newDir.endsWith(".sy")) newDir = newDir.slice(0, -3);
-                if (!newDir.endsWith("/")) newDir = `${newDir}/`
+                if (operationPath === oldDir || !operationPath.startsWith(oldDir)) continue;
 
-                if (operationPath !== oldDir && operationPath.startsWith(oldDir)) {
+                // For MoveDocs or Delete operations, adjust the destination path
+                if (operation.operationType === SyncFileOperationType.MoveDocs ||
+                    operation.operationType === SyncFileOperationType.Delete) {
+                    const file = operation.destination?.file;
+                    file.path = operation?.destination?.filePath.replace(oldDir, newDir);
+                    operation.destination = operation.destination?.withFile(file);
+
                     if (operation.operationType === SyncFileOperationType.MoveDocs) {
-                        // Adjust the destination path accordingly
-                        const file = operation.destination?.file;
-                        file.path = operation?.destination?.filePath.replace(oldDir, newDir);
-                        operation.destination = operation.destination?.withFile(file);
                         operation.operationType = SyncFileOperationType.Sync;
-                        consoleLog(`Converting move operation to sync for ${operationPath} because parent directory ${oldDir} is being moved`);
-                        return true;
+                        consoleLog(`Converting move to sync for ${operationPath} (parent ${oldDir} is being moved)`);
+                    } else {
+                        consoleLog(`Adjusting delete for ${operationPath} (parent ${oldDir} is being moved)`);
                     }
-
-                    if (operation.operationType === SyncFileOperationType.Delete) {
-                        // Adjust the destination path accordingly
-                        const file = operation.destination?.file;
-                        file.path = operation?.destination?.filePath.replace(oldDir, newDir);
-                        operation.destination = operation.destination?.withFile(file);
-                        consoleLog(`Adjusting delete operation for ${operationPath} because parent directory ${oldDir} is being moved`);
-                        return true;
-                    }
-
-                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${oldDir} is being moved`);
-                    return false;
+                    return true;
                 }
+
+                consoleLog(`Filtering out operation for ${operationPath} because parent directory ${oldDir} is being moved`);
+                return false;
             }
 
             return true;
