@@ -1623,6 +1623,13 @@ export class SyncManager {
 
             case SyncFileOperationType.MoveDocs:
                 await SyncUtils.moveDocs(destination!.filePath, source?.file?.parentPath, destination!);
+
+                await this.executeSyncOperation({
+                    operationType: SyncFileOperationType.Sync,
+                    source,
+                    destination
+                });
+
                 break;
         }
     }
