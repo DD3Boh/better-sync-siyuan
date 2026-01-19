@@ -1589,7 +1589,7 @@ export class SyncManager {
 
                 if (operation?.options?.trackUpdatedFiles) {
                     const updatedFiles = destination.isLocal() ? this.locallyUpdatedFiles : this.remotelyUpdatedFiles;
-                    updatedFiles.add(filePath);
+                    updatedFiles.add(destination.filePath || filePath);
                 }
                 break;
 
