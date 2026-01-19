@@ -1332,7 +1332,7 @@ export class SyncManager {
 
         const movedDirs = validOperations
             .filter(op => op.operationType === SyncFileOperationType.MoveDocs)
-            .map(op => op.destination?.filePath)
+            .map(op => ({ old: op.destination?.filePath, new: op.source?.filePath }))
             .filter(path => path !== undefined);
 
         const sanitizedOperations = validOperations.filter(operation => {
@@ -1351,21 +1351,36 @@ export class SyncManager {
 
             // Check if this operation is for a file/directory that's inside a directory being moved
             // In that case, convert MoveDocs operations to Sync operations
-            for (let skipDir of movedDirs) {
-                if (skipDir.endsWith(".sy")) skipDir = skipDir.slice(0, -3);
-                if (!skipDir.endsWith("/")) skipDir = `${skipDir}/`
+            for (let dirs of movedDirs) {
+                let oldDir = dirs.old;
+                if (oldDir.endsWith(".sy")) oldDir = oldDir.slice(0, -3);
+                if (!oldDir.endsWith("/")) oldDir = `${oldDir}/`
 
-                if (operationPath !== skipDir && operationPath.startsWith(skipDir)) {
+                let newDir = dirs.new;
+                if (newDir.endsWith(".sy")) newDir = newDir.slice(0, -3);
+                if (!newDir.endsWith("/")) newDir = `${newDir}/`
+
+                if (operationPath !== oldDir && operationPath.startsWith(oldDir)) {
                     if (operation.operationType === SyncFileOperationType.MoveDocs) {
                         // Adjust the destination path accordingly
                         const file = operation.destination?.file;
-                        file.path = operation?.source?.filePath;
+                        file.path = operation?.destination?.filePath.replace(oldDir, newDir);
                         operation.destination = operation.destination?.withFile(file);
                         operation.operationType = SyncFileOperationType.Sync;
-                        consoleLog(`Converting move operation to sync for ${operationPath} because parent directory ${skipDir} is being moved`);
+                        consoleLog(`Converting move operation to sync for ${operationPath} because parent directory ${oldDir} is being moved`);
                         return true;
                     }
-                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${skipDir} is being moved`);
+
+                    if (operation.operationType === SyncFileOperationType.Delete) {
+                        // Adjust the destination path accordingly
+                        const file = operation.destination?.file;
+                        file.path = operation?.destination?.filePath.replace(oldDir, newDir);
+                        operation.destination = operation.destination?.withFile(file);
+                        consoleLog(`Adjusting delete operation for ${operationPath} because parent directory ${oldDir} is being moved`);
+                        return true;
+                    }
+
+                    consoleLog(`Filtering out operation for ${operationPath} because parent directory ${oldDir} is being moved`);
                     return false;
                 }
             }
