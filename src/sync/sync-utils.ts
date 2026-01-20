@@ -1,5 +1,5 @@
 import { consoleError, consoleLog } from "@/logging";
-import { getFileBlob, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
+import { getFileBlob, moveDocs, putFile, readDir, removeFile, removeIndexes, upsertIndexes } from "../api";
 import { INSTANCE_ID_FILE, Remote, StorageItem, SYNC_CONFIG_DIR, SYNC_LOGS_DIR } from "@/sync";
 
 export class SyncUtils {
@@ -89,6 +89,35 @@ export class SyncUtils {
         } catch (error) {
             consoleError(`Error putting file ${filePath} to ${url}:`, error);
             return false;
+        }
+    }
+
+    static async moveDocsDir(
+        path: string,
+        toPath: string,
+        remote: Remote
+    ) {
+        const matchPath = path.match(/^data\/([^\/]+)\/(.+)$/);
+        if (!matchPath) {
+            consoleError(`Error moving directory ${path} to ${toPath}: Invalid path format.`);
+            return;
+        }
+        const docPath = `/${matchPath[2]}.sy`;
+
+        const matchToPath = toPath.match(/^data\/([^\/]+)\/(.+)$/);
+        if (!matchToPath) {
+            consoleError(`Error moving directory ${path} to ${toPath}: Invalid path format.`);
+            return;
+        }
+        const notebookIdTo = matchToPath[1];
+        const docPathTo = `/${matchToPath[2]}.sy`;
+
+        consoleLog(`Moving directory ${path} to ${toPath} on remote ${remote.name}`);
+
+        try {
+            await moveDocs([docPath], notebookIdTo, docPathTo, remote.url, SyncUtils.getHeaders(remote.key));
+        } catch (error) {
+            consoleError(`Error moving directory ${path} to ${toPath}:`, error);
         }
     }
 
