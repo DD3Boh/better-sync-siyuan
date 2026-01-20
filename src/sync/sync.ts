@@ -939,12 +939,17 @@ export class SyncManager {
         persistentMessage: boolean = true,
         remotes: [Remote, Remote] = this.copyRemotes(this.remotes)
     ) {
-        this.setSyncStatus(SyncStatus.InProgress);
         const startTime = Date.now();
         let savedError: Error | null = null;
         let promise: Promise<void> | null = null;
         let locked = false;
         try {
+            if (this.getSyncStatus() === SyncStatus.InProgress) {
+                consoleWarn("Sync is already in progress.");
+                return;
+            }
+
+            this.setSyncStatus(SyncStatus.InProgress);
             SyncUtils.checkRemotes(remotes);
 
             if (persistentMessage)
