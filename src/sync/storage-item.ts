@@ -150,8 +150,8 @@ export class StorageItem {
      */
     static getFilesMapPair(item1: StorageItem, item2: StorageItem, useFileNames: boolean = false): Map<string, [StorageItem, StorageItem]> {
         const fileMap = new Map<string, [StorageItem, StorageItem]>();
-        const files1 = item1.getFilesMapRecursive(useFileNames);
-        const files2 = item2.getFilesMapRecursive(useFileNames);
+        const files1 = item1?.getFilesMap(useFileNames) || new Map<string, StorageItem>();
+        const files2 = item2?.getFilesMap(useFileNames) || new Map<string, StorageItem>();
 
         // Collect unique keys from both maps
         const allKeys = new Set<string>([...files1.keys(), ...files2.keys()]);
@@ -160,6 +160,107 @@ export class StorageItem {
             fileMap.set(key, [files1.get(key), files2.get(key)]);
         }
         return fileMap;
+    }
+
+    /**
+     * Takes two StorageItems as input, returns a map of file names or paths to pairs of StorageItems.
+     * Only includes items that are files (not directories).
+     *
+     * @param item1 The first StorageItem
+     * @param item2 The second StorageItem
+     * @param useFileNames Whether to use file names as keys instead of file paths.
+     * @returns A map of StorageItem instances where the keys are file names or paths and the values are pairs of StorageItems (files only).
+     */
+    static getFilesOnlyMapPair(item1: StorageItem, item2: StorageItem, useFileNames: boolean = false): Map<string, [StorageItem, StorageItem]> {
+        const allPairs = StorageItem.getFilesMapPair(item1, item2, useFileNames);
+        const fileMap = new Map<string, [StorageItem, StorageItem]>();
+
+        for (const [key, [file1, file2]] of allPairs) {
+            // Include if either item exists and is not a directory
+            const isFile = (file1 && !file1.isDir) || (file2 && !file2.isDir);
+            if (isFile) {
+                fileMap.set(key, [file1, file2]);
+            }
+        }
+        return fileMap;
+    }
+
+    /**
+     * Takes two StorageItems as input, returns a map of file names or paths to pairs of StorageItems.
+     * Only includes items that are directories.
+     *
+     * @param item1 The first StorageItem
+     * @param item2 The second StorageItem
+     * @param useFileNames Whether to use file names as keys instead of file paths.
+     * @returns A map of StorageItem instances where the keys are file names or paths and the values are pairs of StorageItems (directories only).
+     */
+    static getDirsOnlyMapPair(item1: StorageItem, item2: StorageItem, useFileNames: boolean = false): Map<string, [StorageItem, StorageItem]> {
+        const allPairs = StorageItem.getFilesMapPair(item1, item2, useFileNames);
+        const dirMap = new Map<string, [StorageItem, StorageItem]>();
+
+        for (const [key, [file1, file2]] of allPairs) {
+            // Include if either item exists and is a directory
+            const isDir = (file1 && file1.isDir) || (file2 && file2.isDir);
+            if (isDir) {
+                dirMap.set(key, [file1, file2]);
+            }
+        }
+        return dirMap;
+    }
+
+    /**
+     * Recursively searches through a StorageItem to find a child
+     * matching a given file name or path.
+     *
+     * @param item The StorageItem to search within (can be null/undefined).
+     * @param key The file name or path to search for.
+     * @param useFileNames Whether to match by file name instead of full path.
+     * @returns The matching StorageItem, or null if not found.
+     */
+    static findChild(
+        item: StorageItem | null | undefined,
+        key: string,
+        useFileNames: boolean = false
+    ): StorageItem | null {
+        if (!item) return null;
+
+        for (const child of item.files) {
+            const childKey = useFileNames ? child.name : child.path;
+            if (childKey === key) {
+                return child;
+            }
+
+            // Recursively search in subdirectories
+            if (child.isDir) {
+                const found = StorageItem.findChild(child, key, useFileNames);
+                if (found) return found;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Recursively searches through two StorageItems to find a pair of children
+     * matching a given file name or path.
+     *
+     * @param item1 The first StorageItem to search within (can be null/undefined).
+     * @param item2 The second StorageItem to search within (can be null/undefined).
+     * @param key The file name or path to search for.
+     * @param useFileNames Whether to match by file name instead of full path.
+     * @returns A tuple of [StorageItem | null, StorageItem | null] representing
+     *          the matching child from each item, or null if not found in that item.
+     */
+    static findChildPair(
+        item1: StorageItem | null | undefined,
+        item2: StorageItem | null | undefined,
+        key: string,
+        useFileNames: boolean = false
+    ): [StorageItem | null, StorageItem | null] {
+        return [
+            StorageItem.findChild(item1, key, useFileNames),
+            StorageItem.findChild(item2, key, useFileNames)
+        ];
     }
 
     /**
