@@ -1,5 +1,6 @@
 {
     "cloudIconDesc": "Sync with the remote",
+    "startSync": "Start Sync",
     "siyuanUrl": "SiYuan URL",
     "siyuanUrlDesc": "The other device's siyuan instance URL. eg: http://192.168.1.45:6806",
     "siyuanAPIKey": "SiYuan API Key",

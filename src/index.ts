@@ -42,6 +42,23 @@ export default class BetterSyncPlugin extends Plugin {
         this.syncManager.onSyncStatusChange((status: SyncStatus) => {
             this.updateButtonIcon(status);
         });
+
+        this.addCommand({
+            langKey: "startSync",
+            hotkey: "⌘S",
+            callback: async () => {
+                await this.syncManager.syncHandler();
+            },
+            fileTreeCallback: async (_: any) => {
+                await this.syncManager.syncHandler();
+            },
+            editorCallback: async (_: any) => {
+                await this.syncManager.syncHandler();
+            },
+            dockCallback: async (_: HTMLElement) => {
+                await this.syncManager.syncHandler();
+            },
+        });
     }
 
     private addButtonBreadcrumb() {
