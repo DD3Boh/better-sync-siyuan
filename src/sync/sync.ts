@@ -1323,6 +1323,16 @@ export class SyncManager {
             }
         }
 
+        // Sort operations so delete file operations come last
+        // This prevents issues where a delete is executed before a move on the same folder
+        validOperations.sort((a, b) => {
+            const aIsDelete = a.operationType === SyncFileOperationType.Delete;
+            const bIsDelete = b.operationType === SyncFileOperationType.Delete;
+            if (aIsDelete && !bIsDelete) return 1;
+            if (!aIsDelete && bIsDelete) return -1;
+            return 0;
+        });
+
         // Helper to normalize a path as a directory path (ends with /, no .sy suffix)
         const normalizeDir = (path: string): string => {
             if (path.endsWith(".sy")) path = path.slice(0, -3);
