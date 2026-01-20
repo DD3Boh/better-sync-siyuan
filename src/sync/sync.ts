@@ -1357,7 +1357,7 @@ export class SyncManager {
         const pathMismatch = remotes[0]?.file?.item && remotes[1]?.file?.item && remotes[0].file?.path !== remotes[1].file?.path;
 
         if (pathMismatch) {
-            if (remotes[0].file?.timestamp === remotes[1].file?.timestamp) {
+            if (remotes[0].file?.timestamp === remotes[1].file?.timestamp || fileRes.isDir) {
                 consoleLog(`File ${filePath} has different paths but the same timestamp on the two remotes, looking at the parent directory...`);
 
                 const result = await SyncUtils.compareParentDirectoryTimestamps(remotes);
@@ -1366,8 +1366,13 @@ export class SyncManager {
 
                 inputIndex = result.inputIndex;
                 outputIndex = result.outputIndex;
+
+                if (fileRes.isDir) {
+                    await SyncUtils.moveDocsDir(remotes[outputIndex].filePath, remotes[inputIndex]?.file?.parentPath, remotes[outputIndex]);
+                    return SyncFileResult.DirectoryMoved;
+                }
             } else {
-                consoleLog(`File ${filePath} has different paths and different timestamps on the two remotes, deleting the older file...`);
+                consoleLog(`File ${filePath} has different paths and different timestamps on the two remotes (${remotes[0].file?.timestamp} vs ${remotes[1].file?.timestamp}), deleting the older file...`);
             }
         }
 

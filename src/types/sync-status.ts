@@ -13,5 +13,6 @@ export enum SyncFileResult {
     NotFound,
     Deleted,
     DirectoryDeleted,
+    DirectoryMoved,
     Skipped
 }
