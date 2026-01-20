@@ -1400,9 +1400,33 @@ export class SyncManager {
             return true;
         });
 
-        for (const operation of sanitizedOperations) {
-            consoleLog("Executing sync operation:", operation);
-            await this.executeSyncOperation(operation);
+        await this.executeOperationsByPriority(sanitizedOperations);
+    }
+
+    /**
+     * Execute sync operations concurrently, grouped by priority:
+     * 1. Move operations first (to ensure paths exist before other operations)
+     * 2. Other operations (Sync, HandleConflictAndSync, DeleteAndSync)
+     * 3. Delete operations last (to avoid deleting before moves complete)
+     *
+     * @param operations The list of sync operations to execute.
+     */
+    private async executeOperationsByPriority(operations: SyncFileOperation[]) {
+        const priorityGroups: ((op: SyncFileOperation) => boolean)[] = [
+            op => op.operationType === SyncFileOperationType.MoveDocs,
+            op => op.operationType !== SyncFileOperationType.MoveDocs &&
+                  op.operationType !== SyncFileOperationType.Delete,
+            op => op.operationType === SyncFileOperationType.Delete
+        ];
+
+        for (const filter of priorityGroups) {
+            const group = operations.filter(filter);
+            if (group.length > 0) {
+                await Promise.allSettled(group.map(operation => {
+                    consoleLog("Executing sync operation:", operation);
+                    return this.executeSyncOperation(operation);
+                }));
+            }
         }
     }
 
