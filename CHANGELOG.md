@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0
+
+- Rewrite the sync code completely
+- Switch to a plan based approach for operations, which allows for filtering and ordering operations
+- Implement move docs support, fixing the issue with files not getting moved properly
+- Fix plugins not getting deleted properly when removed
+- Execute operations concurrently and ordered by priority
+- Use a priority queue to execute operations
+- Abort sync immediately if already in progress
+- Add a shortcut to start a sync (default: `Ctrl+S`)
+
 ## 1.4.3
 
 - Increase logging
