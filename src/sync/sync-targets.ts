@@ -36,6 +36,14 @@ export function getSyncTargets(config: SyncTargetsConfig): SyncTarget[] {
             path: `data/${notebook.id}/.siyuan`,
         })),
 
+        // Assets directory
+        {
+            path: `data/assets`,
+            options: {
+                trackUpdatedFiles: true
+            }
+        },
+
         // Regular directories with folder-only deletions
         { path: "data/plugins", options: { deleteFoldersOnly: true } },
         { path: "data/templates", options: { deleteFoldersOnly: true } },

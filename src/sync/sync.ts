@@ -1104,18 +1104,6 @@ export class SyncManager {
 
         await Promise.all(promises);
 
-        // Handle missing assets
-        const remotesWithFile: [Remote, Remote] = [
-            remotes[0].withFile(new StorageItem("data/assets")),
-            remotes[1].withFile(new StorageItem("data/assets"))
-        ];
-
-        await this.syncDirectory(
-            remotesWithFile,
-            await this.getUnusedAssetsNames(remotes),
-            { avoidDeletions: true }
-        );
-
         reloadFiletree(remotes[0].url, SyncUtils.getHeaders(remotes[0].key));
         reloadFiletree(remotes[1].url, SyncUtils.getHeaders(remotes[1].key));
 
@@ -1703,28 +1691,6 @@ export class SyncManager {
                 break;
             }
         }
-    }
-
-    /**
-     * Get the names of unused assets from both local and remote devices.
-     * This function fetches the list of unused assets from both remotes and combines them.
-     * @param remotes An array of exactly two Remote objects containing remote server information.
-     * @returns A Promise that resolves to an array of asset names that are not used in either remote.
-     */
-    private async getUnusedAssetsNames(remotes: [Remote, Remote] = this.copyRemotes(this.remotes)): Promise<string[]> {
-        SyncUtils.checkRemotes(remotes);
-
-        const [unusedAssetsOne, unusedAssetsTwo] = await Promise.all([
-            getUnusedAssets(remotes[0].url, SyncUtils.getHeaders(remotes[0].key)),
-            getUnusedAssets(remotes[1].url, SyncUtils.getHeaders(remotes[1].key))
-        ]);
-
-        // Get the assets filenames by replacing anything before the last slash
-        const unusedAssetsNames = [...unusedAssetsOne.unusedAssets, ...unusedAssetsTwo.unusedAssets].map(asset => {
-            return asset.replace(/.*\//, "");
-        });
-
-        return unusedAssetsNames;
     }
 
     /**
