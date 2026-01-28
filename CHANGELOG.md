@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1
+
+- Fix history tracking for the remote
+- Rework the assets sync logic to be more reliable
+
 ## 1.5.0
 
 - Rewrite the sync code completely
