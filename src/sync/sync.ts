@@ -1139,10 +1139,12 @@ export class SyncManager {
 
         const timestamp = Math.floor(Date.now() / 1000);
 
-        this.remotes[0].syncHistory.set(remotes[0].instanceId, timestamp);
-        this.remotes[0].syncHistory.set(remotes[1].instanceId, timestamp);
-        this.remotes[1].syncHistory.set(remotes[1].instanceId, timestamp);
-        this.remotes[1].syncHistory.set(remotes[0].instanceId, timestamp);
+        remotes[0].syncHistory.set(remotes[0].instanceId, timestamp);
+        remotes[0].syncHistory.set(remotes[1].instanceId, timestamp);
+        remotes[1].syncHistory.set(remotes[0].instanceId, timestamp);
+        remotes[1].syncHistory.set(remotes[1].instanceId, timestamp);
+        this.remotes[0].syncHistory = remotes[0].syncHistory;
+        this.remotes[1].syncHistory = remotes[1].syncHistory;
 
         await SyncHistory.updateSyncHistories(this.remotes);
 
